@@ -16,7 +16,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture(autouse=True)
 def _force_stub(settings):
-    settings.ANTHROPIC_API_KEY = ""
+    settings.GEMINI_API_KEY = ""
     settings.AGENT_CONFIDENCE_THRESHOLD = 0.7
 
 

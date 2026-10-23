@@ -41,7 +41,7 @@ class SnippetViewSet(viewsets.GenericViewSet):
         candidates = services.feed_candidates(
             self._chain(), community=request.query_params.get("community"), tag=request.query_params.get("tag")
         )
-        ranked = recommend.rank(candidates, request.user)
+        ranked = recommend.rank(candidates, request.user, chain=self._chain())
         page = self.paginate_queryset(ranked)
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
 

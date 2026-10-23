@@ -41,8 +41,22 @@ start after it finishes.
 
 | URL | What |
 |---|---|
+| http://localhost:8000/ | **Dev UI** (`backend/frontend/index.html`): feed, compare two readers, profile, editor queue, AI newsroom, markets. |
 | http://localhost:8000/api/docs/ | Interactive API docs (Swagger). Try any endpoint here. |
 | http://localhost:8000/admin/ | Django admin. Log in with `admin@example.com` / `admin`. |
+
+Demo accounts created by `bootstrap` (local dev only; the dev UI has one-click buttons for them):
+
+| Account | Password | Profile |
+|---|---|---|
+| `admin@example.com` | `admin` | Superuser, can review everything |
+| `newcomer@example.com` | `demo-reader` | Newcomer who arrived 5 days ago; interests housing, work, health, services |
+| `fan@example.com` | `demo-reader` | Long-time resident; interests sports, culture, events |
+
+**Try the whole flow in the dev UI:**
+1. Click **Editor (admin)**, then go to **AI newsroom** → *Run pipeline*.
+2. Go to **Editor queue** and approve a few snippets. Approving an editor task publishes the Finnish version. For English, switch the filter to *Translation tasks* and approve the `en` ones too.
+3. Go to **Compare readers** → *Load both feeds*. With a `TYPESAFE_API_KEY` set, the two readers get different orders, and each card shows Jev's reasons.
 
 Useful commands (or use `make up`, `make logs`, `make down`; run `make help` for the full list):
 
@@ -54,7 +68,7 @@ docker compose down                    # stop (keeps data)
 docker compose down -v                 # stop AND wipe the database
 ```
 
-You only need `.env` to change settings (for example to add an Anthropic API key):
+You only need `.env` to change settings (for example to add a Gemini API key):
 `cp .env.example .env`, edit it, then run `docker compose up -d` again.
 
 ### Option B: Local Python, no Docker
@@ -80,8 +94,8 @@ Run the tests with `cd backend && ../.venv/bin/pytest` (or `make test`).
 | `address already in use` on 5433 / 6380 / 8000 | Another program uses that port. Change the left-hand number under `ports:` in `docker-compose.yml`. |
 | `setup` exited with an error | `docker compose logs setup` shows why. Usually a migration problem after pulling new code; `docker compose down -v` gives you a fresh database. |
 | `run_pipeline` reports 0 snippets | The scout skips articles it has already ingested. Wait for new articles, or `docker compose down -v` to start over. |
-| Translations look like `[en] Finnish text…` | No `ANTHROPIC_API_KEY` is set, so the offline stub LLM is running (see §5). |
-| MinIO says "No valid license" | MinIO is optional (§10). You don't need it. |
+| Translations look like `[en] Finnish text…` | No `GEMINI_API_KEY` is set, so the offline stub LLM is running (see §5). |
+| Newsroom runs fine but text still looks stubbed, with a key set | The run's errors (admin → Agents → Agent runs → state) show the Gemini error. Usually a wrong key or `LLM_MODEL` name; after editing `.env`, run `docker compose up -d`. |
 
 Ports on your machine: API **8000**, Postgres **5433** (user/pass/db `junction`), Redis **6380**.
 
@@ -105,7 +119,7 @@ flowchart LR
     redis --> worker
     worker --> db
     worker -->|fetch| rss["Kaleva RSS"]
-    worker -->|optional| llm["Anthropic API"]
+    worker -->|optional| llm["Google Gemini API"]
 ```
 
 - **web** answers HTTP requests. It never runs the slow AI pipeline itself; it queues a task.
@@ -220,7 +234,9 @@ The LLM may *raise* a tier, but never lower it below the keyword result.
 
 `graph/llm.py` gives every agent the same interface: `structured_call(prompt, Schema, fallback)`.
 
-- **With `ANTHROPIC_API_KEY` set** (in `.env`): it calls Claude (`LLM_MODEL`) and parses the answer into a pydantic schema (`graph/schemas.py`).
+- **With `GEMINI_API_KEY` set** (in `.env`): it calls Google's **Gemini Flash** model (`LLM_MODEL`, default `gemini-3.8-flash`) via LangChain's `ChatGoogleGenerativeAI`. Gemini returns JSON that matches a pydantic schema (`graph/schemas.py`) using its native structured output, so nothing has to be parsed out of free text.
+  - Get a key at [Google AI Studio](https://aistudio.google.com/apikey).
+  - To use a cheaper or older model, set `LLM_MODEL` (e.g. `gemini-3.5-flash-lite`). Model names are listed at [ai.google.dev/gemini-api/docs/models](https://ai.google.dev/gemini-api/docs/models).
 - **Without a key**: a deterministic **stub** runs each agent's `fallback` function instead:
   - Headlines come from the RSS title, facts from sentences that contain numbers, and risk from keywords.
   - "Translations" are just the Finnish text with an `[en]` prefix.
@@ -228,7 +244,7 @@ The LLM may *raise* a tier, but never lower it below the keyword result.
   The stub is there so the whole flow works offline, in tests and at demos without spending tokens. **For real output, set the API key.**
 - If the real API errors mid-run, that agent falls back to the stub for that item, and the run continues.
 
-To use another provider, add a branch in `get_llm()` that returns any LangChain chat model.
+To use another provider, add a wrapper class next to `GeminiLLM` in `graph/llm.py` and return it from `get_llm()`. Any LangChain chat model that supports `with_structured_output` works.
 
 ---
 
@@ -287,6 +303,7 @@ image_url, source_urls[], author, community, tags[], reader_needs[], risk_tier,
 published_at, verified_at, review_status, metrics{likes,shares,bookmarks,comments},
 ai_disclosure{ai_generated, roles[], reviewer, verified_at, machine_translated},
 correction_note, community_notes[]   ← only notes rated Helpful
+ranking{ranker, score, jev…}         ← why this card is here (see "Jev" below)
 ```
 
 **Language choice:** `?lang=`, otherwise the user's `preferred_language`, then Finnish, then English. Only approved versions are used.
@@ -301,6 +318,48 @@ score = 0.40 × interest match      (user's interest weights vs snippet tags)
 ```
 
 The weights are constants at the top of the file, so tune them freely.
+
+### Jev: AI ranking per reader
+
+When `TYPESAFE_API_KEY` is set, [Jev](https://docs.typesafe.ai/) re-ranks the top of the feed for each signed-in reader (`apps/feed/jev.py`). Jev is TypeSafe AI's model for fast structured decisions: it doesn't write text, it returns probabilities for questions you define, in roughly 0.1–0.5 s.
+
+```mermaid
+flowchart LR
+    C["200 newest published snippets"] --> H["Formula above<br/>(fast, every snippet)"]
+    H --> S["Top 30 shortlist"]
+    S --> J["Jev: one request per<br/>reader + snippet pair,<br/>sent in parallel"]
+    J --> B["Blend: 60% Jev + 40% formula"]
+    B --> F["Re-sorted shortlist,<br/>then the rest unchanged"]
+```
+
+Each request sends Jev a **state**: the reader's profile and the snippet. It asks four small questions about them:
+
+| Question | Type | Weight |
+|---|---|---|
+| `affects_reader`: does this news directly affect this reader's life, rights, money, health or plans? | yes/no probability (Noul) | 45% |
+| `matches_interests`: is it about one of their interests? | Noul | 25% |
+| `needs_action`: is there a deadline, registration or event they could act on? | Noul | 15% |
+| `urgency`: not time-sensitive / this month / this week / today | 4-level Score | 15% |
+
+`combine()` turns the four answers into a 0–1 relevance score using the weights above. Tune them in code, not in prompts. The final score is `JEV_WEIGHT × Jev + (1 − JEV_WEIGHT) × formula`.
+
+- **Fallback:** Jev never breaks the feed. A missing key, an anonymous reader, a timeout (`JEV_TIMEOUT`) or an error means that snippet keeps its formula score.
+- **Cost and speed:**
+  - Answers are cached per reader profile and snippet version for 6 hours (`JEV_CACHE_SECONDS`), so scrolling and re-opening the app don't repeat calls.
+  - The cache key includes the profile, so changing interests or situation triggers fresh answers.
+  - Only the top `JEV_TOP_K` (30) are sent.
+- **"Why am I seeing this?":** every card has a `ranking` field. The frontend can show it to the reader (for example "Affects you: 92%").
+
+  ```json
+  "ranking": {"ranker": "jev", "score": 0.71, "jev_relevance": 0.83,
+              "jev": {"affects_reader": 0.92, "matches_interests": 0.4, "needs_action": 0.88, "urgency": 2.1}}
+  ```
+
+  Without Jev it is `{"ranker": "heuristic", "score": …}`.
+- **Privacy:** Jev receives only the reader's situation, language, days since arrival, interest names, and community/municipality names. It never receives name, email, user id or coordinates (`reader_state()`). TypeSafe is an external US-based service, so mention it in the privacy notice before a public launch.
+- **Changing the questions:** edit `questions()` and `combine()` in `jev.py`. Keep each question small and specific; the TypeSafe docs recommend several atomic questions over one big one. You can try questions in the [TypeSafe Playground](https://console.typesafe.ai/playground) first.
+
+Tests use a fake client (`apps/feed/tests/test_jev.py`), so they don't need a key.
 
 **Interactions:** `POST /api/feed/snippets/{id}/interact/` with `{"kind": "like" | "unlike" | "bookmark" | "unbookmark" | "share" | "expand" | "read_through" | "view"}`.
 - The frontend should send `view` when a card is shown, `expand` when it's tapped open, and `read_through` when the user reaches the end.
@@ -378,7 +437,7 @@ The "different communities" check is a simple stand-in for X's bridging algorith
 
 `manage.py seed_markets` creates two Liiga games (Kärpät–Tappara, Ässät–Lukko) with markets and a fantasy contest.
 
-**Storage (optional MinIO):** snippet images are saved to `backend/media/` by default. To use S3-compatible storage, set `S3_BUCKET` and related keys in `.env` and run `docker compose --profile s3 up -d`. The MinIO image needs a free license key from min.io.
+**Storage:** uploaded files (snippet thumbnails, post images) are stored on local disk in `backend/media/` and served by Django at `/media/`. In Docker, that folder is the same one on your machine (the `backend/` folder is mounted into the containers), so files survive restarts. `backend/media/` is gitignored. There is no S3 or MinIO.
 
 ---
 
@@ -417,12 +476,15 @@ The same steps work in the Swagger UI at `/api/docs/`: click **Authorize** and p
 | `DATABASE_URL` | SQLite | Docker sets Postgres automatically |
 | `REDIS_URL` | `redis://localhost:6379/0` | Celery queue (Docker overrides) |
 | `CELERY_TASK_ALWAYS_EAGER` | `False` | `True` = run tasks inline, no worker (local mode). Docker always forces `False`. |
-| `ANTHROPIC_API_KEY` | empty | Empty = offline stub LLM |
-| `LLM_MODEL` | `claude-sonnet-5-5` | Model for all agents |
+| `GEMINI_API_KEY` | empty | Google Gemini key for the newsroom agents (`GOOGLE_API_KEY` also works). Empty = offline stub LLM |
+| `LLM_MODEL` | `gemini-3.8-flash` | Gemini model for all agents |
 | `AGENT_CONFIDENCE_THRESHOLD` | `0.7` | Below this → escalate to High risk |
 | `AGENT_WEBHOOK_TOKEN` | `change-me` | Auth for `POST /api/agents/webhook/complete/` |
-| `S3_*` | empty | Optional S3/MinIO for images |
 | `GOOGLE_CLIENT_ID/SECRET` | empty | Google login |
+| `TYPESAFE_API_KEY` | empty | Jev feed ranking; empty = formula only. Get one at console.typesafe.ai |
+| `FEED_RANKER` | `jev` | `heuristic` turns Jev off even with a key |
+| `JEV_MODEL` / `JEV_TOP_K` / `JEV_WEIGHT` | `jev-latest` / `30` / `0.6` | Model, shortlist size, Jev's share of the final score |
+| `JEV_TIMEOUT` / `JEV_CACHE_SECONDS` | `2.0` / `21600` | Seconds per call / cache lifetime |
 | `MARKETS_SIGNUP_GRANT` | `1000` | Free points for new wallets |
 | `DJANGO_SUPERUSER_EMAIL/PASSWORD` | `admin@example.com` / `admin` | Dev admin created by `bootstrap` |
 
@@ -434,7 +496,7 @@ The same steps work in the Swagger UI at `/api/docs/`: click **Authorize** and p
 - **Standards checklist:** a proposal. Confirm it against the JSN Journalist's Guidelines (FR-3.13).
 - **`news_editor` and `standards_editor` approvals:** these roles exist but aren't required yet. FR-3.6 wants a news editor to approve the daily plan and a standards editor to give final sign-off; add them to `requirements_for()` if you need them.
 - **Request changes:** "request changes" doesn't yet trigger the agents to redo the draft (TODO in `editorial/services.py`).
-- **Recommendations:** they use tag overlap; switch to embedding similarity (TODO in `recommend.py`). The embeddings are currently a hashing stub (`graph/text.py`).
+- **Recommendations:** Jev only re-ranks the top 30. The formula that builds that shortlist still uses tag overlap; switch it to embedding similarity (TODO in `recommend.py`). The embeddings are currently a hashing stub (`graph/text.py`).
 - **Reports:** a single reader report unpublishes a snippet instantly. Consider a threshold.
 - **Community Notes:** perspective detection is simplified (see §9).
 - **Onboarding:** turning a postal code into a municipality, and auto-joining the matching community, are TODOs.

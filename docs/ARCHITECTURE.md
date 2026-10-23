@@ -56,7 +56,7 @@ mounted at `/api/<app>/` by `config/urls.py`. All models inherit
 
 ### feed
 - `SourceDocument` — raw ingested item: `url`, `title`, `body`, `publisher`, `fetched_at`, `content_hash`, `version` (int), `source_feed` FK `communities.SourceFeed` nullable.
-- `Snippet` — language-neutral story record: `community` FK, `source_documents` M2M `SourceDocument`, `tags` JSON list, `reader_needs` JSON list, `risk_tier`, `review_status`, `confidence` (float 0–1), `embedding` JSON list[float], `geo_bbox` JSON, `image` (ImageField → S3/MinIO), `published_at`, `verified_at`, `expires_at`, `review_by`, `arrival_day_bucket` (nullable: `first_48h`/`first_week`/`first_month`), `ai_generated` (bool), `created_by_agent_run` FK `agents.AgentRun` nullable.
+- `Snippet` — language-neutral story record: `community` FK, `source_documents` M2M `SourceDocument`, `tags` JSON list, `reader_needs` JSON list, `risk_tier`, `review_status`, `confidence` (float 0–1), `embedding` JSON list[float], `geo_bbox` JSON, `image` (ImageField, local disk under `MEDIA_ROOT`), `published_at`, `verified_at`, `expires_at`, `review_by`, `arrival_day_bucket` (nullable: `first_48h`/`first_week`/`first_month`), `ai_generated` (bool), `created_by_agent_run` FK `agents.AgentRun` nullable.
 - `SnippetVersion` — per-language text (FR-3.9): `snippet`, `language`, `headline`, `summary`, `key_facts` JSON list, `explainer` JSON `{situation: text}`, `background` (text from context library, kept separate), `source_version` (int), `review_status`, `approved_by`, `approved_at`, `is_machine_translated`. Unique (`snippet`, `language`).
 - `Interaction` — `user`, `snippet`, `kind` (`like`/`share`/`bookmark`/`expand`/`read_through`/`view`), unique for like/bookmark.
 - `Comment` — `user`, `snippet`, `parent`, `body`.
@@ -66,7 +66,7 @@ mounted at `/api/<app>/` by `config/urls.py`. All models inherit
 ### agents
 - `AgentRun` — `community`, `trigger` (`schedule`/`manual`/`community_signal`), `status`, `started_at`, `finished_at`, `state` JSON (final LangGraph state), `error`.
 - `AgentStep` — `run`, `agent` (`scout`/`assignment`/`synthesizer`/`explainer`/`translator`/`fact_checker`/`standards`/`tagging`), `input` JSON, `output` JSON, `snippet` FK nullable, `duration_ms`.
-- Graph in `apps/agents/graph/`: `state.py` (TypedDict), `nodes/*.py` one per agent, `build.py` (`build_graph()`), `llm.py` (provider-agnostic client; Anthropic default, deterministic stub when no API key).
+- Graph in `apps/agents/graph/`: `state.py` (TypedDict), `nodes/*.py` one per agent, `build.py` (`build_graph()`), `llm.py` (provider-agnostic client; Google Gemini Flash by default, deterministic stub when no API key).
 - Celery tasks in `apps/agents/tasks.py`: `ingest_and_run(community_id)`, `run_graph_for_sources(community_id, source_ids)`, `expire_snippets()`.
 - Persist via `apps.agents.services.persist_graph_result(run, state)` → creates `Snippet` + `SnippetVersion` in `pending_review` and calls `apps.editorial.services.enqueue(snippet, reason=...)`.
 

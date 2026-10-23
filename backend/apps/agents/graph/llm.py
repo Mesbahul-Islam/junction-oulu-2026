@@ -1,7 +1,7 @@
 """Provider-agnostic LLM access for the newsroom agents.
 
-* ``get_llm()`` returns a LangChain ``ChatAnthropic`` (model ``settings.LLM_MODEL``)
-  when ``settings.ANTHROPIC_API_KEY`` is set, otherwise a deterministic
+* ``get_llm()`` returns a LangChain ``ChatGoogleGenerativeAI`` (Gemini Flash, model
+  ``settings.LLM_MODEL``) when ``settings.GEMINI_API_KEY`` is set, otherwise a deterministic
   ``StubLLM`` so the whole pipeline runs offline (demos, CI, tests).
 * ``structured_call(prompt, schema, fallback=...)`` returns an instance of the
   pydantic ``schema``. Every node passes a deterministic ``fallback`` callable;
@@ -48,20 +48,20 @@ class StubLLM:
         return fallback() if fallback else ""
 
 
-class AnthropicLLM:
-    """Thin wrapper over ``langchain_anthropic.ChatAnthropic``."""
+class GeminiLLM:
+    """Thin wrapper over ``langchain_google_genai.ChatGoogleGenerativeAI`` (Gemini Flash)."""
 
     is_stub = False
 
     def __init__(self, api_key: str, model: str):
-        from langchain_anthropic import ChatAnthropic
+        from langchain_google_genai import ChatGoogleGenerativeAI
 
         self.model_name = model
-        self.chat = ChatAnthropic(
+        self.chat = ChatGoogleGenerativeAI(
             model=model,
-            api_key=api_key,
+            google_api_key=api_key,
             temperature=0,
-            max_tokens=4096,
+            max_output_tokens=4096,
             timeout=90,
             max_retries=2,
         )
@@ -72,7 +72,7 @@ class AnthropicLLM:
         return [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)]
 
     def structured(self, prompt: str, schema: type[T], fallback: Callable[[], T | dict] | None = None) -> T:
-        # json_schema (native structured outputs): forced tool calling is unsupported on newer models
+        # json_schema = Gemini's native structured output (response schema), no tool-call parsing
         runnable = self.chat.with_structured_output(schema, method="json_schema")
         result = runnable.invoke(self._messages(prompt))
         if isinstance(result, dict):
@@ -94,16 +94,16 @@ def get_llm(force_stub: bool = False):
     """Return the configured LLM client (cached per api-key/model)."""
     from django.conf import settings
 
-    api_key = getattr(settings, "ANTHROPIC_API_KEY", "") or ""
-    model = getattr(settings, "LLM_MODEL", "claude-sonnet-5-5")
+    api_key = getattr(settings, "GEMINI_API_KEY", "") or ""
+    model = getattr(settings, "LLM_MODEL", "gemini-3.8-flash")
     if force_stub or not api_key:
         return StubLLM()
     cache_key = (api_key, model)
     if cache_key not in _cache:
         try:
-            _cache[cache_key] = AnthropicLLM(api_key, model)
+            _cache[cache_key] = GeminiLLM(api_key, model)
         except Exception:  # pragma: no cover - import/config problems
-            logger.exception("Could not initialise ChatAnthropic; using StubLLM")
+            logger.exception("Could not initialise ChatGoogleGenerativeAI; using StubLLM")
             return StubLLM()
     return _cache[cache_key]
 

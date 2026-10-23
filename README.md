@@ -18,6 +18,7 @@ docker compose up --build -d
 
 The first start migrates the database, loads demo data (the Oulu community and Kaleva RSS feeds) and creates a dev admin.
 
+- **Dev UI: http://localhost:8000/** (feed, compare readers, editor queue, AI newsroom, markets)
 - API docs: http://localhost:8000/api/docs/
 - Admin: http://localhost:8000/admin/ (`admin@example.com` / `admin`)
 
@@ -40,8 +41,8 @@ cd backend && ../.venv/bin/python manage.py bootstrap && ../.venv/bin/python man
 ## Stack
 
 Django 5.2 + DRF, JWT and Google OAuth, Celery + Redis, LangGraph agents
-(Anthropic, or an offline stub LLM when no key is set), Postgres (SQLite locally),
-and optional MinIO/S3 for images.
+(Google Gemini Flash, or an offline stub LLM when no key is set), Jev (TypeSafe AI)
+for feed ranking, Postgres (SQLite locally), and local disk storage for uploaded files.
 
 ## Tests
 

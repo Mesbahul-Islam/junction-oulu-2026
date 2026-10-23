@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 MAX_ENTRIES_PER_FEED = 20
 MAX_SIGNALS = 10
+BACKLOG_HOURS = 72  # unused articles stay candidates this long
+MAX_BACKLOG = 150
 USER_AGENT = "JunctionOuluNewsroomBot/0.1 (+https://example.invalid/bot)"
 SIGNAL_KINDS = ("question", "topic_suggestion", "tip", "bridge_story")
 
@@ -64,6 +66,7 @@ def scout(state: NewsroomState) -> dict[str, Any]:
         raw_items += load_source_documents(state["source_ids"])
     elif state.get("fetch", True):
         raw_items += fetch_community_feeds(community_obj, errors)
+        raw_items += load_backlog(community_obj, exclude={r["key"] for r in raw_items})
 
     signals: list[RawItem] = []
     if not state.get("source_ids"):
@@ -121,6 +124,27 @@ def load_source_documents(source_ids: list[int]) -> list[RawItem]:
 
     SourceDocument = apps.get_model("feed", "SourceDocument")
     return [doc_to_item(d) for d in SourceDocument.objects.filter(pk__in=source_ids)]
+
+
+def load_backlog(community_obj, exclude: set[str]) -> list[RawItem]:
+    """Recently stored articles that no snippet was made from yet.
+
+    A run only turns the top `max_items` into snippets; without this, the rest of
+    a fetch would never be considered again. The assignment agent re-ranks them
+    together with fresh items, and its freshness boost keeps new news on top.
+    """
+    from datetime import timedelta
+
+    from django.apps import apps
+    from django.utils import timezone
+
+    SourceDocument = apps.get_model("feed", "SourceDocument")
+    qs = SourceDocument.objects.filter(
+        source_feed__community=community_obj,
+        fetched_at__gte=timezone.now() - timedelta(hours=BACKLOG_HOURS),
+        snippets__isnull=True,
+    ).order_by("-fetched_at")[:MAX_BACKLOG]
+    return [item for item in map(doc_to_item, qs) if item["key"] not in exclude]
 
 
 def load_signals(community_obj) -> list[RawItem]:

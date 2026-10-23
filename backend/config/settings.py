@@ -110,21 +110,10 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Uploaded files (snippet thumbnails, post images) are stored on local disk in
+# backend/media/ and served by Django at /media/ (see config/urls.py).
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
-
-# Snippet thumbnails: MinIO / S3 when configured, local filesystem otherwise.
-AWS_STORAGE_BUCKET_NAME = env("S3_BUCKET", default="")
-if AWS_STORAGE_BUCKET_NAME:
-    AWS_S3_ENDPOINT_URL = env("S3_ENDPOINT_URL", default=None)
-    AWS_ACCESS_KEY_ID = env("S3_ACCESS_KEY", default="")
-    AWS_SECRET_ACCESS_KEY = env("S3_SECRET_KEY", default="")
-    AWS_S3_CUSTOM_DOMAIN = env("S3_PUBLIC_DOMAIN", default=None)
-    AWS_QUERYSTRING_AUTH = False
-    STORAGES = {
-        "default": {"BACKEND": "storages.backends.s3.S3Storage"},
-        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
-    }
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -153,11 +142,21 @@ CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_TIMEZONE = TIME_ZONE
 
-# LLM / agents
-ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
-LLM_MODEL = env("LLM_MODEL", default="claude-sonnet-5-5")
+# LLM / agents: Google Gemini Flash. Without a key the agents run on an offline stub.
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="") or env("GOOGLE_API_KEY", default="")
+LLM_MODEL = env("LLM_MODEL", default="gemini-3.8-flash")
 AGENT_CONFIDENCE_THRESHOLD = env.float("AGENT_CONFIDENCE_THRESHOLD", default=0.7)
 AGENT_WEBHOOK_TOKEN = env("AGENT_WEBHOOK_TOKEN", default="change-me")
+
+# Feed personalisation with Jev (TypeSafe AI). Without a key the heuristic ranker is used.
+TYPESAFE_API_KEY = env("TYPESAFE_API_KEY", default="")
+FEED_RANKER = env("FEED_RANKER", default="jev")  # "jev" or "heuristic"
+JEV_MODEL = env("JEV_MODEL", default="jev-latest")
+JEV_TOP_K = env.int("JEV_TOP_K", default=30)  # shortlist size Jev re-ranks per request
+JEV_WEIGHT = env.float("JEV_WEIGHT", default=0.6)  # share of Jev in the blended score
+JEV_TIMEOUT = env.float("JEV_TIMEOUT", default=2.0)  # seconds per call
+JEV_CONCURRENCY = env.int("JEV_CONCURRENCY", default=16)
+JEV_CACHE_SECONDS = env.int("JEV_CACHE_SECONDS", default=6 * 3600)
 
 # Prediction markets: virtual points only (FR-5.2)
 MARKETS_SIGNUP_GRANT = env.int("MARKETS_SIGNUP_GRANT", default=1000)

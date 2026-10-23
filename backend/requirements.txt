@@ -11,9 +11,7 @@ django-cors-headers==4.9.0
 django-filter==26.2
 drf-spectacular==0.30.0
 
-# Storage / DB
-django-storages[s3]==1.14.6
-boto3==1.43.118
+# DB / images (files are stored on local disk)
 Pillow==13.0.0
 psycopg[binary]==3.3.6
 
@@ -25,10 +23,11 @@ django-celery-beat==2.9.0
 # AI agents
 langgraph==1.2.16
 langchain-core==1.7.0
-langchain-anthropic==1.7.6
+langchain-google-genai==4.4.2  # Gemini Flash
 pydantic==2.14.1
 feedparser==6.0.14
 httpx==0.28.1
+typesafe-sdk==0.7.5  # Jev feed ranker
 
 # Tests
 pytest==9.1.1

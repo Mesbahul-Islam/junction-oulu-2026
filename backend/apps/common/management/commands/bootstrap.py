@@ -4,11 +4,20 @@ Safe to run repeatedly (every step is idempotent). Docker runs it on every
 `docker compose up` via the one-shot `setup` service.
 """
 
+import datetime
 import os
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
+
+# Local demo accounts (also listed in docs/GUIDE.md). Never use these anywhere shared.
+DEMO_READER_PASSWORD = "demo-reader"
+DEMO_READERS = [
+    # email, situation, interest slugs, days since arrival in Finland
+    ("newcomer@example.com", "newcomer", ["housing", "work", "health", "services"], 5),
+    ("fan@example.com", "resident", ["sports", "culture", "events"], None),
+]
 
 
 class Command(BaseCommand):
@@ -23,7 +32,29 @@ class Command(BaseCommand):
             call_command("seed_demo")
             call_command("seed_markets")
         self._ensure_admin()
+        if not no_seed:
+            self._ensure_demo_readers()
         self.stdout.write(self.style.SUCCESS("Bootstrap complete."))
+
+    def _ensure_demo_readers(self):
+        """Two readers with opposite profiles, to compare personalised feeds (local dev only)."""
+        from apps.accounts.models import Interest
+        from apps.communities.models import CommunityGroup, Membership
+
+        User = get_user_model()
+        oulu = CommunityGroup.objects.filter(slug="oulu").first()
+        for email, situation, interests, days in DEMO_READERS:
+            if User.objects.filter(email=email).exists():
+                continue
+            user = User.objects.create_user(
+                email=email, password=DEMO_READER_PASSWORD, reader_situation=situation, preferred_language="en",
+                arrival_date=datetime.date.today() - datetime.timedelta(days=days) if days is not None else None,
+                onboarded=True,
+            )
+            user.profile.interests.set(Interest.objects.filter(slug__in=interests))
+            if oulu:
+                Membership.objects.get_or_create(user=user, community=oulu)
+            self.stdout.write(f"Created demo reader {email}.")
 
     def _ensure_admin(self):
         email = os.environ.get("DJANGO_SUPERUSER_EMAIL")

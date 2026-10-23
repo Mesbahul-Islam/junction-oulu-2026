@@ -1,6 +1,6 @@
 # `docker compose up --build` starts everything; no other steps needed.
 # Startup order: db + redis -> setup (migrate, seed, admin user; then exits) -> web, worker, beat.
-# Optional S3 storage: `docker compose --profile s3 up` (see docs/GUIDE.md, "Storage").
+# Uploaded files live in backend/media/ on your machine (mounted into the containers).
 
 x-backend: &backend
   build: ./backend
@@ -70,18 +70,5 @@ services:
       setup: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
 
-  # Optional S3-compatible storage for snippet thumbnails. The AIStor image
-  # needs a (free) license key from min.io, otherwise it refuses S3 calls.
-  minio:
-    image: quay.io/minio/aistor/minio
-    profiles: [s3]
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio12345
-    ports: ["9000:9000", "9001:9001"]
-    volumes: [miniodata:/data]
-
 volumes:
   pgdata:
-  miniodata:

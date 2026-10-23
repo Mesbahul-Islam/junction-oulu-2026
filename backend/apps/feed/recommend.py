@@ -14,8 +14,11 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 
 from django.apps import apps
+from django.conf import settings
 from django.db.models import Count
 from django.utils import timezone
+
+from . import jev
 
 W_INTEREST = 0.40
 W_GEO = 0.25
@@ -140,12 +143,46 @@ def score(snippet, user, *, ctx: UserContext | None = None, stats: EngagementSta
     )
 
 
-def rank(snippets, user) -> list:
-    """Sort a candidate window by score (desc). Expects community select_related."""
+def rank(snippets, user, chain=None) -> list:
+    """Sort a candidate window by score (desc). Expects community select_related.
+
+    When Jev is enabled and the user is signed in, the top JEV_TOP_K are re-ranked
+    by Jev (see jev.py); everything below the shortlist keeps its heuristic order.
+    Each snippet gets a `ranking` attribute explaining its position (shown on the card).
+    """
     snippets = list(snippets)
     ctx = user_context(user)
     stats = engagement_stats([s.pk for s in snippets])
     now = timezone.now()
     scored = [(score(s, user, ctx=ctx, stats=stats[s.pk], now=now), s) for s in snippets]
     scored.sort(key=lambda p: p[0], reverse=True)
+    for value, s in scored:
+        s.ranking = {"ranker": "heuristic", "score": round(value, 4)}
+
+    if jev.enabled() and user is not None and user.is_authenticated and chain:
+        scored = _rerank_with_jev(scored, user, chain)
     return [s for _, s in scored]
+
+
+def _rerank_with_jev(scored, user, chain):
+    from .services import pick_version
+
+    k = settings.JEV_TOP_K
+    shortlist, rest = scored[:k], scored[k:]
+    pairs = [(s, v) for _, s in shortlist if (v := pick_version(s.versions.all(), chain))]
+    results = jev.score_many(user, pairs)
+    w = settings.JEV_WEIGHT
+    reranked = []
+    for value, s in shortlist:
+        if s.pk in results:
+            r = results[s.pk]
+            value = w * r["relevance"] + (1 - w) * value
+            s.ranking = {
+                "ranker": "jev",
+                "score": round(value, 4),
+                "jev_relevance": round(r["relevance"], 4),
+                "jev": {k: round(v, 3) for k, v in r["answers"].items()},
+            }
+        reranked.append((value, s))
+    reranked.sort(key=lambda p: p[0], reverse=True)
+    return reranked + rest

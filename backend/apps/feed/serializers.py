@@ -57,6 +57,8 @@ class SnippetCardSerializer(serializers.Serializer):
                 "machine_translated": bool(version and version.is_machine_translated),
             },
             "correction_note": latest.what_changed if latest else None,
+            # "Why am I seeing this?": set by recommend.rank() on feed lists only.
+            "ranking": getattr(snippet, "ranking", None),
             "community_notes": [
                 {"id": n.pk, "claim_summary": n.claim_summary, "context": n.context, "citation_urls": n.citation_urls}
                 for n in snippet.community_notes.all()  # prefetched: status == helpful only
