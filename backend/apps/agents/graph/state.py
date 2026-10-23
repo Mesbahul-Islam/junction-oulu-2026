@@ -120,6 +120,7 @@ class NewsroomState(TypedDict, total=False):
 
     # --- community knowledge loaded by scout ------------------------------
     glossary: list[dict[str, Any]]  # {language, term_fi, term, note}
+    audience_interests: dict[str, float]  # interest slug -> share of community members who chose it
     context_entries: list[dict[str, Any]]  # {id, language, topic, body}
 
     # --- pipeline data ------------------------------------------------------

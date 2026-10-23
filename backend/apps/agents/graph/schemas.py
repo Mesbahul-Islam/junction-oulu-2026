@@ -48,3 +48,22 @@ class BackTranslationOut(BaseModel):
     meaning_preserved: bool = Field(description="True if the meaning matches the Finnish original")
     similarity: float = Field(description="0-1 semantic similarity to the Finnish original")
     issues: list[str] = Field(default_factory=list, description="Concrete meaning differences, if any")
+
+
+# --- Batched outputs: one LLM call covers every target language of a story ---
+
+
+class LanguageTranslation(TranslationOut):
+    language: str = Field(description="Language code this translation is in, e.g. en, sv, uk")
+
+
+class TranslationsOut(BaseModel):
+    translations: list[LanguageTranslation] = Field(description="Exactly one entry per requested language")
+
+
+class LanguageBackTranslation(BackTranslationOut):
+    language: str = Field(description="Language code of the translation that was back-translated")
+
+
+class BackTranslationsOut(BaseModel):
+    checks: list[LanguageBackTranslation] = Field(description="Exactly one entry per translation given")

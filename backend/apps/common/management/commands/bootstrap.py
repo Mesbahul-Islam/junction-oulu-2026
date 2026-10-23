@@ -14,9 +14,9 @@ from django.core.management.base import BaseCommand
 # Local demo accounts (also listed in docs/GUIDE.md). Never use these anywhere shared.
 DEMO_READER_PASSWORD = "demo-reader"
 DEMO_READERS = [
-    # email, situation, interest slugs, days since arrival in Finland
-    ("newcomer@example.com", "newcomer", ["housing", "work", "health", "services"], 5),
-    ("fan@example.com", "resident", ["sports", "culture", "events"], None),
+    # email, situation, language, interest slugs, days since arrival in Finland
+    ("newcomer@example.com", "newcomer", "uk", ["housing", "work", "health", "services"], 5),
+    ("fan@example.com", "resident", "fi", ["sports", "culture", "events"], None),
 ]
 
 
@@ -43,11 +43,11 @@ class Command(BaseCommand):
 
         User = get_user_model()
         oulu = CommunityGroup.objects.filter(slug="oulu").first()
-        for email, situation, interests, days in DEMO_READERS:
+        for email, situation, language, interests, days in DEMO_READERS:
             if User.objects.filter(email=email).exists():
                 continue
             user = User.objects.create_user(
-                email=email, password=DEMO_READER_PASSWORD, reader_situation=situation, preferred_language="en",
+                email=email, password=DEMO_READER_PASSWORD, reader_situation=situation, preferred_language=language,
                 arrival_date=datetime.date.today() - datetime.timedelta(days=days) if days is not None else None,
                 onboarded=True,
             )

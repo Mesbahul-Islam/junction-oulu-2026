@@ -129,8 +129,3 @@ def build_graph():
         previous = name
     graph.add_edge(previous, END)
     return graph.compile(name="newsroom")
-
-
-def run_pipeline(initial_state: NewsroomState) -> NewsroomState:
-    """Convenience: build + invoke, returning the final state."""
-    return build_graph().invoke(initial_state)

@@ -36,15 +36,3 @@ def test_trigger_run_is_staff_only_and_async(community, staff_client, monkeypatc
     assert staff_client.get("/api/agents/runs/").status_code == 200
     detail = staff_client.get(f"/api/agents/runs/{run.pk}/").json()
     assert detail["steps"] == []
-
-
-def test_webhook_requires_token(community, settings):
-    settings.AGENT_WEBHOOK_TOKEN = "s3cret"
-    run = AgentRun.objects.create(community=community)
-    client = APIClient()
-    body = {"run_id": run.pk, "status": "failed", "error": "worker crashed"}
-    assert client.post("/api/agents/webhook/complete/", body, format="json").status_code == 403
-    resp = client.post("/api/agents/webhook/complete/", body, format="json", HTTP_X_AGENT_TOKEN="s3cret")
-    assert resp.status_code == 200
-    run.refresh_from_db()
-    assert run.status == "failed" and run.error == "worker crashed"

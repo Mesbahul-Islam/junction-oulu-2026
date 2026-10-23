@@ -44,8 +44,9 @@ def scout(state: NewsroomState) -> dict[str, Any]:
             "signals": signals,
             "glossary": state.get("glossary") or [],
             "context_entries": state.get("context_entries") or [],
+            "audience_interests": state.get("audience_interests") or {},
             "source_language": state.get("source_language") or SOURCE_LANGUAGE.value,
-            "language_targets": _targets(state, community),
+            "language_targets": _targets(state, community, state.get("audience_languages") or []),
         }
 
     from django.apps import apps
@@ -78,18 +79,21 @@ def scout(state: NewsroomState) -> dict[str, Any]:
         "raw_items": raw_items,
         "signals": signals,
         "glossary": load_glossary(community_obj),
+        "audience_interests": load_audience_interests(community_obj),
         "context_entries": load_context_entries(community_obj),
         "source_language": state.get("source_language") or SOURCE_LANGUAGE.value,
-        "language_targets": _targets(state, community),
+        "language_targets": _targets(state, community, load_audience_languages(community_obj)),
         "errors": list(state.get("errors") or []) + errors,
     }
 
 
-def _targets(state: NewsroomState, community: dict) -> list[str]:
+def _targets(state: NewsroomState, community: dict, audience_languages: list[str]) -> list[str]:
+    """Languages to translate into: the community's configured languages plus every
+    language its readers chose in their profile, so each reader gets their own (FR-3.9)."""
     src = state.get("source_language") or SOURCE_LANGUAGE.value
     targets = state.get("language_targets")
     if targets is None:
-        targets = community.get("languages") or []
+        targets = list(community.get("languages") or []) + list(audience_languages)
     out: list[str] = []
     for lang in targets:
         lang = str(lang)
@@ -178,6 +182,31 @@ def load_signals(community_obj) -> list[RawItem]:
             }
         )
     return items
+
+
+def load_audience_languages(community_obj) -> list[str]:
+    """Preferred languages of the community's members (from their profiles)."""
+    from django.apps import apps
+
+    User = apps.get_model("accounts", "User")
+    langs = User.objects.filter(memberships__community=community_obj).values_list("preferred_language", flat=True)
+    return sorted({lang for lang in langs if lang})
+
+
+def load_audience_interests(community_obj) -> dict[str, float]:
+    """Interest slug -> share of the community's members who chose it (for story relevance)."""
+    from collections import Counter
+
+    from django.apps import apps
+
+    Membership = apps.get_model("communities", "Membership")
+    members = list(Membership.objects.filter(community=community_obj).values_list("user_id", flat=True))
+    if not members:
+        return {}
+    Profile = apps.get_model("accounts", "Profile")
+    counts = Counter(Profile.objects.filter(user_id__in=members).values_list("interests__slug", flat=True))
+    counts.pop(None, None)
+    return {slug: round(n / len(members), 3) for slug, n in counts.items()}
 
 
 def load_glossary(community_obj) -> list[dict]:

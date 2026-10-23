@@ -2,16 +2,11 @@
 
 from rest_framework import exceptions, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
 
 from . import services
 from .models import CommunityNote
 from .serializers import CommunityNoteSerializer, NoteRatingSerializer, PublicNoteSerializer
-
-
-class NotePagination(CursorPagination):
-    ordering = "-created_at"
 
 
 class CommunityNoteViewSet(
@@ -22,7 +17,6 @@ class CommunityNoteViewSet(
     GET /api/notes/notes/public/ (?snippet=, ?post=) — helpful notes only."""
 
     serializer_class = CommunityNoteSerializer
-    pagination_class = NotePagination
     filterset_fields = ["snippet", "post", "status"]
 
     def get_queryset(self):

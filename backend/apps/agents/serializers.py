@@ -45,10 +45,3 @@ class AgentRunCreateSerializer(serializers.Serializer):
         if not apps.get_model("communities", "CommunityGroup").objects.filter(pk=value).exists():
             raise serializers.ValidationError("Unknown community.")
         return value
-
-
-class WebhookCompleteSerializer(serializers.Serializer):
-    run_id = serializers.IntegerField()
-    status = serializers.ChoiceField(choices=[AgentRun.Status.SUCCEEDED, AgentRun.Status.FAILED])
-    state = serializers.DictField(required=False)
-    error = serializers.CharField(required=False, allow_blank=True)

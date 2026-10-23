@@ -66,7 +66,7 @@ mounted at `/api/<app>/` by `config/urls.py`. All models inherit
 ### agents
 - `AgentRun` — `community`, `trigger` (`schedule`/`manual`/`community_signal`), `status`, `started_at`, `finished_at`, `state` JSON (final LangGraph state), `error`.
 - `AgentStep` — `run`, `agent` (`scout`/`assignment`/`synthesizer`/`explainer`/`translator`/`fact_checker`/`standards`/`tagging`), `input` JSON, `output` JSON, `snippet` FK nullable, `duration_ms`.
-- Graph in `apps/agents/graph/`: `state.py` (TypedDict), `nodes/*.py` one per agent, `build.py` (`build_graph()`), `llm.py` (provider-agnostic client; Google Gemini Flash by default, deterministic stub when no API key).
+- Graph in `apps/agents/graph/`: `state.py` (TypedDict), `nodes/*.py` one per agent, `build.py` (`build_graph()`), `llm.py` (model-agnostic via LangChain `init_chat_model`; configured by `LLM_PROVIDER` + `LLM_MODEL` + `LLM_API_KEY`, optional per-agent `LLM_MODEL_<AGENT>`; deterministic stub when no model/key/package; `manage.py llm_check`).
 - Celery tasks in `apps/agents/tasks.py`: `ingest_and_run(community_id)`, `run_graph_for_sources(community_id, source_ids)`, `expire_snippets()`.
 - Persist via `apps.agents.services.persist_graph_result(run, state)` → creates `Snippet` + `SnippetVersion` in `pending_review` and calls `apps.editorial.services.enqueue(snippet, reason=...)`.
 

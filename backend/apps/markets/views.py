@@ -28,10 +28,6 @@ from .services.settlement import ingest_final_score, resolve_binary, void_market
 from .services.trading import enter_fantasy_contest, place_binary_order
 
 
-class NewestFirst(CursorPagination):
-    ordering = "-created_at"
-
-
 class ByStartTime(CursorPagination):
     ordering = "starts_at"
 
@@ -69,7 +65,6 @@ class SportEventViewSet(viewsets.ReadOnlyModelViewSet):
 class EventMarketViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = EventMarket.objects.select_related("event", "contest")
     serializer_class = EventMarketSerializer
-    pagination_class = NewestFirst
     filterset_fields = ["event", "kind", "status"]
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated],
@@ -100,7 +95,6 @@ class EventMarketViewSet(viewsets.ReadOnlyModelViewSet):
 class MyPositionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PositionSerializer
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = NewestFirst
     filterset_fields = ["market", "status", "side"]
 
     def get_queryset(self):
@@ -117,7 +111,6 @@ class PlayerViewSet(viewsets.ReadOnlyModelViewSet):
 class FantasyContestViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = FantasyContest.objects.select_related("market__event")
     serializer_class = FantasyContestSerializer
-    pagination_class = NewestFirst
     filterset_fields = ["market__status"]
 
     @action(detail=True, methods=["get"])
@@ -151,7 +144,6 @@ class FantasyContestViewSet(viewsets.ReadOnlyModelViewSet):
 class MyFantasyEntryViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     serializer_class = FantasyEntrySerializer
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = NewestFirst
 
     def get_queryset(self):
         return FantasyEntry.objects.filter(user=self.request.user).prefetch_related("players")
@@ -170,7 +162,6 @@ class MyWalletView(APIView):
 class MyLedgerViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = LedgerEntrySerializer
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = NewestFirst
     filterset_fields = ["kind"]
 
     def get_queryset(self):

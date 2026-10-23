@@ -9,8 +9,10 @@ from apps.common.choices import Language, ReviewStatus
 
 from .models import ArrivalBucket, Interaction, Snippet, SnippetReport, SnippetVersion
 
-# FR-3.9: requester's preferred language first, then Finnish (source), then English.
-FALLBACK_LANGUAGES = [Language.FINNISH, Language.ENGLISH]
+# FR-3.9: each reader gets their profile language; if that version isn't approved yet,
+# English (most newcomers read it), then the Finnish original.
+FALLBACK_LANGUAGES = [Language.ENGLISH, Language.FINNISH]
+SUPPORTED_LANGUAGES = {lang.value for lang in Language}
 VISIBLE_VERSION_STATUSES = [ReviewStatus.APPROVED, ReviewStatus.PUBLISHED]
 CANDIDATE_WINDOW = 200  # newest N published snippets are ranked per request
 
@@ -23,13 +25,33 @@ def language_chain(preferred) -> list[str]:
 
 
 def requester_language(request) -> str:
+    """The reader's language, chosen automatically: profile, else the browser's languages.
+
+    ``?lang=`` still overrides it (handy for testing and editors previewing a version).
+    """
     user = getattr(request, "user", None)
     explicit = request.query_params.get("lang") if hasattr(request, "query_params") else None
-    if explicit:
+    if explicit in SUPPORTED_LANGUAGES:
         return explicit
-    if user is not None and user.is_authenticated:
+    if user is not None and user.is_authenticated and user.preferred_language:
         return user.preferred_language
-    return Language.FINNISH
+    return browser_language(request.META.get("HTTP_ACCEPT_LANGUAGE", "")) or Language.FINNISH
+
+
+def browser_language(header: str) -> str | None:
+    """First supported language in an Accept-Language header ("uk-UA,uk;q=0.9,en;q=0.8" -> "uk")."""
+    ranked = []
+    for i, part in enumerate(header.split(",")):
+        tag, _, q = part.strip().partition(";q=")
+        try:
+            weight = float(q) if q else 1.0
+        except ValueError:
+            weight = 0.0
+        ranked.append((-weight, i, tag.split("-")[0].lower()))
+    for _, _, lang in sorted(ranked):
+        if lang in SUPPORTED_LANGUAGES:
+            return lang
+    return None
 
 
 def pick_version(versions, chain):

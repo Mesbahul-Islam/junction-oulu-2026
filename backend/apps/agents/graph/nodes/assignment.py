@@ -1,8 +1,9 @@
 """Assignment agent - newsroom role: **assignment desk / news editor's daily plan** (FR-3.2, FR-3.7).
 
 Human counterpart (FR-3.6): the news editor approving the daily plan.
-Ranks the scouted items per community (community signals get a priority boost
-and also boost matching official sources), picks the top ``max_items``, and
+Ranks the scouted items by relevance to the community's readers: local stories,
+topics its members chose as interests, freshness, and reader questions/tips (which
+also boost matching official sources). Risk never affects which stories are picked, picks the top ``max_items``, and
 proposes for each: >= 1 ``ReaderNeed``, a ``RiskTier`` and an expiry /
 review-by date. The LLM proposal is never allowed to go *below* the keyword
 heuristic's risk tier (safety floor); without an LLM the heuristic alone is
@@ -20,11 +21,14 @@ from apps.common.choices import ReaderNeed, RiskTier
 from ..llm import structured_call
 from ..schemas import AssignmentProposal
 from ..state import Candidate, NewsroomState
-from ..text import RISK_ORDER, heuristic_reader_needs, heuristic_risk, is_first_week_topic, max_risk, tokens, truncate
+from ..text import heuristic_reader_needs, heuristic_risk, is_first_week_topic, max_risk, tokens, topic_tags, truncate
 
 DEFAULT_MAX_ITEMS = 8
 SIGNAL_BOOST = 1.0
 SIGNAL_MATCH_BOOST = 0.8
+LOCAL_BOOST = 1.0
+INTEREST_BOOST = 1.0
+FRESH_BOOST = 0.5
 VALID_NEEDS = {n.value for n in ReaderNeed}
 
 # (expires_after, review_after) per tier
@@ -39,6 +43,15 @@ _STOP = {"että", "joka", "jotka", "mutta", "kanssa", "sekä", "tämä", "with",
 
 def _significant(text: str) -> set[str]:
     return {t for t in tokens(text) if len(t) >= 5 and t not in _STOP and not t.isdigit()}
+
+
+def _default_max_items() -> int:
+    try:
+        from django.conf import settings
+
+        return int(getattr(settings, "AGENT_MAX_ITEMS", DEFAULT_MAX_ITEMS))
+    except Exception:  # settings not configured (pure tests)
+        return DEFAULT_MAX_ITEMS
 
 
 def _now() -> datetime:
@@ -78,8 +91,33 @@ def compute_expiry(risk_tier: str, text: str, now: datetime | None = None) -> tu
     return expires.isoformat(), review_by.isoformat()
 
 
-def rank(raw_items: list[dict], now: datetime | None = None) -> list[Candidate]:
+def is_local(item: dict, community: dict) -> bool:
+    """The story names the community's town, or came from a feed named after it (e.g. "Oulun seutu")."""
+    stems = {_stem(community.get("municipality", "")), _stem(community.get("name", ""))} - {""}
+    text = f"{item.get('title', '')} {item.get('body', '')} {item.get('publisher', '')}".lower()
+    return any(stem in text for stem in stems)
+
+
+def _stem(name: str) -> str:
+    # "Oulu" also matches "Oulun", "oululainen"; very short names are skipped to avoid noise.
+    name = (name or "").strip().lower()
+    return name if len(name) >= 3 else ""
+
+
+def audience_match(text: str, audience: dict[str, float]) -> float:
+    """Share of the community's readers interested in this story's topics (0-1)."""
+    return max((audience.get(tag, 0.0) for tag in topic_tags(text)), default=0.0)
+
+
+def rank(raw_items: list[dict], now: datetime | None = None, community: dict | None = None,
+         audience: dict[str, float] | None = None) -> list[Candidate]:
+    """Order candidate stories by relevance to this community's readers (never by risk tier).
+
+    score = 1 + local (1.0) + audience interest share (0-1) + fresh < 24 h (0.5)
+              + 0.8 per reader question/tip it answers
+    """
     now = now or _now()
+    community, audience = community or {}, audience or {}
     sources = [r for r in raw_items if r.get("kind") != "community_signal"]
     signals = [r for r in raw_items if r.get("kind") == "community_signal"]
     sig_tokens = {s["key"]: _significant(s.get("body", "")) for s in signals}
@@ -88,11 +126,13 @@ def rank(raw_items: list[dict], now: datetime | None = None) -> list[Candidate]:
     cands: list[Candidate] = []
     for item in sources:
         text = f"{item.get('title', '')} {item.get('body', '')}"
-        tier, _ = heuristic_risk(text)
-        score = 1.0 + 0.3 * RISK_ORDER.get(tier, 1)
+        score = 1.0
+        if is_local(item, community):
+            score += LOCAL_BOOST
+        score += INTEREST_BOOST * audience_match(text, audience)
         fetched = _parse_iso(item.get("fetched_at", ""))
         if fetched and now - fetched < timedelta(hours=24):
-            score += 0.5
+            score += FRESH_BOOST
         item_tokens = _significant(text)
         boosted_by = []
         for skey, stoks in sig_tokens.items():
@@ -106,8 +146,8 @@ def rank(raw_items: list[dict], now: datetime | None = None) -> list[Candidate]:
         if sig["key"] in matched_signals:
             continue  # answered by an official source story instead
         occ = min(int(sig.get("occurrence_count") or 1), 10)
-        tier, _ = heuristic_risk(sig.get("body", ""))
-        score = 1.0 + SIGNAL_BOOST + 0.2 * occ + 0.3 * RISK_ORDER.get(tier, 1)
+        # Reader questions/tips come from the community itself, so they count as local.
+        score = 1.0 + LOCAL_BOOST + SIGNAL_BOOST + 0.2 * occ + INTEREST_BOOST * audience_match(sig.get("body", ""), audience)
         cands.append({"key": sig["key"], "score": round(score, 3), "boosted_by": []})
 
     cands.sort(key=lambda c: c["score"], reverse=True)
@@ -117,8 +157,8 @@ def rank(raw_items: list[dict], now: datetime | None = None) -> list[Candidate]:
 def assignment(state: NewsroomState) -> dict[str, Any]:
     errors: list[dict] = []
     raw = {r["key"]: r for r in state.get("raw_items") or []}
-    max_items = int(state.get("max_items") or DEFAULT_MAX_ITEMS)
-    ranked = rank(list(raw.values()))
+    max_items = int(state.get("max_items") or _default_max_items())
+    ranked = rank(list(raw.values()), community=state.get("community"), audience=state.get("audience_interests"))
     selected = ranked[:max_items]
     now = _now()
 

@@ -13,7 +13,8 @@ from apps.agents.graph.nodes.fact_checker import compare_facts, extract_facts
 
 @pytest.fixture(autouse=True)
 def _force_stub(settings):
-    settings.GEMINI_API_KEY = ""
+    settings.LLM_MODEL = "stub"
+    settings.LLM_AGENT_MODELS = {}
     settings.AGENT_CONFIDENCE_THRESHOLD = 0.7
 
 

@@ -70,7 +70,6 @@ class PostViewSet(viewsets.ModelViewSet):
 
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated, IsCommunityMember, IsAuthorOrReadOnly]
-    pagination_class = CreatedAtCursorPagination
 
     @cached_property
     def community(self):
@@ -103,7 +102,6 @@ class ContributionViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins
 
     serializer_class = CommunityContributionSerializer
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = CreatedAtCursorPagination
     filterset_fields = ["community", "kind", "status"]
 
     def get_queryset(self):
@@ -134,7 +132,6 @@ class FeedbackResponseViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, vi
 
     serializer_class = FeedbackResponseSerializer
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = CreatedAtCursorPagination
 
     def get_queryset(self):
         return FeedbackResponse.objects.filter(user=self.request.user)
@@ -147,7 +144,6 @@ class _AdminConfigViewSet(viewsets.ModelViewSet):
     """FR-3.14: admin-only CRUD so sources/glossary/context are configurable without code changes."""
 
     permission_classes = [IsCommunityAdmin]
-    pagination_class = CreatedAtCursorPagination
 
 
 class SourceFeedViewSet(_AdminConfigViewSet):

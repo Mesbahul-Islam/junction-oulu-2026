@@ -36,6 +36,8 @@ W_INTERESTS = 0.25
 W_ACTION = 0.15
 W_URGENCY = 0.15
 
+STATE_VERSION = 2  # bump when the state sent to Jev changes, so cached answers aren't reused
+
 URGENCY_LEVELS = [
     "Not time-sensitive for this reader",
     "Matters within the next month",
@@ -113,7 +115,6 @@ def snippet_state(snippet, version) -> dict:
         "key_facts": version.key_facts or [],
         "topics": snippet.tags or [],
         "community": snippet.community.name if snippet.community_id else "region-wide",
-        "risk_tier": snippet.risk_tier,
         "expires_at": snippet.expires_at.date().isoformat() if snippet.expires_at else None,
     }
 
@@ -121,7 +122,7 @@ def snippet_state(snippet, version) -> dict:
 def _cache_key(reader: dict, version) -> str:
     fingerprint = hashlib.sha1(json.dumps(reader, sort_keys=True).encode()).hexdigest()[:16]
     stamp = int(version.updated_at.timestamp()) if version.updated_at else 0
-    return f"jev:{settings.JEV_MODEL}:{fingerprint}:{version.pk}:{stamp}"
+    return f"jev:{STATE_VERSION}:{settings.JEV_MODEL}:{fingerprint}:{version.pk}:{stamp}"
 
 
 def _ask(client, state: dict) -> dict:

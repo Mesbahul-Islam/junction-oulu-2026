@@ -15,7 +15,11 @@ x-backend: &backend
     CELERY_TASK_ALWAYS_EAGER: "False"
     DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
     DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin}
+    # Where LLM_PROVIDER=ollama finds Ollama (the service below) unless LLM_BASE_URL says otherwise.
+    OLLAMA_HOST: http://ollama:11434
   volumes: [./backend:/app]
+  # Lets containers reach services on your computer, e.g. LLM_BASE_URL=http://host.docker.internal:11434
+  extra_hosts: ["host.docker.internal:host-gateway"]
 
 services:
   db:
@@ -70,5 +74,21 @@ services:
       setup: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
 
+  # Local LLMs (LLM_PROVIDER=ollama). Started when .env has COMPOSE_PROFILES=ollama.
+  # Download a model once:  docker compose exec ollama ollama pull qwen3:8b
+  ollama:
+    image: ollama/ollama:latest
+    profiles: [ollama]
+    ports: ["11434:11434"]
+    volumes: [ollama:/root/.ollama]
+    # NVIDIA GPU (needs the NVIDIA Container Toolkit): uncomment the next 6 lines.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           capabilities: [gpu]
+
 volumes:
   pgdata:
+  ollama:

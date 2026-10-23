@@ -25,6 +25,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.common.permissions import has_role
 from apps.common.choices import SAMI_LANGUAGES, SOURCE_LANGUAGE, ReviewStatus, RiskTier
 from apps.feed.models import SnippetVersion
 
@@ -105,22 +106,8 @@ def _approved_set(snippet) -> set:
     }
 
 
-def user_has_role(user, role, *, language=None, community=None) -> bool:
-    """Like apps.common.permissions.has_role but treats NULL language/community as wildcard."""
-    if not user or not user.is_authenticated:
-        return False
-    if user.is_superuser:
-        return True
-    qs = user.roles.filter(role__in=[role, "admin"])
-    if language is not None:
-        qs = qs.filter(Q(language=language) | Q(language__isnull=True))
-    if community is not None:
-        qs = qs.filter(Q(community=community) | Q(community__isnull=True))
-    return qs.exists()
-
-
 def can_decide(user, task) -> bool:
-    return user_has_role(user, task.required_role, language=task.language, community=task.snippet.community_id)
+    return has_role(user, task.required_role, language=task.language, community=task.snippet.community_id)
 
 
 def can_veto(user, task) -> bool:

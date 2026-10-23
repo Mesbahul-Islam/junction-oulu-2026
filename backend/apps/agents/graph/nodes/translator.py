@@ -19,8 +19,8 @@ from typing import Any
 
 from apps.common.choices import SAMI_LANGUAGES, Language
 
-from ..llm import structured_call
-from ..schemas import TranslationOut
+from ..llm import language_chunks, structured_call
+from ..schemas import LanguageTranslation, TranslationOut, TranslationsOut
 from ..state import NewsroomState
 
 SAMI_CODES = {str(getattr(lang, "value", lang)) for lang in SAMI_LANGUAGES}
@@ -65,22 +65,7 @@ def stub_translation(draft: dict, lang: str, terms: list[dict]) -> TranslationOu
     )
 
 
-def translate_draft(draft: dict, lang: str, glossary: list[dict], errors: list) -> dict:
-    terms = glossary_for(glossary, lang)
-    gloss_txt = "\n".join(f"- {g['term_fi']} => {g['term']}" + (f" ({g['note']})" if g.get("note") else "") for g in terms)
-    prompt = (
-        f"Translate this Finnish news snippet into {LANGUAGE_NAMES.get(lang, lang)} ({lang}).\n"
-        "Rules: translate faithfully, plain language, keep every number, time and date exactly "
-        "(dates as dd.mm.yyyy), keep names of people/places/organisations, use the glossary terms "
-        "below exactly, do not add or remove information. Keep the explainer keys unchanged.\n"
-        f"GLOSSARY:\n{gloss_txt or '(none)'}\n\n"
-        f"HEADLINE: {draft.get('headline', '')}\nSUMMARY: {draft.get('summary', '')}\n"
-        f"KEY_FACTS: {draft.get('key_facts', [])}\nEXPLAINER: {draft.get('explainer', {})}\n"
-        f"BACKGROUND: {draft.get('background', '')}"
-    )
-    out = structured_call(
-        prompt, TranslationOut, lambda: stub_translation(draft, lang, terms), errors=errors, agent="translator"
-    )
+def _version(out, draft: dict) -> dict:
     return {
         "headline": out.headline.strip(),
         "summary": out.summary.strip(),
@@ -92,6 +77,42 @@ def translate_draft(draft: dict, lang: str, glossary: list[dict], errors: list) 
     }
 
 
+def translate_draft(draft: dict, langs: list[str], glossary: list[dict], errors: list) -> dict[str, dict]:
+    """Translate one Finnish draft into every language in ``langs`` with ONE LLM call."""
+    terms = {lang: glossary_for(glossary, lang) for lang in langs}
+    gloss_txt = "\n".join(
+        f"- [{lang}] {g['term_fi']} => {g['term']}" + (f" ({g['note']})" if g.get("note") else "")
+        for lang in langs for g in terms[lang]
+    )
+    targets = ", ".join(f"{LANGUAGE_NAMES.get(lang, lang)} ({lang})" for lang in langs)
+    prompt = (
+        f"Translate this Finnish news snippet into each of these languages: {targets}.\n"
+        "Return exactly one translation per language, with its language code. Rules: translate "
+        "faithfully, plain language, keep every number, time and date exactly (dates as dd.mm.yyyy), "
+        "keep names of people/places/organisations, use the glossary terms below exactly for that "
+        "language, do not add or remove information. Keep the explainer keys unchanged.\n"
+        f"GLOSSARY:\n{gloss_txt or '(none)'}\n\n"
+        f"HEADLINE: {draft.get('headline', '')}\nSUMMARY: {draft.get('summary', '')}\n"
+        f"KEY_FACTS: {draft.get('key_facts', [])}\nEXPLAINER: {draft.get('explainer', {})}\n"
+        f"BACKGROUND: {draft.get('background', '')}"
+    )
+
+    def fallback():
+        return TranslationsOut(translations=[
+            LanguageTranslation(language=lang, **stub_translation(draft, lang, terms[lang]).model_dump()) for lang in langs
+        ])
+
+    out = structured_call(prompt, TranslationsOut, fallback, errors=errors, agent="translator")
+    got = {t.language.strip().lower(): t for t in out.translations}
+    versions = {}
+    for lang in langs:
+        if lang not in got:  # model skipped a language: mark it clearly instead of dropping it
+            errors.append({"agent": "translator", "error": f"no {lang} translation returned, used fallback"})
+            got[lang] = stub_translation(draft, lang, terms[lang])
+        versions[lang] = _version(got[lang], draft)
+    return versions
+
+
 def translator(state: NewsroomState) -> dict[str, Any]:
     errors: list[dict] = []
     targets = state.get("language_targets") or []
@@ -100,12 +121,12 @@ def translator(state: NewsroomState) -> dict[str, Any]:
     translations: dict[str, dict[str, dict]] = {}
 
     for key, draft in (state.get("drafts") or {}).items():
-        per_lang: dict[str, dict] = {}
-        for lang in targets:
-            if lang in SAMI_CODES:
-                per_lang[lang] = sami_placeholder()  # FR-3.9: never machine-translate Sámi
-                continue
-            version = translate_draft(draft, lang, glossary, errors)
+        per_lang: dict[str, dict] = {lang: sami_placeholder() for lang in targets if lang in SAMI_CODES}  # FR-3.9
+        machine = [lang for lang in targets if lang not in SAMI_CODES]
+        versions = {}
+        for chunk in language_chunks(machine) if machine else []:
+            versions.update(translate_draft(draft, chunk, glossary, errors))
+        for lang, version in versions.items():
             # Prefer a reviewed context entry already written in the target language.
             topics = {entries[i].get("topic") for i in draft.get("background_context_ids", []) if i in entries}
             native = [e for e in entries.values() if e.get("language") == lang and e.get("topic") in topics]

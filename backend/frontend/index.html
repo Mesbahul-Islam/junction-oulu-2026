@@ -92,9 +92,7 @@
   <!-- Feed -->
   <section id="feed" class="on">
     <div class="row">
-      <label>Language <select id="feedLang">
-        <option value="">my preference</option><option>en</option><option>fi</option><option>sv</option><option>uk</option><option>ar</option>
-      </select></label>
+      <span id="feedLangInfo" class="hint"></span>
       <button class="btn" id="feedReload">Reload</button>
       <span class="hint" id="feedInfo"></span>
     </div>
@@ -166,6 +164,9 @@ const DEMO = {
   fan: { email: "fan@example.com", password: "demo-reader", label: "Sports-fan reader" },
 };
 const S = { token: null, me: null, interests: null };
+const LANG_NAMES = { fi: "Finnish", sv: "Swedish", en: "English", se: "Northern Sámi", smn: "Inari Sámi", sms: "Skolt Sámi",
+  ru: "Russian", uk: "Ukrainian", ar: "Arabic", so: "Somali", et: "Estonian" };
+const langName = (code) => LANG_NAMES[code] || code;
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const results = (d) => (Array.isArray(d) ? d : d?.results ?? []);
@@ -253,20 +254,28 @@ function whyBox(r) {
 }
 function cardHtml(c, situation, compact) {
   const explainer = c.explainer || {};
-  const mine = explainer[situation];
-  const others = Object.entries(explainer).filter(([k]) => k !== situation);
+  const forYou = c.for_you || explainer[situation];
+  const others = Object.entries(explainer).filter(([k]) => k !== (c.situation || situation));
   const ai = c.ai_disclosure || {};
+  const o = c.original;
+  const langNote = !c.in_your_language && c.requested_language
+    ? `<div class="bg"><b>Not yet in ${esc(langName(c.requested_language))}</b><br>Showing ${esc(langName(c.language))} until a reviewer approves the ${esc(langName(c.requested_language))} version.</div>` : "";
   return `<article class="card" data-id="${c.id}">
-    <div class="meta"><span class="pill ${esc(c.risk_tier)}">${esc(c.risk_tier)} risk</span>
+    <div class="meta">
       ${(c.tags || []).map((t) => `<span class="pill">${esc(t)}</span>`).join("")}
-      <span class="pill">${esc(c.language)}</span></div>
+      <span class="pill">${esc(langName(c.language))}${o ? " · translated" : ""}</span></div>
     <h3>${esc(c.headline)}</h3>
+    ${compact ? "" : langNote}
     ${compact ? "" : `<p style="margin:0">${esc(c.summary)}</p>`}
     ${!compact && c.key_facts?.length ? `<ul>${c.key_facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
+    ${!compact && forYou ? `<div class="bg"><b>What this means for you${c.situation ? " · " + esc(c.situation.replace("_", " ")) : ""}${c.for_you_language && c.for_you_language !== c.language ? " · in " + esc(langName(c.for_you_language)) : ""}</b><br>${esc(forYou)}</div>` : ""}
     ${c.correction_note ? `<div class="bg"><b>Correction</b><br>${esc(c.correction_note)}</div>` : ""}
-    ${!compact && (mine || others.length) ? `<details data-expand><summary>What this means for me</summary>
-      ${mine ? `<p>${esc(mine)}</p>` : ""}
-      ${others.map(([k, v]) => `<p class="hint"><b>${esc(k)}:</b> ${esc(v)}</p>`).join("")}
+    ${!compact && o ? `<details data-expand><summary>Original (${esc(langName(o.language))})</summary>
+      <p><b>${esc(o.headline)}</b></p><p>${esc(o.summary)}</p>
+      ${o.key_facts?.length ? `<ul>${o.key_facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
+    </details>` : ""}
+    ${!compact && (others.length || c.background) ? `<details data-expand><summary>More context</summary>
+      ${others.map(([k, v]) => `<p class="hint"><b>${esc(k.replace("_", " "))}:</b> ${esc(v)}</p>`).join("")}
       ${c.background ? `<div class="bg"><b>Background · from the reviewed context library</b><br>${esc(c.background)}</div>` : ""}
     </details>` : ""}
     ${whyBox(c.ranking)}
@@ -301,16 +310,17 @@ async function interact(id, kind, quiet) {
 }
 
 async function loadFeed() {
-  const lang = $("feedLang").value;
   const list = $("feedList");
   list.innerHTML = `<div class="empty">Loading…</div>`;
   try {
     const t0 = performance.now();
-    const data = await api(`/feed/snippets/?limit=30${lang ? "&lang=" + lang : ""}`);
+    const data = await api(`/feed/snippets/?limit=30`);
     const cards = results(data);
     const ms = Math.round(performance.now() - t0);
     const jev = cards.filter((c) => c.ranking?.ranker === "jev").length;
     $("feedInfo").textContent = `${data.count ?? cards.length} snippets · ${jev} ranked by Jev · ${ms} ms`;
+    const want = cards[0]?.requested_language;
+    $("feedLangInfo").innerHTML = want ? `Showing news in <b>${esc(langName(want))}</b> (${S.me ? "from your profile" : "from your browser"}), with the Finnish original on each card.` : "";
     if (!cards.length) {
       list.innerHTML = `<div class="empty">The feed is empty.<br>Go to <b>AI newsroom</b> → Run pipeline, then approve snippets in the <b>Editor queue</b> (log in as Editor).</div>`;
       return;
@@ -331,7 +341,6 @@ async function loadFeed() {
   } catch (e) { list.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 $("feedReload").onclick = loadFeed;
-$("feedLang").onchange = loadFeed;
 
 // ---------- compare ----------
 $("compareLoad").onclick = async () => {
@@ -348,7 +357,7 @@ $("compareLoad").onclick = async () => {
     }
     $("compareInfo").textContent = out[0].cards.some((c) => c.ranking?.ranker === "jev") ? "Jev is ranking these feeds." : "Jev is off (formula only), so both readers see nearly the same order.";
     cols.innerHTML = out.map(({ d, me, cards }) => `<div>
-      <div class="panel"><h3>${esc(d.label)}</h3><div class="hint">${esc(me.email)} · ${esc(me.reader_situation)} · interests: ${esc((me.profile?.interests || []).join(", ") || "none")}${me.arrival_date ? " · arrived " + esc(me.arrival_date) : ""}</div></div>
+      <div class="panel"><h3>${esc(d.label)}</h3><div class="hint">${esc(me.email)} · reads ${esc(langName(me.preferred_language))} · ${esc(me.reader_situation)} · interests: ${esc((me.profile?.interests || []).join(", ") || "none")}${me.arrival_date ? " · arrived " + esc(me.arrival_date) : ""}</div></div>
       <div class="feed compact">${cards.map((c, i) => cardHtml({ ...c, headline: `${i + 1}. ${c.headline}` }, me.reader_situation, true)).join("") || `<div class="empty">No snippets yet.</div>`}</div>
     </div>`).join("");
   } catch (e) { cols.innerHTML = `<div class="empty">${esc(e.message)}<br>Demo readers are created by <code>manage.py bootstrap</code>.</div>`; }
@@ -362,9 +371,9 @@ async function renderProfile() {
   const mine = new Set(S.me.profile?.interests || []);
   const opt = (vals, cur) => vals.map((v) => `<option ${v === cur ? "selected" : ""}>${v}</option>`).join("");
   p.innerHTML = `<h2>My profile</h2>
-    <p class="hint">This is what the ranker (and Jev) know about you. Change it and reload the feed to see the order change.</p>
+    <p class="hint">This is what the ranker (and Jev) know about you. Your language decides which translation you see, and new stories are translated into it automatically. Change something and reload the feed.</p>
     <div class="row"><label>Situation <select id="pSit">${opt(["newcomer", "seasonal_worker", "student", "resident"], S.me.reader_situation)}</select></label>
-      <label>Language <select id="pLang">${opt(["en", "fi", "sv", "uk", "ar", "ru", "so", "et"], S.me.preferred_language)}</select></label></div>
+      <label>My language <select id="pLang">${opt(["en", "fi", "sv", "uk", "ar", "ru", "so", "et"], S.me.preferred_language)}</select></label></div>
     <div class="row"><label>Arrived in Finland <input id="pArr" type="date" value="${esc(S.me.arrival_date || "")}"></label></div>
     <div class="checks">${S.interests.map((i) => `<label><input type="checkbox" value="${esc(i.slug)}" ${mine.has(i.slug) ? "checked" : ""}> ${esc(i.name)}</label>`).join("")}</div>
     <div class="row" style="margin-top:12px"><button class="btn primary" id="pSave">Save profile</button></div>`;

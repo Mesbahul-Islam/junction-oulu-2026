@@ -55,7 +55,7 @@ def synthesizer(state: NewsroomState) -> dict[str, Any]:
             "- key_facts: 3-5 short facts copied faithfully (dates, times, places, numbers, who)\n"
             "Use ONLY information in the source. Do not add background or advice.\n\n"
             f"SOURCE TITLE: {title}\nSOURCE PUBLISHER: {item.get('publisher', '')}\n"
-            f"SOURCE TEXT:\n{truncate(body, 6000)}"
+            f"SOURCE TEXT:\n{truncate(body, 4000)}"
         )
         out = structured_call(prompt, DraftOut, lambda t=title, b=body: stub_draft(t, b), errors=errors, agent="synthesizer")
         drafts[key] = {

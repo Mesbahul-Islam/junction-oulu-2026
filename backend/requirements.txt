@@ -23,7 +23,13 @@ django-celery-beat==2.9.0
 # AI agents
 langgraph==1.2.16
 langchain-core==1.7.0
-langchain-google-genai==4.4.2  # Gemini Flash
+langchain==1.4.7  # init_chat_model: any provider by "provider:model"
+# Provider packages (add e.g. langchain-mistralai for others)
+langchain-google-genai==4.4.2
+langchain-openai==1.7.2
+langchain-anthropic==1.7.6
+langchain-groq==1.1.3
+langchain-ollama==1.1.0
 pydantic==2.14.1
 feedparser==6.0.14
 httpx==0.28.1

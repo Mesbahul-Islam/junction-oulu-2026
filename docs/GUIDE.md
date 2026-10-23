@@ -68,7 +68,7 @@ docker compose down                    # stop (keeps data)
 docker compose down -v                 # stop AND wipe the database
 ```
 
-You only need `.env` to change settings (for example to add a Gemini API key):
+You only need `.env` to change settings (for example to add an LLM API key):
 `cp .env.example .env`, edit it, then run `docker compose up -d` again.
 
 ### Option B: Local Python, no Docker
@@ -94,8 +94,10 @@ Run the tests with `cd backend && ../.venv/bin/pytest` (or `make test`).
 | `address already in use` on 5433 / 6380 / 8000 | Another program uses that port. Change the left-hand number under `ports:` in `docker-compose.yml`. |
 | `setup` exited with an error | `docker compose logs setup` shows why. Usually a migration problem after pulling new code; `docker compose down -v` gives you a fresh database. |
 | `run_pipeline` reports 0 snippets | The scout skips articles it has already ingested. Wait for new articles, or `docker compose down -v` to start over. |
-| Translations look like `[en] Finnish text…` | No `GEMINI_API_KEY` is set, so the offline stub LLM is running (see §5). |
-| Newsroom runs fine but text still looks stubbed, with a key set | The run's errors (admin → Agents → Agent runs → state) show the Gemini error. Usually a wrong key or `LLM_MODEL` name; after editing `.env`, run `docker compose up -d`. |
+| Translations look like `[en] Finnish text…` | That agent is on the offline stub: `LLM_MODEL` empty, no `LLM_API_KEY`, or the provider's package isn't installed. `manage.py llm_check` says which (§5). |
+| Newsroom runs fine but text still looks stubbed, with a key set | The run's errors (admin → Agents → Agent runs → state) and `docker compose logs worker` show the Gemini error. Usually a wrong key or `LLM_MODEL` name; after editing `.env`, run `docker compose up -d`. |
+| Newsroom is very slow with Ollama | Local models on a CPU take minutes per story. Use a smaller model (`qwen3:4b`, `qwen3:1.7b`), a GPU (§5), or fewer stories per run (`AGENT_MAX_ITEMS`). |
+| `llm_check` says Ollama has no model | Download it once: `docker compose exec ollama ollama pull <model>`. |
 
 Ports on your machine: API **8000**, Postgres **5433** (user/pass/db `junction`), Redis **6380**.
 
@@ -119,7 +121,7 @@ flowchart LR
     redis --> worker
     worker --> db
     worker -->|fetch| rss["Kaleva RSS"]
-    worker -->|optional| llm["Google Gemini API"]
+    worker -->|optional| llm["LLM provider(s)<br/>Gemini, OpenAI, Anthropic…"]
 ```
 
 - **web** answers HTTP requests. It never runs the slow AI pipeline itself; it queues a task.
@@ -214,37 +216,117 @@ a human counterpart who can overrule it (FR-3.6).
 
 | # | Agent | Newsroom job | What it does | Human counterpart |
 |---|---|---|---|---|
-| 1 | `scout` | Reporter / tip desk | Fetches the community's `SourceFeed`s (RSS) and stores new or changed articles as `SourceDocument`. It skips duplicates by content hash, and a changed article gets `version + 1`. It also pulls open reader questions and tips, and loads the glossary and context library. | Members and editors adding tips |
-| 2 | `assignment` | News desk | Scores and ranks items and keeps the top `max_items`. Reader tips get a boost, and a tip that matches an official article boosts that article. Picks reader needs (Kaleva model) and a **risk tier**, plus expiry and review-by dates. | News editor |
+| 1 | `scout` | Reporter / tip desk | Fetches the community's `SourceFeed`s (RSS) and stores new or changed articles as `SourceDocument`. It skips duplicates by content hash, and a changed article gets `version + 1`. It also re-offers stored articles from the last 3 days that never became a snippet. It pulls open reader questions and tips, and loads the glossary and context library. | Members and editors adding tips |
+| 2 | `assignment` | News desk | Ranks items by **relevance** and keeps the top `max_items` (see *Which stories get picked* below). Picks reader needs (Kaleva model) and a **risk tier**, plus expiry and review-by dates. The risk tier only decides how much review a snippet gets; it never affects which stories are picked | News editor |
 | 3 | `synthesizer` | Writer | Finnish headline, 2-sentence summary, 3–5 key facts. | Editor |
 | 4 | `explainer` | Writer | "What this means for me" per reader situation (newcomer, student…). Background text is copied **only** from human-reviewed `ContextEntry` rows and stored in a separate `background` field. | Editor |
-| 5 | `translator` | Translator | Translates into the community's languages using the `GlossaryTerm` list (Kela, Migri…). **It never writes Sámi.** For Sámi it creates an empty placeholder that a human must fill. | Native-language reviewer |
+| 5 | `translator` | Translator | Translates into the community's languages **and every member's profile language**, using the `GlossaryTerm` list (Kela, Migri…). **It never writes Sámi.** For Sámi it creates an empty placeholder that a human must fill. | Native-language reviewer |
 | 6 | `fact_checker` | Fact-checker | Pulls dates, times, numbers and names out of the source, the Finnish draft and every translation, and checks they match. It also back-translates each translation and compares it with the draft. Outputs pass/fail, a confidence score and a list of mismatches. | Editor resolving flags |
 | 7 | `standards` | Standards editor | Runs the journalism checklist (`STANDARDS_CHECKLIST` in `apps/editorial/models.py`): sources named, AI role disclosed, correction path, ads separated, privacy. | Standards editor |
 | 8 | `tagging` | – | Topic tags, an embedding vector, and a geographic bounding box. | Editor |
 
-**Risk tiers.** The keyword rules are in `graph/text.py`:
-- **High:** residence permits, health, employment, legal, safety.
+**Which stories get picked.** `rank()` in `nodes/assignment.py` scores every candidate by how relevant it is to this community's readers:
+
+```
+score = 1
+      + 1.0  if it's local (names the community's town, e.g. "Oulu"/"Oulun", or comes from a feed named after it, e.g. "Oulun seutu")
+      + 0–1  share of the community's members whose interests match the story's topics (from their profiles)
+      + 0.5  if fetched in the last 24 h
+      + 0.8  per reader question/tip it answers
+```
+
+Reader questions and tips that no official story answers also become candidates (counted as local, plus a boost that grows each time the question is asked again). Risk tier is **not** part of this score: a risky topic isn't more newsworthy, it just needs more review. The weights are constants at the top of the file.
+
+**Risk tiers.** The assignment agent asks the LLM for the tier, using the spec's definitions:
+- **High:** residence permits, health, employment, legal matters, safety.
 - **Medium:** transport, services, events.
 - **Low:** opening hours, weather.
 
-The LLM may *raise* a tier, but never lower it below the keyword result.
+The keyword list in `graph/text.py` (`RISK_KEYWORDS`) is a safety floor that the LLM can't go below. It is deliberately narrow:
+- **High** only fires on terms that clearly concern a reader's permits, benefits, health care, employment services or an official safety notice, e.g. *oleskelulupa, Migri, Kela, verokortti, TE-palvelut, terveyskeskus, vaaratiedote, evakuointi*.
+- Broad words such as *työ*, *oikeus* or *poliisi* are left out, because they appear in ordinary news (a crime report isn't a safety instruction).
+- Without an LLM, the keywords alone decide; anything unmatched is medium.
 
-### The LLM, and running without one
+Separately, a failed fact-check or confidence below 0.7 raises a snippet to High (§6). That happens for real: in testing, the back-translation check caught a Swedish translation that reversed the meaning of a sentence.
 
-`graph/llm.py` gives every agent the same interface: `structured_call(prompt, Schema, fallback)`.
+### The AI model: any provider, three lines in `.env`
 
-- **With `GEMINI_API_KEY` set** (in `.env`): it calls Google's **Gemini Flash** model (`LLM_MODEL`, default `gemini-3.8-flash`) via LangChain's `ChatGoogleGenerativeAI`. Gemini returns JSON that matches a pydantic schema (`graph/schemas.py`) using its native structured output, so nothing has to be parsed out of free text.
-  - Get a key at [Google AI Studio](https://aistudio.google.com/apikey).
-  - To use a cheaper or older model, set `LLM_MODEL` (e.g. `gemini-3.5-flash-lite`). Model names are listed at [ai.google.dev/gemini-api/docs/models](https://ai.google.dev/gemini-api/docs/models).
-- **Without a key**: a deterministic **stub** runs each agent's `fallback` function instead:
-  - Headlines come from the RSS title, facts from sentences that contain numbers, and risk from keywords.
-  - "Translations" are just the Finnish text with an `[en]` prefix.
+The newsroom is model-agnostic: `graph/llm.py` builds the model with LangChain's `init_chat_model`, so any provider LangChain supports works. To choose one, set three lines in `.env`:
 
-  The stub is there so the whole flow works offline, in tests and at demos without spending tokens. **For real output, set the API key.**
-- If the real API errors mid-run, that agent falls back to the stub for that item, and the run continues.
+```bash
+LLM_PROVIDER=groq
+LLM_MODEL=llama-3.3-70b-versatile
+LLM_API_KEY=gsk_...
+```
 
-To use another provider, add a wrapper class next to `GeminiLLM` in `graph/llm.py` and return it from `get_llm()`. Any LangChain chat model that supports `with_structured_output` works.
+Switching provider means changing those three lines, then running `docker compose up -d`:
+
+| `LLM_PROVIDER` | Example `LLM_MODEL` | Key from |
+|---|---|---|
+| `groq` | `llama-3.3-70b-versatile` | console.groq.com/keys |
+| `gemini` | `gemini-3.1-flash-lite`, `gemini-3.8-flash` | aistudio.google.com/apikey |
+| `openai` | `gpt-5.5-mini` | platform.openai.com |
+| `anthropic` (or `claude`) | `claude-haiku-5-5` | console.anthropic.com |
+| `mistral`, `openrouter`, `deepseek`, `xai`, `together`, `fireworks` | that provider's model name | that provider |
+| `ollama` (local, no key) | `qwen3:4b` (CPU-friendly), `qwen3.8:27b` (GPU / ~20 GB RAM) | runs in Docker, see *Local models with Ollama* |
+
+- **Ollama, Groq, Gemini, OpenAI and Anthropic work out of the box.** For any other provider, add its `langchain-<provider>` package to `backend/requirements.txt`. `llm_check` tells you if it's missing.
+- **OpenAI-compatible servers** (vLLM, LM Studio, a LiteLLM proxy, a hackathon endpoint): `LLM_PROVIDER=openai`, `LLM_MODEL=<model>`, `LLM_BASE_URL=http://…/v1`. The key is optional.
+- **Structured output** is picked per provider: tool calling for Groq, native JSON schema for the others. To force one, set `LLM_STRUCTURED_OUTPUT=function_calling` or `json_schema`.
+- **Leave `LLM_MODEL` empty** (or set it to `stub`) to run without any AI provider (see below).
+
+**Check your setup:**
+
+```bash
+docker compose exec worker python manage.py llm_check          # model per agent, and whether it's ready
+docker compose exec worker python manage.py llm_check --ping   # plus one tiny real call
+```
+
+If something is missing, it says so: no key, unknown provider, or a package that isn't installed.
+
+**Advanced: a different model for one agent.** Normally every agent uses the model above. To give one agent its own, add a line with `provider:model`. That provider's key then comes from its own variable, unless it's the same provider as `LLM_PROVIDER`:
+
+```bash
+LLM_MODEL_TRANSLATOR=anthropic:claude-haiku-5-5
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+The agents are `ASSIGNMENT`, `SYNTHESIZER`, `EXPLAINER`, `TRANSLATOR` and `FACT_CHECKER`. A good use: give the fact-checker a different model from the translator, so it doesn't share the translator's mistakes. Per-provider key variables: `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` and so on (`LLM_PROVIDER_KEY_VARS` in `config/settings.py`).
+
+**No model or no key → the offline stub.** An agent without a usable model runs a deterministic **stub** instead of AI:
+- Headlines come from the RSS title, facts from sentences that contain numbers, and risk from keywords.
+- "Translations" are just the Finnish text with an `[en]` prefix.
+
+The stub keeps the whole flow working offline, in tests and at demos without spending tokens. If a real model errors mid-run, that agent falls back to the stub for that item, and the run continues.
+
+**Local models with Ollama.** Ollama runs open models (Qwen, Llama, Gemma …) on your own machine, with no API key, no quota and no cost per call. It's included as an optional Docker service:
+
+```bash
+# .env
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen3:4b
+COMPOSE_PROFILES=ollama      # makes `docker compose up` also start the ollama container
+```
+
+```bash
+docker compose up -d
+docker compose exec ollama ollama pull qwen3:4b                 # download the model once (kept in a volume)
+docker compose exec worker python manage.py llm_check --ping    # confirm it answers
+```
+
+- **Pick a model that fits your hardware.**
+  - On a laptop CPU with 8 GB RAM, use a small model like `qwen3:4b` or `qwen3:1.7b`. It works but is slow: minutes per story.
+  - `qwen3.8:27b` needs a GPU or about 20 GB of free RAM. For a GPU, uncomment the `deploy:` block of the `ollama` service in `docker-compose.yml` (needs the NVIDIA Container Toolkit).
+- **Ollama already running on your computer?** Leave `COMPOSE_PROFILES` empty and set `LLM_BASE_URL=http://host.docker.internal:11434`. Start Ollama with `OLLAMA_HOST=0.0.0.0 ollama serve`, so the containers can reach it.
+- **Without Docker** (`manage.py runserver`), Ollama is expected at `localhost:11434`.
+- **`llm_check` warns** if the configured model hasn't been pulled yet, or if Ollama can't be reached.
+
+**Tuning for small models** (optional, in `.env`):
+- `LLM_LANGUAGES_PER_CALL=1` translates one language per call. Small models produce valid output more reliably when asked for less at once.
+- `LLM_MAX_OUTPUT_TOKENS` caps the length of each answer.
+- `AGENT_MAX_ITEMS` and `AGENT_SCHEDULE_MINUTES` set how many stories each run handles, and how often runs happen. Each story costs about 5 model calls.
+
+**Structured output** uses each provider's native JSON-schema mode. If a model refuses it with a 400 error, that call is retried once with tool calling. (Qwen on Groq sometimes misnames the tool in tool-calling mode, so JSON schema is the reliable choice there.)
 
 ---
 
@@ -293,20 +375,32 @@ Superusers (like the dev `admin@example.com`) pass every role check, which is ha
 
 ## 7. The feed
 
-`apps/feed/`. The main endpoint is `GET /api/feed/snippets/` (`?lang=en`, `?community=oulu`, `?tag=health`, `?limit=&offset=`).
+`apps/feed/`. The main endpoint is `GET /api/feed/snippets/` (`?community=oulu`, `?tag=health`, `?limit=&offset=`).
 
-**Card payload** (one per snippet, in the reader's language):
+**Personal language (the main requirement).** Nobody picks a language in the app. Every card arrives in the reader's own language, with the Finnish original beside it:
+1. **Which language:** the reader's profile language (`preferred_language`, set at onboarding). Anonymous visitors get their browser's language (`Accept-Language`).
+2. **Which languages get translated:** the newsroom translates every story into the community's configured languages **plus every language its members chose in their profiles** (`load_audience_languages` in the scout). A new Somali-speaking member means stories get a Somali version from the next run on.
+3. **Fallback:** a language version appears only after it's approved (§6). Until then, the reader gets English, then Finnish, and the card says so (`in_your_language: false`, `requested_language`).
+4. **On every card:**
+   - `original`: the Finnish headline, summary and facts, so readers can compare or show a Finnish-speaking neighbour. It's `null` for Finnish readers.
+   - `for_you`: the "what this means for me" text for the reader's situation (newcomer, student …), in their language. If a translation lacks it, the original's text is used (`for_you_language` says which).
+
+`?lang=xx` still overrides the language. It's meant for editors previewing a version, not for readers.
+
+**Card payload** (one per snippet):
 
 ```
-id, language, headline, summary, key_facts[], explainer{situation: text}, background,
-image_url, source_urls[], author, community, tags[], reader_needs[], risk_tier,
+id, language, requested_language, in_your_language, headline, summary, key_facts[],
+for_you, for_you_language, situation, explainer{situation: text}, background,
+original{language, headline, summary, key_facts} | null,
+image_url, source_urls[], author, community, tags[], reader_needs[],
 published_at, verified_at, review_status, metrics{likes,shares,bookmarks,comments},
 ai_disclosure{ai_generated, roles[], reviewer, verified_at, machine_translated},
 correction_note, community_notes[]   ← only notes rated Helpful
 ranking{ranker, score, jev…}         ← why this card is here (see "Jev" below)
 ```
 
-**Language choice:** `?lang=`, otherwise the user's `preferred_language`, then Finnish, then English. Only approved versions are used.
+The risk tier is deliberately **not** on the card. It's an internal editorial label (how much review a snippet needs), and "high risk" on a reader's card would read as "this news is dangerous". Editors see it in the review queue (`GET /api/editorial/tasks/`).
 
 **Ranking** (`apps/feed/recommend.py`, FR-2.3). The newest 200 published snippets are scored, and each gets:
 
@@ -461,7 +555,7 @@ curl -s -X POST localhost:8000/api/editorial/tasks/1/approve/ -H "Authorization:
   -H 'Content-Type: application/json' -d '{}'
 
 # 5. See it in the public feed
-curl -s 'localhost:8000/api/feed/snippets/?lang=fi' | python3 -m json.tool | head -40
+curl -s localhost:8000/api/feed/snippets/ -H 'Accept-Language: uk' | python3 -m json.tool | head -40   # anonymous: browser language
 ```
 
 The same steps work in the Swagger UI at `/api/docs/`: click **Authorize** and paste the token.
@@ -476,10 +570,19 @@ The same steps work in the Swagger UI at `/api/docs/`: click **Authorize** and p
 | `DATABASE_URL` | SQLite | Docker sets Postgres automatically |
 | `REDIS_URL` | `redis://localhost:6379/0` | Celery queue (Docker overrides) |
 | `CELERY_TASK_ALWAYS_EAGER` | `False` | `True` = run tasks inline, no worker (local mode). Docker always forces `False`. |
-| `GEMINI_API_KEY` | empty | Google Gemini key for the newsroom agents (`GOOGLE_API_KEY` also works). Empty = offline stub LLM |
-| `LLM_MODEL` | `gemini-3.8-flash` | Gemini model for all agents |
+| `LLM_PROVIDER` | empty | `groq`, `gemini`, `openai`, `anthropic`, `mistral`, `ollama` … |
+| `LLM_MODEL` | empty | The provider's model name. Empty or `stub` = offline stub |
+| `LLM_API_KEY` | empty | Key for `LLM_PROVIDER` |
+| `LLM_BASE_URL` | empty | OpenAI-compatible server URL (with `LLM_PROVIDER=openai`) |
+| `LLM_STRUCTURED_OUTPUT` | `auto` | `function_calling` or `json_schema` to override the per-provider choice |
+| `LLM_MODEL_<AGENT>` + `<PROVIDER>_API_KEY` | empty | Advanced: a different model for one agent (§5) |
+| `COMPOSE_PROFILES` | empty | `ollama` starts the local Ollama container with the stack |
+| `LLM_MAX_OUTPUT_TOKENS` | `0` | Cap on each call's output (0 = provider default) |
+| `LLM_LANGUAGES_PER_CALL` | `0` | Languages per translation/back-translation call; 0 = all at once, 1 helps small models |
+| `LLM_MAX_RETRIES` | `2` | Retries after a failed call (hosted providers) |
+| `AGENT_SCHEDULE_MINUTES` | `30` | Minutes between automatic newsroom runs |
+| `AGENT_MAX_ITEMS` | `4` | Stories turned into snippets per newsroom run (~5 model calls each) |
 | `AGENT_CONFIDENCE_THRESHOLD` | `0.7` | Below this → escalate to High risk |
-| `AGENT_WEBHOOK_TOKEN` | `change-me` | Auth for `POST /api/agents/webhook/complete/` |
 | `GOOGLE_CLIENT_ID/SECRET` | empty | Google login |
 | `TYPESAFE_API_KEY` | empty | Jev feed ranking; empty = formula only. Get one at console.typesafe.ai |
 | `FEED_RANKER` | `jev` | `heuristic` turns Jev off even with a key |

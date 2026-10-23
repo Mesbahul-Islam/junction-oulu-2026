@@ -142,11 +142,43 @@ CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_TIMEZONE = TIME_ZONE
 
-# LLM / agents: Google Gemini Flash. Without a key the agents run on an offline stub.
-GEMINI_API_KEY = env("GEMINI_API_KEY", default="") or env("GOOGLE_API_KEY", default="")
-LLM_MODEL = env("LLM_MODEL", default="gemini-3.8-flash")
+# --- AI newsroom model: set these three in .env (see docs/GUIDE.md §5) ---
+# LLM_PROVIDER: groq, gemini (google_genai), openai, anthropic, mistral, ollama, openrouter ...
+# Leave LLM_MODEL empty (or "stub") to run the offline stub without any AI provider.
+LLM_PROVIDER = env("LLM_PROVIDER", default="")
+LLM_MODEL = env("LLM_MODEL", default="")
+LLM_API_KEY = env("LLM_API_KEY", default="")
+# Optional: any OpenAI-compatible server (vLLM, LM Studio, LiteLLM) with LLM_PROVIDER=openai.
+LLM_BASE_URL = env("LLM_BASE_URL", default="")
+# "auto" picks per provider (function_calling for Groq, json_schema otherwise).
+LLM_STRUCTURED_OUTPUT = env("LLM_STRUCTURED_OUTPUT", default="auto")
+
+# Advanced, optional: a different model for one agent, as provider:model
+# (e.g. LLM_MODEL_TRANSLATOR=anthropic:claude-haiku-5-5). Its key is read from that
+# provider's own variable below (ANTHROPIC_API_KEY ...) unless it's the main provider.
+LLM_AGENTS = ("assignment", "synthesizer", "explainer", "translator", "fact_checker")
+LLM_AGENT_MODELS = {agent: env(f"LLM_MODEL_{agent.upper()}", default="") for agent in LLM_AGENTS}
+LLM_PROVIDER_KEY_VARS = {
+    "google_genai": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    "openai": ("OPENAI_API_KEY",),
+    "anthropic": ("ANTHROPIC_API_KEY",),
+    "groq": ("GROQ_API_KEY",),
+    "openrouter": ("OPENROUTER_API_KEY",),
+    "mistralai": ("MISTRAL_API_KEY",),
+    "deepseek": ("DEEPSEEK_API_KEY",),
+    "xai": ("XAI_API_KEY",),
+    "together": ("TOGETHER_API_KEY",),
+    "fireworks": ("FIREWORKS_API_KEY",),
+}
+LLM_API_KEYS = {
+    provider: next((env(var, default="") for var in names if env(var, default="")), "")
+    for provider, names in LLM_PROVIDER_KEY_VARS.items()
+}
+# How often the newsroom runs on its own (minutes); each run costs about AGENT_MAX_ITEMS x 5 calls.
+AGENT_SCHEDULE_MINUTES = env.int("AGENT_SCHEDULE_MINUTES", default=30)
+# Stories turned into snippets per run (each story costs ~5 LLM calls).
+AGENT_MAX_ITEMS = env.int("AGENT_MAX_ITEMS", default=4)
 AGENT_CONFIDENCE_THRESHOLD = env.float("AGENT_CONFIDENCE_THRESHOLD", default=0.7)
-AGENT_WEBHOOK_TOKEN = env("AGENT_WEBHOOK_TOKEN", default="change-me")
 
 # Feed personalisation with Jev (TypeSafe AI). Without a key the heuristic ranker is used.
 TYPESAFE_API_KEY = env("TYPESAFE_API_KEY", default="")

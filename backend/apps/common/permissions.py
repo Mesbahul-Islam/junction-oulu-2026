@@ -8,7 +8,7 @@ def has_role(user, role, *, language=None, community=None):
         return False
     if user.is_superuser:
         return True
-    qs = user.roles.filter(role=role)
+    qs = user.roles.filter(role__in=[role, "admin"])  # the admin role can do everything
     # A role with no language/community scope is global and always matches.
     if language is not None:
         qs = qs.filter(Q(language=language) | Q(language__isnull=True) | Q(language=""))

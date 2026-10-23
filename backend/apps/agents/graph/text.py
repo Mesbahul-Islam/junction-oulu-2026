@@ -68,24 +68,29 @@ def normalize_digits(text: str) -> str:
 
 # --------------------------------------------------------------------------
 # Risk / topic keyword heuristics (FR-3.7 fallback when the LLM is absent).
-# Patterns are matched case-insensitively against title + body.
+# Patterns are matched case-insensitively against title + body; the first tier
+# (high, then low, then medium) with a hit wins, no hit means medium.
 # --------------------------------------------------------------------------
 RISK_KEYWORDS: dict[str, list[str]] = {
+    # Only terms that clearly concern a reader's permits, benefits, health care,
+    # employment services or an official safety instruction (FR-3.7). Broad words
+    # ("työ", "oikeus", "poliisi") are left out: they match ordinary news, and this
+    # list also acts as a floor the LLM's tier can't go below.
     RiskTier.HIGH: [
-        r"oleskelulu[pv]", r"residence permit", r"\bmigri\b", r"maahanmuutto", r"turvapaik",
-        r"tervey", r"\bhealth", r"sairaala", r"hospital", r"rokot", r"vaccin", r"epidemi",
-        r"\btyö", r"employment", r"työlupa", r"work permit", r"te-palvel", r"tyött",
-        r"\blaki\b", r"lain\b", r"oikeus", r"\blegal\b", r"court", r"tuomio", r"rikos",
-        r"turvallisuu", r"\bsafety\b", r"vaara", r"varoitus", r"evakuo", r"poliisi", r"police",
-        r"\bkela\b", r"verokort", r"tax card",
+        r"oleskelulu[pv]", r"residence permit", r"\bmigri\b", r"maahanmuuttovira", r"turvapaik",
+        r"\bkela\b", r"kelan\b", r"verokort", r"tax card", r"verohallin",
+        r"te-palvel", r"työlupa", r"work permit", r"työttömyysturv", r"työttömyysetuu",
+        r"terveyskesk", r"terveysasem", r"päivystys", r"rokotu", r"vaccin", r"epidemi",
+        r"hätätiedot", r"vaaratiedot", r"evakuo", r"keittokehot", r"boil.water",
     ],
     RiskTier.MEDIUM: [
         r"liikenne", r"liikentee", r"bussi", r"\bbus\b", r"transport", r"juna", r"\btrain",
         r"palvelu", r"services?\b", r"tapahtum", r"\bevent", r"festivaal", r"konsert",
-        r"koulu", r"school", r"kirjasto", r"library", r"tietyö", r"roadwork",
+        r"koulu", r"school", r"kirjasto", r"library", r"tietyö", r"roadwork", r"\bkeli", r"liukas",
+        r"jäte", r"sähkökatko", r"vesikatko",
     ],
     RiskTier.LOW: [
-        r"aukioloaj", r"opening hours", r"\bauki\b", r"\bsää", r"weather", r"lumi", r"pakkas",
+        r"aukioloaj", r"opening hours", r"\bauki\b", r"\bsää\b", r"weather", r"lumi", r"pakkas",
         r"\bsnow\b",
     ],
 }
@@ -103,6 +108,8 @@ TOPIC_TAGS: dict[str, list[str]] = {
     "weather": [r"\bsää", r"weather", r"lumi", r"pakkas"],
     "opening_hours": [r"aukioloaj", r"opening hours"],
     "housing": [r"asunto", r"vuokra", r"housing"],
+    "sports": [r"urheilu", r"jääkiekko", r"\bliiga", r"kärpät", r"jalkapallo", r"futis", r"\bottelu", r"sport"],
+    "culture": [r"kulttuuri", r"teatteri", r"museo", r"näyttely", r"elokuva", r"kirjailij", r"\btaide", r"culture"],
 }
 
 # Things a newcomer needs in their first week (FR-3.11 arrival buckets).
@@ -117,7 +124,7 @@ def _matches(patterns: list[str], text: str) -> list[str]:
 def heuristic_risk(text: str) -> tuple[str, list[str]]:
     """Return (risk_tier, matched_patterns). Unknown topics default to MEDIUM
     (conservative: they still require editor review)."""
-    for tier in (RiskTier.HIGH, RiskTier.MEDIUM, RiskTier.LOW):
+    for tier in (RiskTier.HIGH, RiskTier.LOW, RiskTier.MEDIUM):  # low terms are the most specific
         hits = _matches(RISK_KEYWORDS[tier], text)
         if hits:
             return str(tier.value), hits

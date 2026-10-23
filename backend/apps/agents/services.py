@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any
 
 from django.apps import apps
 from django.conf import settings

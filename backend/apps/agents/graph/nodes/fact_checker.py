@@ -23,8 +23,8 @@ from typing import Any
 
 from apps.common.choices import SOURCE_LANGUAGE
 
-from ..llm import structured_call
-from ..schemas import BackTranslationOut
+from ..llm import language_chunks, structured_call
+from ..schemas import BackTranslationOut, BackTranslationsOut, LanguageBackTranslation
 from ..state import NewsroomState
 from ..text import jaccard, normalize_digits, truncate
 
@@ -157,6 +157,31 @@ def stub_back_translation(version: dict, draft: dict) -> BackTranslationOut:
     return BackTranslationOut(back_translation=back, meaning_preserved=sim >= 0.6, similarity=round(sim, 3), issues=[])
 
 
+def back_translate_all(draft: dict, versions: dict[str, dict], errors: list) -> dict[str, BackTranslationOut]:
+    """Back-translate every language version of one story with ONE LLM call."""
+    blocks = "\n\n".join(f"TRANSLATION ({lang}):\n{truncate(_version_text(v), 2500)}" for lang, v in versions.items())
+    prompt = (
+        "For each translation below: translate it back into Finnish, then compare it with the Finnish "
+        "original. Return one check per language code, with similarity 0-1, whether meaning is preserved, "
+        "and concrete issues (changed numbers, dates, names, negations, missing or added claims).\n\n"
+        f"FINNISH ORIGINAL:\n{_version_text(draft)}\n\n{blocks}"
+    )
+
+    def fallback():
+        return BackTranslationsOut(checks=[
+            LanguageBackTranslation(language=lang, **stub_back_translation(v, draft).model_dump()) for lang, v in versions.items()
+        ])
+
+    out = structured_call(prompt, BackTranslationsOut, fallback, errors=errors, agent="fact_checker")
+    got = {c.language.strip().lower(): c for c in out.checks}
+    result = {}
+    for lang, v in versions.items():
+        if lang not in got:
+            errors.append({"agent": "fact_checker", "error": f"no back-translation for {lang}, used fallback"})
+        result[lang] = got.get(lang) or stub_back_translation(v, draft)
+    return result
+
+
 def fact_checker(state: NewsroomState) -> dict[str, Any]:
     errors: list[dict] = []
     raw = {r["key"]: r for r in state.get("raw_items") or []}
@@ -186,25 +211,22 @@ def fact_checker(state: NewsroomState) -> dict[str, Any]:
             "back_translation": "",
         }
 
-        # 2) each machine translation vs draft
+        # 2) each machine translation vs draft: deterministic fact check per language,
+        #    then ONE back-translation call covering every language of this story.
         ref = extract_facts(_version_text(draft))
+        checked = {}
         for lang, version in (state.get("translations") or {}).get(key, {}).items():
             if version.get("needs_human_translation"):
                 continue  # Sámi placeholder: nothing to verify yet
             cand = extract_facts(_LANG_PREFIX_RE.sub("", _version_text(version)))
             terms = [g["term_fi"] for g in glossary if g.get("language") == lang]
-            mism = compare_facts(ref, cand, language=lang, check_names=lang in LATIN_SCRIPT, glossary_terms=terms)
+            checked[lang] = (version, compare_facts(ref, cand, language=lang, check_names=lang in LATIN_SCRIPT, glossary_terms=terms))
 
-            prompt = (
-                "Translate the following text back into Finnish, then compare it with the Finnish "
-                "original. Report similarity 0-1, whether meaning is preserved, and concrete issues "
-                "(changed numbers, dates, names, negations, missing or added claims).\n\n"
-                f"FINNISH ORIGINAL:\n{_version_text(draft)}\n\nTRANSLATION ({lang}):\n{truncate(_version_text(version), 4000)}"
-            )
-            bt = structured_call(
-                prompt, BackTranslationOut, lambda v=version, d=draft: stub_back_translation(v, d),
-                errors=errors, agent="fact_checker",
-            )
+        back = {}
+        for chunk in language_chunks(list(checked)) if checked else []:
+            back.update(back_translate_all(draft, {lang: checked[lang][0] for lang in chunk}, errors))
+        for lang, (version, mism) in checked.items():
+            bt = back[lang]
             for issue in bt.issues:
                 mism.append({"language": lang, "kind": "meaning", "value": "", "issue": issue, "severity": "warning"})
             if not bt.meaning_preserved:

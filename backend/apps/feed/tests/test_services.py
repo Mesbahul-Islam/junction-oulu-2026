@@ -5,8 +5,15 @@ from apps.feed import services as s
 
 
 def test_language_chain_fallback():
-    assert s.language_chain("ar") == ["ar", "fi", "en"]
+    assert s.language_chain("ar") == ["ar", "en", "fi"]
     assert s.language_chain("fi") == ["fi", "en"]
+    assert s.language_chain("en") == ["en", "fi"]
+
+
+def test_browser_language():
+    assert s.browser_language("uk-UA,uk;q=0.9,en;q=0.8") == "uk"
+    assert s.browser_language("xx,en;q=0.5,ar;q=0.9") == "ar"
+    assert s.browser_language("de-DE") is None
 
 
 def test_pick_version_skips_unapproved():
