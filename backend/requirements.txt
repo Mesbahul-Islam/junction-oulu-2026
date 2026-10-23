@@ -1,0 +1,35 @@
+# Pinned to the versions the test suite passes with (Python 3.13).
+# Upgrade deliberately: bump a pin, run `make test`, commit.
+
+# Web / API
+Django==5.2.18
+djangorestframework==3.18.3
+djangorestframework-simplejwt==5.5.1
+django-allauth==65.20.1
+django-environ==0.14.0
+django-cors-headers==4.9.0
+django-filter==26.2
+drf-spectacular==0.30.0
+
+# Storage / DB
+django-storages[s3]==1.14.6
+boto3==1.43.118
+Pillow==13.0.0
+psycopg[binary]==3.3.6
+
+# Background jobs
+celery==5.6.3
+redis==8.1.0
+django-celery-beat==2.9.0
+
+# AI agents
+langgraph==1.2.16
+langchain-core==1.7.0
+langchain-anthropic==1.7.6
+pydantic==2.14.1
+feedparser==6.0.14
+httpx==0.28.1
+
+# Tests
+pytest==9.1.1
+pytest-django==4.14.0

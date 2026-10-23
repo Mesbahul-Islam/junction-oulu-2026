@@ -1,0 +1,2 @@
+# The real dependency list lives in backend/requirements.txt (used by Docker too).
+-r backend/requirements.txt
