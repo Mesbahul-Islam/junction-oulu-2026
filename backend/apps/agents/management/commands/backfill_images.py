@@ -1,7 +1,8 @@
 """Fetch the lead picture for stored articles that don't have one yet (e.g. stories made before
 pictures were supported). New runs get pictures automatically from the wire desk.
 
-Usage: python manage.py backfill_images [--all]   (default: only articles that became stories)
+Usage: python manage.py backfill_images [--all] [--refetch]
+  (default: only articles that became stories; --refetch also redoes ones that already have a picture)
 """
 
 from django.core.management.base import BaseCommand
@@ -15,9 +16,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--all", action="store_true", help="Every stored article, not just those with a story")
+        parser.add_argument("--refetch", action="store_true",
+                            help="Fetch again even if a picture is stored (repairs links saved before the &center fix)")
 
-    def handle(self, *args, all, **options):
-        docs = SourceDocument.objects.filter(image_url="")
+    def handle(self, *args, all, refetch, **options):
+        docs = SourceDocument.objects.all() if refetch else SourceDocument.objects.filter(image_url="")
         if not all:
             docs = docs.filter(snippets__isnull=False).distinct()
         found = total = 0

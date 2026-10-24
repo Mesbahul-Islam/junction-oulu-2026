@@ -1,7 +1,8 @@
-import { Plus, Users } from "lucide-react";
+import { ArrowLeft, Plus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
+import NewsCard from "../components/NewsCard";
 import PostSlide from "../components/PostSlide";
 import { Spinner } from "../components/Spinner";
 import StorySlide from "../components/StorySlide";
@@ -12,8 +13,9 @@ const TABS = [
   { id: "foryou", label: "For You" },
 ];
 
-/** TikTok-style home: full-screen vertical feeds. For You = reviewed news ranked for you;
- *  Community News = posts written by members of your communities. */
+/** Home. For You = reviewed news ranked for you, shown two photo cards per screen;
+ *  tapping one opens the full-screen swipe view from that story onwards (?story=<id>).
+ *  Community News = posts written by members of your communities (full-screen swipe). */
 export default function Feed() {
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") === "community" ? "community" : "foryou";
@@ -30,6 +32,26 @@ export default function Feed() {
   }, [tab, stories, posts]);
 
   const items = tab === "foryou" ? stories : posts;
+
+  // Swipe view: open on the tapped story and keep going through the ones after it.
+  const openId = params.get("story");
+  const openIndex = openId && stories ? stories.findIndex((c) => String(c.id) === openId) : -1;
+  if (tab === "foryou" && openIndex >= 0) {
+    return (
+      <main className="tt-feed-wrap">
+        <button className="tt-back" aria-label="Back to all news" onClick={() => setParams({}, { replace: true })}>
+          <ArrowLeft size={24} />
+        </button>
+        <div className="tt-feed">
+          {stories.slice(openIndex).map((c, i) => <StorySlide key={c.id} card={c} index={openIndex + i} />)}
+        </div>
+      </main>
+    );
+  }
+
+  // Overview: stories grouped in twos, one pair per screen.
+  const pairs = [];
+  for (let i = 0; i < (stories?.length || 0); i += 2) pairs.push(stories.slice(i, i + 2));
 
   return (
     <main className="tt-feed-wrap">
@@ -58,7 +80,11 @@ export default function Feed() {
             )}
           </div>
         )}
-        {tab === "foryou" && stories?.map((c, i) => <StorySlide key={c.id} card={c} index={i} />)}
+        {tab === "foryou" && pairs.map((pair, p) => (
+          <section key={pair[0].id} className="tt-pair">
+            {pair.map((c, i) => <NewsCard key={c.id} card={c} index={p * 2 + i} onOpen={() => setParams({ story: c.id })} />)}
+          </section>
+        ))}
         {tab === "community" && posts?.map((p) => (
           <PostSlide key={p.id} post={p} onFlagged={(id) => setPosts((list) => list.filter((x) => x.id !== id))} />
         ))}
