@@ -32,19 +32,21 @@ export default function App() {
 
   return (
     <div className="app" dir={RTL.has(me?.preferred_language) ? "rtl" : "ltr"} lang={me?.preferred_language || "en"}>
-      <Routes>
-        <Route path="/welcome" element={<Welcome />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/" element={<Reader><Feed /></Reader>} />
-        <Route path="/create" element={<Reader><Create /></Reader>} />
-        <Route path="/explore" element={<Reader><Explore /></Reader>} />
-        <Route path="/saved" element={<Reader><Saved /></Reader>} />
-        <Route path="/profile" element={<Reader><Profile /></Reader>} />
-        <Route path="/communities" element={<Reader><Communities /></Reader>} />
-        <Route path="/story/:id" element={<Reader><Story /></Reader>} />
-        <Route path="/vote" element={<Reader><Vote /></Reader>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div className="app-scroll">
+        <Routes>
+          <Route path="/welcome" element={<Welcome />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/" element={<Reader><Feed /></Reader>} />
+          <Route path="/create" element={<Reader><Create /></Reader>} />
+          <Route path="/explore" element={<Reader><Explore /></Reader>} />
+          <Route path="/saved" element={<Reader><Saved /></Reader>} />
+          <Route path="/profile" element={<Reader><Profile /></Reader>} />
+          <Route path="/communities" element={<Reader><Communities /></Reader>} />
+          <Route path="/story/:id" element={<Reader><Story /></Reader>} />
+          <Route path="/vote" element={<Reader><Vote /></Reader>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
       {showNav && <BottomNav />}
     </div>
   );

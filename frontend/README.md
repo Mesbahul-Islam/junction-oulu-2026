@@ -96,6 +96,7 @@ http://localhost:8000/api/docs/.
 
 ## Notes for changes
 
+- **Phone frame:** on a phone the app fills the screen. On a computer it is laid out at a real phone's size (390 x 844) and the whole phone is scaled down to fit the window (`--phone-scale`, set in `main.jsx`; `.app` in `styles.css`). Pages scroll inside `.app-scroll`, not the browser window.
 - **Colours, spacing, radius:** CSS variables at the top of `styles.css`.
 - **Topic icons and blurbs:** `TOPICS` in `src/lib/i18n.js` (keys are the interest slugs from the API).
 - **Images:** stories have no photos yet, so cards show a gradient with the topic icon. When the API returns `image_url`, it's shown automatically.
