@@ -23,6 +23,10 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute="*/15"),
     },
     # Prediction markets (apps.markets.tasks.settle_finished_events) are off: no screen uses them.
+    "telegram-morning-news": {
+        "task": "apps.telegrambot.tasks.send_morning_news",
+        "schedule": crontab(hour=8, minute=0),  # Helsinki time (CELERY_TIMEZONE)
+    },
     # Lämäri (apps.fantasy.tasks) runs nothing in the background: sync_schedule, sync_live and
     # sports_desk are off. Run them by hand if needed, e.g. manage.py sync_liiga.
 }

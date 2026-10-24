@@ -78,6 +78,14 @@ services:
       setup: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
 
+  # Telegram news bot: onboarding conversation (long polling, no public URL). Idle without TELEGRAM_API.
+  telegram:
+    <<: *backend
+    command: python manage.py telegram_bot
+    restart: unless-stopped
+    depends_on:
+      setup: {condition: service_completed_successfully}
+
   # Local LLMs (LLM_PROVIDER=ollama). Started when .env has COMPOSE_PROFILES=ollama.
   # Download a model once:  docker compose exec ollama ollama pull qwen3:8b
   ollama:
