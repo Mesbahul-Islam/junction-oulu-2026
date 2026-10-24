@@ -205,11 +205,33 @@ class ChatModelLLM:
 
 
 
+def match_languages(entries: list, langs: list[str], agent: str, errors: list) -> dict:
+    """File a model's per-language answers under the languages that were *requested*.
+
+    With one requested language, the answer is that language whatever the model
+    labelled it. With several, only labels that were requested count and the first
+    entry per language wins; duplicates and unknown labels are reported, not stored.
+    Missing languages are simply absent (the caller falls back).
+    """
+    if len(langs) == 1:
+        return {langs[0]: entries[0]} if entries else {}
+    filed: dict = {}
+    for entry in entries:
+        label = (getattr(entry, "language", "") or "").strip().lower()
+        if label not in langs:
+            errors.append({"agent": agent, "error": f"answer labelled {label!r} wasn't requested; ignored"})
+        elif label in filed:
+            errors.append({"agent": agent, "error": f"two answers labelled {label!r}; kept the first"})
+        else:
+            filed[label] = entry
+    return filed
+
+
 def language_chunks(langs: list[str]) -> list[list[str]]:
-    """Split target languages into groups of LLM_LANGUAGES_PER_CALL (0 = one group)."""
+    """Split target languages into groups of LLM_LANGUAGES_PER_CALL (default 1; 0 = one group)."""
     from django.conf import settings
 
-    size = int(getattr(settings, "LLM_LANGUAGES_PER_CALL", 0) or 0) or len(langs) or 1
+    size = int(getattr(settings, "LLM_LANGUAGES_PER_CALL", 1)) or len(langs) or 1
     return [langs[i:i + size] for i in range(0, len(langs), size)]
 
 

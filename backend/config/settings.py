@@ -153,6 +153,9 @@ LLM_API_KEY = env("LLM_API_KEY", default="")
 LLM_BASE_URL = env("LLM_BASE_URL", default="")
 # "auto" picks per provider (function_calling for Groq, json_schema otherwise).
 LLM_STRUCTURED_OUTPUT = env("LLM_STRUCTURED_OUTPUT", default="auto")
+# Languages per translation / back-translation call. 1 (default) is reliable even for small
+# local models; 0 = every language in one call (fewer calls, only for large models).
+LLM_LANGUAGES_PER_CALL = env.int("LLM_LANGUAGES_PER_CALL", default=1)
 
 # Advanced, optional: a different model for one agent, as provider:model
 # (e.g. LLM_MODEL_TRANSLATOR=anthropic:claude-haiku-5-5). Its key is read from that

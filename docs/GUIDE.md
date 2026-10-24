@@ -35,9 +35,12 @@ git clone <repo> && cd junction-oulu-2026
 docker compose up --build -d
 ```
 
-That's all. On every start, a one-shot `setup` container migrates the database,
-loads the demo data and creates an admin user, then exits. The other containers
-start after it finishes.
+That's all. On every start, a one-shot `setup` container runs `manage.py bootstrap`, then exits:
+1. It migrates the database.
+2. It loads the demo data (Oulu community, Kaleva feeds, markets, demo readers) and creates an admin user.
+3. **On the first start only**, it imports the Liiga season from the Liiga API and creates the Fantasy Liiga demo managers and leagues. This needs internet and takes about 3 minutes. Later starts skip it, taking a couple of seconds. Set `SEED_FANTASY=false` in `.env` to skip it entirely.
+
+Web, worker and beat start only after `setup` succeeds, so they always see a migrated, seeded database. Follow the first start with `docker compose logs -f setup`.
 
 | URL | What |
 |---|---|
@@ -220,8 +223,8 @@ a human counterpart who can overrule it (FR-3.6).
 | 2 | `assignment` | News desk | Ranks items by **relevance** and keeps the top `max_items` (see *Which stories get picked* below). Picks reader needs (Kaleva model) and a **risk tier**, plus expiry and review-by dates. The risk tier only decides how much review a snippet gets; it never affects which stories are picked | News editor |
 | 3 | `synthesizer` | Writer | Finnish headline, 2-sentence summary, 3–5 key facts. | Editor |
 | 4 | `explainer` | Writer | "What this means for me" per reader situation (newcomer, student…). Background text is copied **only** from human-reviewed `ContextEntry` rows and stored in a separate `background` field. | Editor |
-| 5 | `translator` | Translator | Translates into the community's languages **and every member's profile language**, using the `GlossaryTerm` list (Kela, Migri…). **It never writes Sámi.** For Sámi it creates an empty placeholder that a human must fill. | Native-language reviewer |
-| 6 | `fact_checker` | Fact-checker | Pulls dates, times, numbers and names out of the source, the Finnish draft and every translation, and checks they match. It also back-translates each translation and compares it with the draft. Outputs pass/fail, a confidence score and a list of mismatches. | Editor resolving flags |
+| 5 | `translator` | Translator | Translates into the community's languages **and every member's profile language**, using the `GlossaryTerm` list (Kela, Migri…). One language per call; each answer is filed under the language that was asked for, never the model's own label. **It never writes Sámi.** For Sámi it creates an empty placeholder that a human must fill. | Native-language reviewer |
+| 6 | `fact_checker` | Fact-checker | Pulls dates, times, numbers and names out of the source, the Finnish draft and every translation, and checks they match. It checks that each translation is really in its language and not just the Finnish copied over. This uses the script, Ukrainian vs Russian letters, and common words, so a confused model can't vouch for itself. It also back-translates each translation and compares it with the draft. Outputs pass/fail, a confidence score and a list of mismatches. | Editor resolving flags |
 | 7 | `standards` | Standards editor | Runs the journalism checklist (`STANDARDS_CHECKLIST` in `apps/editorial/models.py`): sources named, AI role disclosed, correction path, ads separated, privacy. | Standards editor |
 | 8 | `tagging` | – | Topic tags, an embedding vector, and a geographic bounding box. | Editor |
 
@@ -322,7 +325,7 @@ docker compose exec worker python manage.py llm_check --ping    # confirm it ans
 - **`llm_check` warns** if the configured model hasn't been pulled yet, or if Ollama can't be reached.
 
 **Tuning for small models** (optional, in `.env`):
-- `LLM_LANGUAGES_PER_CALL=1` translates one language per call. Small models produce valid output more reliably when asked for less at once.
+- `LLM_LANGUAGES_PER_CALL` is **1 by default**: each language is translated, and back-translated, in its own call. Small models mix up languages when asked for several at once. In testing, a 2B model filed Swedish as English and Russian as Ukrainian. Set `0` (all languages in one call) only for large hosted models.
 - `LLM_MAX_OUTPUT_TOKENS` caps the length of each answer.
 - `AGENT_MAX_ITEMS` and `AGENT_SCHEDULE_MINUTES` set how many stories each run handles, and how often runs happen. Each story costs about 5 model calls.
 
@@ -631,7 +634,7 @@ The same steps work in the Swagger UI at `/api/docs/`: click **Authorize** and p
 | `LLM_MODEL_<AGENT>` + `<PROVIDER>_API_KEY` | empty | Advanced: a different model for one agent (§5) |
 | `COMPOSE_PROFILES` | empty | `ollama` starts the local Ollama container with the stack |
 | `LLM_MAX_OUTPUT_TOKENS` | `0` | Cap on each call's output (0 = provider default) |
-| `LLM_LANGUAGES_PER_CALL` | `0` | Languages per translation/back-translation call; 0 = all at once, 1 helps small models |
+| `LLM_LANGUAGES_PER_CALL` | `1` | Languages per translation/back-translation call; `0` = all at once (large models only) |
 | `LLM_MAX_RETRIES` | `2` | Retries after a failed call (hosted providers) |
 | `AGENT_SCHEDULE_MINUTES` | `30` | Minutes between automatic newsroom runs |
 | `AGENT_MAX_ITEMS` | `4` | Stories turned into snippets per newsroom run (~5 model calls each) |

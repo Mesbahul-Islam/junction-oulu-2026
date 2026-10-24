@@ -1,7 +1,14 @@
 """One command to get a working dev database: migrate, seed, create an admin.
 
-Safe to run repeatedly (every step is idempotent). Docker runs it on every
-`docker compose up` via the one-shot `setup` service.
+Safe to run repeatedly. Docker runs it on every `docker compose up` via the
+one-shot `setup` service, before web/worker/beat start. Order:
+
+1. migrate
+2. seed_demo, seed_markets (fast, idempotent)
+3. admin user, demo readers
+4. Fantasy Liiga, first start only: sync_liiga (real season data from the Liiga
+   API) then seed_fantasy_demo. Skipped once fantasy data exists, so restarts stay
+   fast; a Liiga API failure is reported but doesn't stop the app from starting.
 """
 
 import datetime
@@ -25,8 +32,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--no-seed", action="store_true", help="Only migrate and create the admin.")
+        parser.add_argument("--no-fantasy", action="store_true", help="Skip the Liiga sync and fantasy demo data.")
 
-    def handle(self, *args, no_seed=False, **options):
+    def handle(self, *args, no_seed=False, no_fantasy=False, **options):
         call_command("migrate", interactive=False, verbosity=1)
         if not no_seed:
             call_command("seed_demo")
@@ -34,7 +42,27 @@ class Command(BaseCommand):
         self._ensure_admin()
         if not no_seed:
             self._ensure_demo_readers()
+            if not no_fantasy and os.environ.get("SEED_FANTASY", "true").lower() not in ("0", "false", "no"):
+                self._ensure_fantasy()
         self.stdout.write(self.style.SUCCESS("Bootstrap complete."))
+
+    def _ensure_fantasy(self):
+        """First start only: import the Liiga season, then create demo managers and leagues."""
+        from apps.fantasy.models import Player, Squad
+
+        if Squad.objects.exists():
+            self.stdout.write("Fantasy data already present; skipping Liiga sync (run `manage.py sync_liiga` to update).")
+            return
+        try:
+            if not Player.objects.exists():
+                self.stdout.write("Importing the Liiga season (first start, needs internet)...")
+                call_command("sync_liiga")
+            call_command("seed_fantasy_demo")
+        except Exception as exc:  # network down, Liiga API changed ...: the rest of the app still starts
+            self.stdout.write(self.style.WARNING(
+                f"Fantasy seed skipped: {type(exc).__name__}: {exc}\n"
+                "Run later: docker compose exec web python manage.py sync_liiga && "
+                "docker compose exec web python manage.py seed_fantasy_demo"))
 
     def _ensure_demo_readers(self):
         """Two readers with opposite profiles, to compare personalised feeds (local dev only)."""
