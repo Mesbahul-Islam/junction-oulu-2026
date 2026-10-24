@@ -40,9 +40,11 @@ class Command(BaseCommand):
                 return
             wanted = r["model"] if ":" in r["model"] else f"{r['model']}:latest"
             if wanted not in names:
+                where = (f"on the Ollama server ({r['base_url']}):\n    ollama pull {r['model']}" if r["base_url"]
+                         else f"with:\n    docker compose exec ollama ollama pull {r['model']}")
                 self.stdout.write(self.style.WARNING(
-                    f"\n  Ollama has no model {r['model']!r} yet. Download it once with:\n"
-                    f"    docker compose exec ollama ollama pull {r['model']}"))
+                    f"\n  Ollama has no model {r['model']!r}. Available: {', '.join(sorted(names)) or 'none'}.\n"
+                    f"  Download it {where}"))
             return
 
     def handle(self, *args, ping, **options):

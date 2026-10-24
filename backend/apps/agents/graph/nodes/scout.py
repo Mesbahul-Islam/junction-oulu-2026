@@ -21,7 +21,7 @@ from typing import Any
 from apps.common.choices import SOURCE_LANGUAGE
 
 from ..state import NewsroomState, RawItem
-from ..text import clean_html, content_hash, truncate
+from ..text import classify_content, clean_html, content_hash, truncate
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,10 @@ def _targets(state: NewsroomState, community: dict, audience_languages: list[str
 
 
 def doc_to_item(doc) -> RawItem:
+    content_type, marker = classify_content(doc.title, doc.body, doc.url)
     return {
+        "content_type": content_type,  # news | opinion | commercial (JSN clauses 11, 16)
+        "content_marker": marker,
         "key": f"doc:{doc.pk}",
         "kind": "source",
         "source_document_id": doc.pk,

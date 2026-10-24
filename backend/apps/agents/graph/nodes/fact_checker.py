@@ -23,7 +23,7 @@ from typing import Any
 
 from apps.common.choices import SOURCE_LANGUAGE
 
-from ..llm import language_chunks, match_languages, structured_call
+from ..llm import get_llm, language_chunks, match_languages, structured_call
 from ..schemas import BackTranslationOut, BackTranslationsOut, LanguageBackTranslation
 from ..state import NewsroomState
 from ..text import jaccard, language_problem, name_matches, normalize_digits, truncate
@@ -157,9 +157,17 @@ def stub_back_translation(version: dict, draft: dict) -> BackTranslationOut:
     return BackTranslationOut(back_translation=back, meaning_preserved=sim >= 0.6, similarity=round(sim, 3), issues=[])
 
 
-def check_language(text: str, lang: str, finnish: str) -> list[dict]:
-    """Is the version really in ``lang`` (and actually translated)? Offline-stub text is skipped."""
+def check_language(text: str, lang: str, finnish: str, model_configured: bool = False) -> list[dict]:
+    """Is the version really in ``lang`` (and actually translated)?
+
+    Placeholder text from the offline stub ("[en] <Finnish>") is fine in offline mode, but
+    when a real model is configured it means the translation call failed: that's an error,
+    so the snippet can't pass as verified.
+    """
     if _LANG_PREFIX_RE.match(text or ""):
+        if model_configured:
+            return [{"language": lang, "kind": "language", "value": "", "severity": "error",
+                     "issue": "no translation: the AI model failed and a placeholder was used"}]
         return []
     if lang != SOURCE_LANGUAGE.value and jaccard(text, finnish) > 0.6:
         problem = "text is the Finnish original, not a translation"
@@ -224,6 +232,7 @@ def fact_checker(state: NewsroomState) -> dict[str, Any]:
             "back_translation": "",
         }
 
+        model_configured = not get_llm("translator").is_stub
         # 2) each machine translation vs draft: deterministic fact check per language,
         #    then ONE back-translation call covering every language of this story.
         ref = extract_facts(_version_text(draft))
@@ -235,7 +244,7 @@ def fact_checker(state: NewsroomState) -> dict[str, Any]:
             cand = extract_facts(_LANG_PREFIX_RE.sub("", text))
             terms = [g["term_fi"] for g in glossary if g.get("language") == lang]
             mism = compare_facts(ref, cand, language=lang, check_names=lang in LATIN_SCRIPT, glossary_terms=terms)
-            mism += check_language(text, lang, _version_text(draft))
+            mism += check_language(text, lang, _version_text(draft), model_configured)
             checked[lang] = (version, mism)
 
         back = {}

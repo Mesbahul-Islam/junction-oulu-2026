@@ -1,7 +1,7 @@
 """Celery tasks for the AI newsroom.
 
 Beat (config/celery.py):
-* ``apps.agents.tasks.ingest_all_communities`` - every 30 min
+* ``apps.agents.tasks.ingest_all_communities`` - every AGENT_SCHEDULE_MINUTES (default 30)
 * ``apps.agents.tasks.expire_snippets`` - every 15 min
 """
 
@@ -24,15 +24,35 @@ def _get_or_create_run(community_id: int, run_id: int | None, trigger: str) -> A
     return AgentRun.objects.create(community_id=community_id, trigger=trigger)
 
 
+# A run older than this that still says queued/running was lost (e.g. the worker restarted).
+STALE_RUN_HOURS = 2
+
+
+def close_stale_runs() -> int:
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    cutoff = timezone.now() - timedelta(hours=STALE_RUN_HOURS)
+    return AgentRun.objects.filter(status__in=[AgentRun.Status.QUEUED, AgentRun.Status.RUNNING], created_at__lt=cutoff).update(
+        status=AgentRun.Status.FAILED, error="Never finished (worker restarted or timed out)", finished_at=timezone.now()
+    )
+
+
 @shared_task(name="apps.agents.tasks.ingest_all_communities")
 def ingest_all_communities() -> list[int]:
-    """Queue one ingest run per active community that has active source feeds
-    or open community contributions."""
+    """Queue one ingest run per active community that has active source feeds or open
+    community contributions, unless that community's previous run is still going."""
     CommunityGroup = apps.get_model("communities", "CommunityGroup")
     SourceFeed = apps.get_model("communities", "SourceFeed")
     Contribution = apps.get_model("communities", "CommunityContribution")
+    close_stale_runs()
+    busy = set(AgentRun.objects.filter(status__in=[AgentRun.Status.QUEUED, AgentRun.Status.RUNNING]).values_list("community_id", flat=True))
     queued = []
     for community_id in CommunityGroup.objects.filter(is_active=True).values_list("pk", flat=True):
+        if community_id in busy:
+            logger.info("Skipping scheduled run for community %s: previous run still in progress", community_id)
+            continue
         has_feeds = SourceFeed.objects.filter(community_id=community_id, is_active=True).exists()
         has_signals = Contribution.objects.filter(community_id=community_id, status="new").exists()
         if has_feeds or has_signals:

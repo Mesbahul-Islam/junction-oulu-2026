@@ -12,8 +12,9 @@ def test_high_needs_editor_and_language_reviewers():
     assert reqs == [R("editor"), R("language_reviewer", "ar"), R("language_reviewer", "en")]
 
 
-def test_medium_and_low_need_one_editor():
-    assert s.requirements_for("medium", ["fi", "en"]) == [R("editor")]
+def test_every_translation_needs_its_own_language_reviewer_at_any_tier():
+    assert s.requirements_for("medium", ["fi", "en"]) == [R("editor"), R("language_reviewer", "en")]
+    assert s.requirements_for("low", ["fi", "uk", "ar"]) == [R("editor"), R("language_reviewer", "ar"), R("language_reviewer", "uk")]
     assert s.requirements_for("low", ["fi"]) == [R("editor")]
 
 
@@ -39,4 +40,6 @@ def test_requirements_met_is_per_language():
 
 
 def test_standards_checklist():
-    assert "ai_role_disclosed" in STANDARDS_CHECKLIST and len(STANDARDS_CHECKLIST) == 5
+    keys = dict(STANDARDS_CHECKLIST)
+    assert {"fact_vs_opinion", "editorial_separated_from_ads", "sources_named"} <= set(keys)
+    assert all("JSN" in label or key == "ai_role_disclosed" for key, label in STANDARDS_CHECKLIST)

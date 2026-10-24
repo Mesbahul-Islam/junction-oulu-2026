@@ -272,3 +272,33 @@ def name_matches(name: str, candidates) -> bool:
                 if shared >= max(4, min(len(a), len(b)) - 1) and max(len(a), len(b)) - shared <= 3:
                     return True
     return False
+
+
+# --------------------------------------------------------------------------
+# Content type (JSN clause 11: fact vs opinion; clause 16: no hidden advertising).
+# The newsroom turns *news* into snippets; opinion pieces and commercial content are
+# excluded so they can't be rewritten as neutral facts or slip in as editorial content.
+# --------------------------------------------------------------------------
+COMMERCIAL_MARKERS = [
+    r"kaupallinen yhteistyö", r"maksettu yhteistyö", r"sisältömarkkinointi", r"\bmainos\b", r"sponsoroi",
+    r"\bsponsored\b", r"\badvertorial", r"paid partnership", r"in partnership with",
+]
+OPINION_MARKERS = [
+    r"^arvio\s*:", r"/arvio-", r"kolumn", r"pääkirjoitu", r"mielipide", r"näkökulma\s*:", r"^analyysi\s*:",
+    r"lukijalta", r"vieraskynä", r"\bblogi", r"\bessee", r"^review\s*:", r"\bcolumn(ist)?\b", r"\beditorial\b", r"\bop-ed\b",
+]
+
+
+def classify_content(title: str, body: str = "", url: str = "") -> tuple[str, str]:
+    """("news" | "opinion" | "commercial", matched marker). Looks at the title, the start of
+    the text and the URL, where Kaleva and most outlets label reviews, columns and ads."""
+    title_low = (title or "").strip().lower()
+    text = f"{title_low}\n{(body or '')[:400].lower()}\n{(url or '').lower()}"
+    for pattern in COMMERCIAL_MARKERS:
+        if m := re.search(pattern, text):
+            return "commercial", m.group(0)
+    for pattern in OPINION_MARKERS:
+        target = title_low if pattern.startswith("^") else text
+        if m := re.search(pattern, target, re.M):
+            return "opinion", m.group(0).strip()
+    return "news", ""

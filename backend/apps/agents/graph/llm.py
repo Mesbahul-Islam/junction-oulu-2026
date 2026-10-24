@@ -150,6 +150,20 @@ def resolve(agent: str | None = None) -> dict:
     return info
 
 
+def ollama_model_problem(info: dict) -> str:
+    """For Ollama models: "" if the server has the model, else why not (unreachable / not pulled)."""
+    if info.get("provider") != "ollama" or info.get("stub_reason"):
+        return ""
+    try:
+        import ollama
+
+        names = {m.model for m in ollama.Client(host=info.get("base_url") or None, timeout=2).list().models}
+    except Exception as exc:
+        return f"Ollama server unreachable ({type(exc).__name__})"
+    wanted = info["model"] if ":" in info["model"] else f"{info['model']}:latest"
+    return "" if wanted in names else f"model not on the Ollama server (run: ollama pull {info['model']})"
+
+
 class ChatModelLLM:
     """Any LangChain chat model, created with ``init_chat_model``."""
 

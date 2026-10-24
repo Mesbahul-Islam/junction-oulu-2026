@@ -27,26 +27,49 @@ class SnippetViewSet(viewsets.GenericViewSet):
     pagination_class = FeedPagination
     filter_backends: list = []
 
+    @property
+    def reader(self):
+        """Whose feed this is. Staff may preview any reader's feed with ?as_user=<id> (read-only):
+        same language, ranking and saved/liked state that reader gets."""
+        as_user = self.request.query_params.get("as_user")
+        if as_user and self.request.user.is_staff and self.request.method == "GET":
+            from django.contrib.auth import get_user_model
+
+            return get_object_or_404(get_user_model(), pk=as_user)
+        return self.request.user
+
     def _chain(self):
-        return services.language_chain(services.requester_language(self.request))
+        return services.language_chain(services.requester_language(self.request, self.reader))
 
     def get_queryset(self):
         return services.published_snippets(self._chain())
 
     def get_serializer_context(self):
-        return {**super().get_serializer_context(), "language_chain": self._chain()}
+        return {**super().get_serializer_context(), "language_chain": self._chain(), "reader": self.reader}
+
+    def _cards(self, snippets):
+        """Serialize cards, marking which ones this reader liked / bookmarked."""
+        mine = services.user_toggles(self.reader, [s.pk for s in snippets])
+        return self.get_serializer(snippets, many=True, context={**self.get_serializer_context(), "mine": mine}).data
 
     def list(self, request):
         """FR-2.1/FR-2.3: candidate window → score → paginate."""
         candidates = services.feed_candidates(
             self._chain(), community=request.query_params.get("community"), tag=request.query_params.get("tag")
         )
-        ranked = recommend.rank(candidates, request.user, chain=self._chain())
+        ranked = recommend.rank(candidates, self.reader, chain=self._chain())
         page = self.paginate_queryset(ranked)
-        return self.get_paginated_response(self.get_serializer(page, many=True).data)
+        return self.get_paginated_response(self._cards(page))
 
     def retrieve(self, request, pk=None):
-        return Response(self.get_serializer(self.get_object()).data)
+        return Response(self._cards([self.get_object()])[0])
+
+    @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated])
+    def bookmarks(self, request):
+        """GET /api/feed/snippets/bookmarks/: the reader's saved stories, newest save first."""
+        ids = services.bookmarked_ids(request.user)
+        by_id = {s.pk: s for s in self.get_queryset().filter(pk__in=ids)}
+        return Response(self._cards([by_id[i] for i in ids if i in by_id]))
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
     def interact(self, request, pk=None):

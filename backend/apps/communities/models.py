@@ -51,7 +51,17 @@ class Membership(TimeStampedModel):
 
 
 class Post(TimeStampedModel):
-    """FR-1.2: threaded community post; visible only to members of the community."""
+    """FR-1.2: threaded community post; visible only to members of the community.
+
+    Posts are written by readers, not the newsroom (JSN annex: content published by the
+    public). They show at once, are labelled as not reviewed by editors, and anyone can flag
+    one: a flagged post is hidden from others until a moderator keeps or removes it.
+    """
+
+    class Status(models.TextChoices):
+        VISIBLE = "visible", "Visible"
+        HIDDEN = "hidden", "Hidden: flagged, awaiting moderation"
+        REMOVED = "removed", "Removed by a moderator"
 
     class Kind(models.TextChoices):
         ANNOUNCEMENT = "announcement", "Announcement"
@@ -65,12 +75,37 @@ class Post(TimeStampedModel):
     body = models.TextField()
     image = models.ImageField(upload_to="posts/", null=True, blank=True)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.VISIBLE, db_index=True)
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="moderated_posts"
+    )
+    moderated_at = models.DateTimeField(null=True, blank=True)
+    moderation_note = models.TextField(blank=True)
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.kind} by {self.author} in {self.community}"
+
+
+class PostFlag(TimeStampedModel):
+    """A reader reports a community post (JSN annex L3). The first flag hides the post."""
+
+    class Reason(models.TextChoices):
+        HATE = "hate", "Hate or harassment"
+        PRIVACY = "privacy", "Violates someone's privacy"
+        FALSE = "false", "False or misleading"
+        SPAM = "spam", "Spam or advertising"
+        OTHER = "other", "Something else"
+
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="flags")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="post_flags")
+    reason = models.CharField(max_length=20, choices=Reason.choices, default=Reason.OTHER)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["post", "user"], name="uniq_post_flag")]
 
 
 class CommunityContribution(TimeStampedModel):

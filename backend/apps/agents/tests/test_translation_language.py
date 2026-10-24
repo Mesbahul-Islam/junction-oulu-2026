@@ -67,3 +67,9 @@ def test_fact_checker_fails_a_mislabelled_translation(settings):
     out = fact_checker(state)["verification"]["k"]
     assert not out["en"]["passed"] and any(m["kind"] == "language" for m in out["en"]["mismatches"])
     assert not any(m["kind"] == "language" for m in out["uk"]["mismatches"])
+
+
+def test_placeholder_counts_as_failed_translation_when_a_model_is_configured():
+    placeholder = f"[en] {FI}"
+    assert check_language(placeholder, "en", FI, model_configured=False) == []  # offline demo mode
+    assert "AI model failed" in check_language(placeholder, "en", FI, model_configured=True)[0]["issue"]

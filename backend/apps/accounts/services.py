@@ -56,9 +56,7 @@ def complete_onboarding(user: User, data: dict) -> User:
     profile = user.profile
     slugs = data.get("interests") or []
     interests = list(Interest.objects.filter(slug__in=slugs))
-    profile.interests.set(interests)
-    # Initial interest vector: uniform weights; refined later from interactions (TODO: feed signals).
-    profile.interest_vector = {i.slug: 1.0 for i in interests}
+    profile.interests.set(interests)  # signals.interests_changed updates profile.interest_vector
     location = resolve_location(
         location_id=data.get("location_id"),
         postal_code=data.get("postal_code", ""),

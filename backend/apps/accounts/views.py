@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from . import services
-from .models import Interest, OnboardingLink
+from .models import Interest, OnboardingLink, User
 from .serializers import (
     InterestSerializer,
     OnboardingLinkSerializer,
@@ -75,3 +75,14 @@ class OnboardingLinkResolveView(generics.RetrieveAPIView):
     serializer_class = OnboardingLinkSerializer
     queryset = OnboardingLink.objects.select_related("community")
     lookup_field = "code"
+
+
+class ReaderListView(generics.ListAPIView):
+    """GET /api/accounts/readers/ (staff): onboarded readers, to preview the feed as each of them."""
+
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = UserSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return User.objects.filter(onboarded=True).select_related("profile").prefetch_related("profile__interests", "roles").order_by("email")

@@ -57,3 +57,19 @@ def test_for_you_falls_back_to_original_when_translation_lacks_it(snippet, djang
     reader = django_user_model.objects.create_user(email="n@example.com", preferred_language="uk", reader_situation="newcomer")
     card = _card(reader)
     assert card["for_you"] == "fi: check your route" and card["for_you_language"] == "fi"
+
+
+def test_bookmarks_endpoint_and_card_state(snippet, django_user_model):
+    reader = django_user_model.objects.create_user(email="b@example.com", preferred_language="en")
+    client = APIClient()
+    client.force_authenticate(reader)
+    assert client.get("/api/feed/snippets/bookmarks/").data == []
+    client.post(f"/api/feed/snippets/{snippet.pk}/interact/", {"kind": "bookmark"}, format="json")
+    saved = client.get("/api/feed/snippets/bookmarks/").data
+    assert [c["id"] for c in saved] == [snippet.pk] and saved[0]["bookmarked"] and not saved[0]["liked"]
+    assert client.get(f"/api/feed/snippets/{snippet.pk}/").data["bookmarked"]
+
+
+def test_cors_allows_the_react_dev_server(snippet):
+    resp = APIClient().options("/api/feed/snippets/", HTTP_ORIGIN="http://localhost:5173", HTTP_ACCESS_CONTROL_REQUEST_METHOD="GET")
+    assert resp["Access-Control-Allow-Origin"] in ("http://localhost:5173", "*")

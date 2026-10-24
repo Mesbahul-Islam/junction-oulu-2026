@@ -28,6 +28,9 @@ from .serializers import (
     FeedbackPromptSerializer,
     FeedbackResponseSerializer,
     GlossaryTermSerializer,
+    FlagPostSerializer,
+    ModeratePostSerializer,
+    ModerationPostSerializer,
     PostSerializer,
     SourceFeedSerializer,
 )
@@ -78,8 +81,12 @@ class PostViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = (
             Post.objects.filter(community=self.community, community__memberships__user=self.request.user)
+            .exclude(status=Post.Status.REMOVED)
             .select_related("author")
         )
+        if not services.can_moderate(self.request.user, self.community):
+            # Flagged posts stay hidden until moderated; their author still sees them (with a notice).
+            qs = qs.filter(status=Post.Status.VISIBLE) | qs.filter(author=self.request.user)
         if self.action == "list":
             parent = self.request.query_params.get("parent")
             qs = qs.filter(parent_id=parent) if parent else qs.filter(parent__isnull=True)
@@ -89,8 +96,64 @@ class PostViewSet(viewsets.ModelViewSet):
         return {**super().get_serializer_context(), "community": self.community}
 
     def perform_create(self, serializer):
-        # TODO: restrict kind=announcement/snippet to community_editor role.
-        serializer.save(community=self.community, author=self.request.user)
+        # Announcements carry the community's authority: only its moderators may post them.
+        kind = serializer.validated_data.get("kind", Post.Kind.POST)
+        if kind in (Post.Kind.ANNOUNCEMENT, Post.Kind.SNIPPET) and not services.can_moderate(self.request.user, self.community):
+            kind = Post.Kind.POST
+        serializer.save(community=self.community, author=self.request.user, kind=kind)
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsCommunityMember])
+    def flag(self, request, community_slug=None, pk=None):
+        """JSN annex L3: any member can flag a post; it's hidden until a moderator reviews it."""
+        ser = FlagPostSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        services.flag_post(self.get_object(), request.user, **ser.validated_data)
+        return Response({"detail": "Thanks. The post is hidden until a moderator reviews it."})
+
+
+class CommunityNewsView(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """GET /api/communities/news/: posts by members of all the reader's communities, newest first.
+
+    Reader-written content, not journalism: the app labels it as not reviewed by editors.
+    """
+
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        ids = self.request.user.memberships.values_list("community_id", flat=True)
+        return services.visible_posts(self.request.user, ids)
+
+
+class PostModerationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """GET /api/communities/moderation/: flagged posts in communities you moderate (JSN annex L2, L4).
+    POST /api/communities/moderation/<id>/decide/ {"decision": "keep"|"remove", "note"}."""
+
+    serializer_class = ModerationPostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """?status=pending (default, reported and hidden) | removed | kept (reported, then restored)."""
+        view = self.request.query_params.get("status", "pending")
+        qs = Post.objects.select_related("author", "community", "moderated_by").prefetch_related("flags__user")
+        if view == "removed":
+            qs = qs.filter(status=Post.Status.REMOVED)
+        elif view == "kept":
+            qs = qs.filter(status=Post.Status.VISIBLE, moderated_at__isnull=False)
+        else:
+            qs = qs.filter(status=Post.Status.HIDDEN)
+        ids = [p.pk for p in qs if services.can_moderate(self.request.user, p.community)]
+        return qs.filter(pk__in=ids).order_by("-moderated_at", "-created_at")
+
+    @action(detail=True, methods=["post"])
+    def decide(self, request, pk=None):
+        post = get_object_or_404(Post, pk=pk)
+        if not services.can_moderate(request.user, post.community):
+            return Response({"detail": "Only moderators of this community can decide."}, status=status.HTTP_403_FORBIDDEN)
+        ser = ModeratePostSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        post = services.moderate_post(post, request.user, ser.validated_data["decision"], ser.validated_data.get("note", ""))
+        return Response(ModerationPostSerializer(post, context={"request": request}).data)
 
 
 class ContributionViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,

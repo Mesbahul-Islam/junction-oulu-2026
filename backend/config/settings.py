@@ -138,7 +138,13 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
 }
 
-CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:3000", "http://localhost:5173"])
+# The React app (frontend/, Vite dev server on :5173) calls the API from another origin.
+# Auth is a JWT in the Authorization header (no cookies), so no CORS credentials are needed.
+CORS_ALLOWED_ORIGINS = env.list(
+    "CORS_ALLOWED_ORIGINS", default=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]
+)
+# In development also allow any origin, e.g. the app opened from a phone on the LAN (http://192.168.x.x:5173).
+CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=DEBUG)
 
 CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL

@@ -10,12 +10,16 @@ from apps.common.models import TimeStampedModel
 # FR-3.6: standards checklist applied to every snippet before publication.
 # TODO: confirm items and wording against the Council for Mass Media in Finland (JSN)
 # Journalist's Guidelines (Journalistin ohjeet) before production use.
+# Automatic standards checks, each tied to the JSN Journalist's Guidelines clause it serves
+# (https://jsn.fi/en/journalists-guidelines/). Sensitive topics that need an editor's explicit
+# confirmation are in checklist.SENSITIVE_CHECKS.
 STANDARDS_CHECKLIST = [
-    "sources_named",
-    "ai_role_disclosed",
-    "correction_path",
-    "editorial_separated_from_ads",
-    "privacy_of_named_persons",
+    ("sources_named", "The source is named and linked (JSN 10)"),
+    ("fact_vs_opinion", "News only: no column, editorial or review rewritten as fact (JSN 11)"),
+    ("editorial_separated_from_ads", "No advertising or sponsored content (JSN 16)"),
+    ("ai_role_disclosed", "AI involvement and the human reviewer are shown to readers"),
+    ("correction_path", "Readers can report errors; corrections are logged publicly (JSN 35)"),
+    ("privacy_of_named_persons", "Private persons named only with consent or clear public interest (JSN 25)"),
 ]
 
 
@@ -107,3 +111,22 @@ class Correction(TimeStampedModel):
 
     class Meta:
         ordering = ["-published_at", "-created_at"]
+
+
+class ChecklistItem(TimeStampedModel):
+    """A sensitive-topic check (checklist.SENSITIVE_CHECKS) an editor must confirm before publishing."""
+
+    snippet = models.ForeignKey("feed.Snippet", on_delete=models.CASCADE, related_name="checklist")
+    key = models.CharField(max_length=40)
+    label = models.TextField()
+    clauses = models.CharField(max_length=40, blank=True)
+    confirmed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["snippet", "key"], name="uniq_checklist_item")]
+        ordering = ["key"]
+
+    def __str__(self):
+        return f"{self.snippet_id}:{self.key}{' ✓' if self.confirmed_at else ''}"

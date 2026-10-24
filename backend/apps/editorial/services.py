@@ -5,9 +5,9 @@ Approval model
 `required_approvals(snippet)` returns a list of `Requirement(role, language)`;
 `language=None` means the whole snippet (all language versions).
 
-* High   → editor + one language_reviewer per non-Finnish language version.
-* Medium → one editor.
-* Low    → one editor, queued as `batch_low_risk` (still a human approval).
+* Every snippet → one editor, plus one language_reviewer per non-Finnish language version
+  (an editor can't vouch for a translation they can't read; FR-3.9, JSN clause 9).
+* The risk tier sets priority; Low is queued as `batch_low_risk` (still a human approval).
 * Failed verification or confidence < AGENT_CONFIDENCE_THRESHOLD escalates to High.
 * Sámi versions (FR-3.9) always need a language_reviewer and must have
   is_machine_translated=False; a community_editor of the snippet's community may veto.
@@ -29,7 +29,7 @@ from apps.common.permissions import has_role
 from apps.common.choices import SAMI_LANGUAGES, SOURCE_LANGUAGE, ReviewStatus, RiskTier
 from apps.feed.models import SnippetVersion
 
-from .models import AuditLogEntry, Correction, ReviewTask, VerificationResult
+from .models import AuditLogEntry, ChecklistItem, Correction, ReviewTask, VerificationResult
 
 EDITOR = "editor"
 LANGUAGE_REVIEWER = "language_reviewer"
@@ -65,15 +65,15 @@ def effective_tier(risk_tier: str, confidence: float, verification_failed: bool)
 
 
 def requirements_for(tier: str, languages) -> list[Requirement]:
-    """FR-3.7 risk-tier matrix + FR-3.9 Sámi rule (pure)."""
-    reqs = [Requirement(EDITOR)]
-    langs = sorted(set(languages))
-    if tier == RiskTier.HIGH:
-        reqs += [Requirement(LANGUAGE_REVIEWER, lang) for lang in langs if lang != SOURCE_LANGUAGE]
-    for lang in langs:
-        if lang in SAMI_LANGUAGES and Requirement(LANGUAGE_REVIEWER, lang) not in reqs:
-            reqs.append(Requirement(LANGUAGE_REVIEWER, lang))
-    return reqs
+    """Approvals a snippet needs (pure).
+
+    Always one editor for the story, plus a reviewer *who reads that language* for every
+    translated version (FR-3.9, JSN clause 9), whatever the risk tier: an editor can't
+    vouch for an Arabic text they can't read. The tier still sets queue priority, batch
+    approval for low risk, and expiry. Sámi versions are written by a human anyway.
+    """
+    langs = sorted(set(languages) - {SOURCE_LANGUAGE})
+    return [Requirement(EDITOR)] + [Requirement(LANGUAGE_REVIEWER, lang) for lang in langs]
 
 
 def requirements_met(reqs, approved: set, language: str | None = None) -> bool:
@@ -213,12 +213,37 @@ def enqueue(snippet, reason, language=None) -> list[ReviewTask]:
     return tasks
 
 
+def pending_checklist(snippet):
+    """Sensitive-topic checks (JSN crime, right of reply, minors, illness/death) not yet confirmed."""
+    return ChecklistItem.objects.filter(snippet=snippet, confirmed_at__isnull=True)
+
+
+def confirm_checklist(snippet, user, keys, notes=None) -> list[str]:
+    """Record the editor's confirmation of the given checklist items. Returns the keys confirmed."""
+    notes = notes or {}
+    done = []
+    for item in pending_checklist(snippet).filter(key__in=list(keys or [])):
+        item.confirmed_by, item.confirmed_at, item.note = user, timezone.now(), notes.get(item.key, "")
+        item.save(update_fields=["confirmed_by", "confirmed_at", "note", "updated_at"])
+        done.append(item.key)
+    if done:
+        log(snippet, "checklist_confirmed", actor=user, payload={"items": done})
+    return done
+
+
 @transaction.atomic
-def approve(task, user, edits=None) -> ReviewTask:
+def approve(task, user, edits=None, confirm=None, notes=None) -> ReviewTask:
+    """Approve one review task. The editor's whole-story approval must also confirm every
+    open sensitive-topic checklist item (``confirm`` = their keys); otherwise it is refused."""
     _check_open(task)
     if not can_decide(user, task):
         raise PermissionDenied("Missing required role for this task.")
     snippet = task.snippet
+    if task.language is None:
+        confirm_checklist(snippet, user, confirm, notes)
+        missing = list(pending_checklist(snippet).values_list("key", flat=True))
+        if missing:
+            raise ValidationError(f"Confirm the editorial checklist before approving: {', '.join(missing)}.")
     if edits:
         _apply_edits(snippet, task.language, edits, user)
     if task.language in SAMI_LANGUAGES and snippet.versions.filter(
@@ -290,6 +315,8 @@ def can_publish(snippet) -> bool:
         return False
     if snippet.expires_at and snippet.expires_at < timezone.now():
         return False
+    if pending_checklist(snippet).exists():  # JSN sensitive topics need an editor's explicit confirmation
+        return False
     active = _active_tasks(snippet)
     if active.filter(language__isnull=True).exclude(status=ReviewTask.Status.APPROVED).exists():
         return False
@@ -359,6 +386,6 @@ def queue_for(user):
 
 
 __all__ = [
-    "enqueue", "required_approvals", "approve", "reject", "request_changes",
+    "enqueue", "required_approvals", "approve", "pending_checklist", "confirm_checklist", "reject", "request_changes",
     "can_publish", "publish", "reopen", "log", "batch_approve", "queue_for",
 ]

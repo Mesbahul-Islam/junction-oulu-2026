@@ -19,7 +19,8 @@ docker compose up --build -d
 
 The AI model is three lines in `.env`; any provider works (local Ollama, Groq, Gemini, OpenAI, Anthropic …; Ollama runs as an optional Docker service). Without them the newsroom runs on an offline stub. The first start migrates the database, loads demo data (the Oulu community and Kaleva RSS feeds) and creates a dev admin.
 
-- **Dev UI: http://localhost:8000/** (feed, compare readers, editor queue, AI newsroom, markets)
+- **Reader app: http://localhost:5173** (React, `frontend/`, see [frontend/README.md](frontend/README.md))
+- Newsroom Admin dashboard: http://localhost:8000/ (staff: overview, editor queue, moderation, AI newsroom runs, compare feeds)
 - API docs: http://localhost:8000/api/docs/
 - Admin: http://localhost:8000/admin/ (`admin@example.com` / `admin`)
 

@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework import mixins, status, viewsets
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import AgentRun
 from .serializers import (
@@ -52,3 +53,76 @@ class AgentRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
 
         transaction.on_commit(_queue)
         return Response(AgentRunSerializer(run).data, status=status.HTTP_202_ACCEPTED)
+
+
+class DashboardView(APIView):
+    """GET /api/agents/dashboard/ (staff): everything the admin overview shows, in one call."""
+
+    permission_classes = [IsAdminUser]
+
+    @staticmethod
+    def _llm_status(llm) -> list[dict]:
+        """Each agent's model, checked against the Ollama server when that's the provider."""
+        rows, checked = [], {}
+        for agent in llm.AGENTS:
+            info = {k: v for k, v in llm.resolve(agent).items() if k != "api_key"}
+            if info["provider"] == "ollama" and not info["stub_reason"]:
+                key = (info["model"], info["base_url"])
+                checked.setdefault(key, llm.ollama_model_problem(info))
+                info["stub_reason"] = checked[key]
+            rows.append(info)
+        return rows
+
+    def get(self, request):
+        from datetime import timedelta
+
+        from django.apps import apps as django_apps
+        from django.conf import settings
+        from django.utils import timezone
+
+        from .graph import llm
+
+        now = timezone.now()
+        day = now - timedelta(hours=24)
+        ReviewTask = django_apps.get_model("editorial", "ReviewTask")
+        ChecklistItem = django_apps.get_model("editorial", "ChecklistItem")
+        Snippet = django_apps.get_model("feed", "Snippet")
+        Post = django_apps.get_model("communities", "Post")
+        CommunityGroup = django_apps.get_model("communities", "CommunityGroup")
+        open_tasks = ReviewTask.objects.filter(active=True, status="open")
+
+        minutes = settings.AGENT_SCHEDULE_MINUTES
+        last_scheduled = AgentRun.objects.filter(trigger=AgentRun.Trigger.SCHEDULE).order_by("-created_at").first()
+        next_run = None
+        try:
+            from django_celery_beat.models import PeriodicTask
+
+            beat = PeriodicTask.objects.filter(task="apps.agents.tasks.ingest_all_communities", enabled=True).first()
+            if beat and beat.last_run_at:
+                next_run = beat.last_run_at + timedelta(minutes=minutes)
+        except Exception:
+            pass
+        if next_run is None and last_scheduled:
+            next_run = last_scheduled.created_at + timedelta(minutes=minutes)
+
+        runs = AgentRun.objects.filter(created_at__gte=day)
+        return Response({
+            "schedule": {
+                "every_minutes": minutes,
+                "max_stories_per_run": settings.AGENT_MAX_ITEMS,
+                "last_scheduled_run_at": last_scheduled.created_at if last_scheduled else None,
+                "next_run_at": next_run,
+            },
+            "counts": {
+                "editor_tasks": open_tasks.filter(language__isnull=True).count(),
+                "translation_tasks": open_tasks.filter(language__isnull=False).count(),
+                "checklist_pending": ChecklistItem.objects.filter(confirmed_at__isnull=True).count(),
+                "published_24h": Snippet.objects.filter(published_at__gte=day).count(),
+                "flagged_posts": Post.objects.filter(status=Post.Status.HIDDEN).count(),
+                "runs_24h": runs.count(),
+                "failed_runs_24h": runs.filter(status=AgentRun.Status.FAILED).count(),
+            },
+            "running": AgentRunSerializer(AgentRun.objects.filter(status__in=["queued", "running"]), many=True).data,
+            "llm": self._llm_status(llm),
+            "communities": [{"id": c.pk, "name": c.name, "slug": c.slug} for c in CommunityGroup.objects.filter(is_active=True)],
+        })
