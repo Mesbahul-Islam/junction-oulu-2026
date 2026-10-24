@@ -326,12 +326,18 @@ def can_publish(snippet) -> bool:
     ).exists()
 
 
+def source_time(snippet):
+    """When Kaleva published the newest article behind the story (never in the future), or None."""
+    times = [d.published_at for d in snippet.source_documents.all() if d.published_at]
+    return min(max(times), timezone.now()) if times else None
+
+
 @transaction.atomic
 def publish(snippet) -> bool:
     if not can_publish(snippet):
         return False
     now = timezone.now()
-    snippet.published_at = snippet.published_at or now
+    snippet.published_at = snippet.published_at or source_time(snippet) or now
     snippet.verified_at = now
     snippet.review_status = ReviewStatus.PUBLISHED
     snippet.save(update_fields=["published_at", "verified_at", "review_status", "updated_at"])

@@ -20,6 +20,8 @@ class SourceDocument(TimeStampedModel):
     image_url = models.URLField(max_length=1500, blank=True)
     # The article's full text from its page (the RSS body is only a teaser); read by the brief desk.
     full_text = models.TextField(blank=True)
+    # When Kaleva published it (RSS pubDate, else the page's datePublished); a story shows this time.
+    published_at = models.DateTimeField(null=True, blank=True)
     fetched_at = models.DateTimeField(null=True, blank=True)
     content_hash = models.CharField(max_length=64, db_index=True)
     version = models.PositiveIntegerField(default=1)

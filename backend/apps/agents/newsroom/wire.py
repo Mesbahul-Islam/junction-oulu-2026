@@ -12,7 +12,8 @@ from __future__ import annotations
 import html
 import logging
 import re
-from datetime import timedelta
+from calendar import timegm
+from datetime import datetime, timedelta, timezone as dt_timezone
 from urllib.parse import urljoin
 
 from django.apps import apps
@@ -107,6 +108,12 @@ def page_image(url: str) -> str:
     return best[1] if best else ""
 
 
+def entry_time(e):
+    """The entry's publication time (aware UTC), or None."""
+    parsed = e.get("published_parsed") or e.get("updated_parsed")
+    return datetime.fromtimestamp(timegm(parsed), tz=dt_timezone.utc) if parsed else None
+
+
 def fetch_entries(url: str) -> list[dict]:
     import feedparser
     import httpx
@@ -118,7 +125,7 @@ def fetch_entries(url: str) -> list[dict]:
         body = " ".join(c.get("value", "") for c in e.get("content", [])) or e.get("summary", "") or e.get("description", "")
         link = e.get("link") or url
         entries.append({"url": link, "title": clean_html(e.get("title", "")), "body": clean_html(body),
-                        "image_url": entry_image(e, link)})
+                        "image_url": entry_image(e, link), "published_at": entry_time(e)})
     return entries
 
 
@@ -137,10 +144,13 @@ def store(entry: dict):
     if seen.exists():
         if seen.filter(image_url="").exists() and (image := entry.get("image_url") or page_image(url)):
             seen.filter(image_url="").update(image_url=image)
+        if entry.get("published_at"):
+            seen.filter(published_at__isnull=True).update(published_at=entry["published_at"])
         return None
     latest = SourceDocument.objects.filter(url=url).order_by("-version").first()
     return SourceDocument.objects.create(
         url=url, title=title[:500], body=body, publisher=KALEVA_FEED_NAME, fetched_at=timezone.now(),
+        published_at=entry.get("published_at"),
         image_url=entry.get("image_url") or page_image(url),
         content_hash=h, version=(latest.version + 1) if latest else 1,
     )

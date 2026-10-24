@@ -16,6 +16,7 @@ import re
 from urllib.parse import urlparse
 
 from django.apps import apps
+from django.utils.dateparse import parse_datetime
 
 from .wire import USER_AGENT
 
@@ -87,6 +88,8 @@ def fetch_article(url: str) -> dict:
     if not article["text"]:
         return {**article, "error": "The page had no article text (maybe a paid article)."}
     SourceDocument.objects.filter(url=url).update(full_text=article["text"])
+    if published := parse_datetime(article["published"] or ""):
+        SourceDocument.objects.filter(url=url, published_at__isnull=True).update(published_at=published)
     return {**article, "error": ""}
 
 
