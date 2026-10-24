@@ -19,7 +19,7 @@ from typing import Any
 
 from apps.common.choices import SAMI_LANGUAGES, Language
 
-from ..llm import language_chunks, structured_call
+from ..llm import language_chunks, match_languages, structured_call
 from ..schemas import LanguageTranslation, TranslationOut, TranslationsOut
 from ..state import NewsroomState
 
@@ -78,7 +78,8 @@ def _version(out, draft: dict) -> dict:
 
 
 def translate_draft(draft: dict, langs: list[str], glossary: list[dict], errors: list) -> dict[str, dict]:
-    """Translate one Finnish draft into every language in ``langs`` with ONE LLM call."""
+    """Translate one Finnish draft into the language(s) in ``langs`` with one LLM call
+    (one language per call by default, see LLM_LANGUAGES_PER_CALL)."""
     terms = {lang: glossary_for(glossary, lang) for lang in langs}
     gloss_txt = "\n".join(
         f"- [{lang}] {g['term_fi']} => {g['term']}" + (f" ({g['note']})" if g.get("note") else "")
@@ -86,8 +87,8 @@ def translate_draft(draft: dict, langs: list[str], glossary: list[dict], errors:
     )
     targets = ", ".join(f"{LANGUAGE_NAMES.get(lang, lang)} ({lang})" for lang in langs)
     prompt = (
-        f"Translate this Finnish news snippet into each of these languages: {targets}.\n"
-        "Return exactly one translation per language, with its language code. Rules: translate "
+        f"Translate this Finnish news snippet into: {targets}.\n"
+        "Return exactly one translation per requested language, with its language code. Rules: translate "
         "faithfully, plain language, keep every number, time and date exactly (dates as dd.mm.yyyy), "
         "keep names of people/places/organisations, use the glossary terms below exactly for that "
         "language, do not add or remove information. Keep the explainer keys unchanged.\n"
@@ -103,7 +104,7 @@ def translate_draft(draft: dict, langs: list[str], glossary: list[dict], errors:
         ])
 
     out = structured_call(prompt, TranslationsOut, fallback, errors=errors, agent="translator")
-    got = {t.language.strip().lower(): t for t in out.translations}
+    got = match_languages(out.translations, langs, "translator", errors)
     versions = {}
     for lang in langs:
         if lang not in got:  # model skipped a language: mark it clearly instead of dropping it

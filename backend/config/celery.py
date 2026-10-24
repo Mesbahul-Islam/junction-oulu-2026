@@ -26,4 +26,12 @@ app.conf.beat_schedule = {
         "task": "apps.markets.tasks.settle_finished_events",
         "schedule": crontab(minute="*/5"),
     },
+    "fantasy-sync-schedule": {
+        "task": "apps.fantasy.tasks.sync_schedule",
+        "schedule": crontab(hour=6, minute=0),
+    },
+    "fantasy-sync-live": {
+        "task": "apps.fantasy.tasks.sync_live",
+        "schedule": crontab(minute="*/10"),
+    },
 }

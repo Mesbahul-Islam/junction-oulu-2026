@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fantasy Liiga · dev UI</title>
+<style>
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #1c1b19; --muted: #6b6760; --line: #e3dfd8;
+    --accent: #0b6e4f; --accent-ink: #ffffff; --high: #b42318; --gold: #b7791f;
+    --rink: #e8f1f6; --rink-line: #c9dbe6; --me: #e4f2ec; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --panel: #1f1f1d; --ink: #ecebe7; --muted: #a29e96; --line: #33322f;
+      --accent: #3fb68b; --accent-ink: #0d1a14; --rink: #1b2429; --rink-line: #2c3a42; --me: #1f3229; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .brand { font-weight: 700; letter-spacing: -.01em; }
+  .brand small { color: var(--muted); font-weight: 400; }
+  .who { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+  nav { display: flex; gap: 4px; max-width: 1100px; margin: 0 auto; padding: 0 16px; overflow-x: auto; }
+  nav button { border: 0; background: none; padding: 10px 12px; color: var(--muted); border-bottom: 2px solid transparent; font: inherit; cursor: pointer; white-space: nowrap; }
+  nav button.on { color: var(--ink); border-color: var(--accent); font-weight: 600; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  section { display: none; } section.on { display: block; }
+  button, select, input { font: inherit; color: inherit; }
+  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--muted); }
+  a.btn { color: inherit; text-decoration: none; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  input, select { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 8px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .hint { color: var(--muted); font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px; }
+  h2 { font-size: 18px; margin: 0 0 8px; } h3 { font-size: 15px; margin: 0 0 6px; }
+  .pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.live { color: var(--high); border-color: currentColor; font-weight: 600; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .stat { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
+  @media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.click { cursor: pointer; } tr.click:hover td { background: var(--bg); }
+  tr.me td { background: var(--me); font-weight: 600; }
+  /* Rink: goalie at the back, two D pairs, two forward lines */
+  .rink { background: var(--rink); border: 2px solid var(--rink-line); border-radius: 40px; padding: 16px 10px; display: flex; flex-direction: column-reverse; gap: 12px; }
+  .line { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .line-label { text-align: center; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .pc { position: relative; width: 112px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px 6px; text-align: center; font-size: 13px; cursor: pointer; }
+  .pc:hover { border-color: var(--accent); }
+  .pc .nm { font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc .tm { color: var(--muted); font-size: 12px; }
+  .pc .pts { font-variant-numeric: tabular-nums; }
+  .pc .badge { position: absolute; top: -8px; right: -6px; width: 22px; height: 22px; border-radius: 99px; background: var(--ink); color: var(--panel); font-size: 12px; font-weight: 700; line-height: 22px; }
+  .pc .badge.vc { background: var(--muted); }
+  .pc .inj { position: absolute; top: -8px; left: -6px; background: var(--high); color: #fff; border-radius: 6px; font-size: 10px; padding: 1px 5px; font-weight: 700; }
+  .bench { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 10px; border: 1px dashed var(--line); border-radius: 12px; margin-top: 10px; }
+  .bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; padding-top: 18px; }
+  .bars div { flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; position: relative; min-height: 2px; }
+  .bars div span { position: absolute; top: -17px; left: 0; right: 0; text-align: center; font-size: 10px; color: var(--muted); }
+  .bars-x { display: flex; gap: 4px; font-size: 10px; color: var(--muted); } .bars-x span { flex: 1; text-align: center; }
+  .empty { color: var(--muted); padding: 24px; text-align: center; border: 1px dashed var(--line); border-radius: 12px; }
+  #drawer { position: fixed; inset: 0 0 0 auto; width: min(420px, 100vw); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgba(0,0,0,.12); padding: 16px; overflow-y: auto; z-index: 20; }
+  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 14px; display: none; max-width: calc(100vw - 32px); z-index: 30; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">Fantasy Liiga <small id="seasonName">· dev UI</small></div>
+    <span class="hint" id="deadline"></span>
+    <div class="who">
+      <label class="hint" for="asSel">Viewing as</label>
+      <select id="asSel"></select>
+      <a class="btn" href="/">News</a>
+    </div>
+  </div>
+  <nav id="tabs">
+    <button data-tab="board" class="on">Leaderboards</button>
+    <button data-tab="team">My team</button>
+    <button data-tab="players">Players</button>
+    <button data-tab="fixtures">Fixtures</button>
+    <button data-tab="leagues">Leagues</button>
+  </nav>
+</header>
+
+<main>
+  <section id="board" class="on">
+    <div class="row">
+      <select id="bPeriod"><option value="season">Season</option><option value="week">Gameweek</option><option value="day">Day</option></select>
+      <select id="bGw" hidden></select>
+      <input id="bDate" type="date" hidden>
+      <select id="bScope"><option value="global">Finland</option><option value="community">Oulu</option></select>
+      <span class="hint">Click a manager to see their team.</span>
+    </div>
+    <div class="panel table-wrap"><table id="bTable"></table></div>
+  </section>
+
+  <section id="team">
+    <div class="panel"><div class="row" style="margin:0"><h2 id="tName" style="margin:0">My team</h2><span class="hint" id="tManager"></span></div>
+      <div class="stats" id="tStats" style="margin-top:10px"></div></div>
+    <div class="grid2">
+      <div class="panel">
+        <div class="row"><h3 style="margin:0">Lineup</h3><span class="hint" id="tLineupGw"></span></div>
+        <div class="rink" id="rink"></div>
+        <div class="line-label" style="margin:10px 0 0">Bench</div>
+        <div class="bench" id="bench"></div>
+        <p class="hint">Click a starter to make them captain (scores double) for the next gameweek.</p>
+      </div>
+      <div>
+        <div class="panel"><h3>Points per gameweek</h3><div class="bars" id="bars"></div><div class="bars-x" id="barsX"></div></div>
+        <div class="panel table-wrap"><h3 id="lastGwTitle">Last gameweek</h3><table id="lastGw"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="players">
+    <div class="row">
+      <input id="pSearch" placeholder="Search name">
+      <select id="pPos"><option value="">All positions</option><option value="G">Goalies</option><option value="D">Defence</option><option value="F">Forwards</option></select>
+      <select id="pTeam"><option value="">All teams</option></select>
+      <select id="pSort"><option value="-total_points">Most points</option><option value="-price">Most expensive</option><option value="price">Cheapest</option></select>
+    </div>
+    <div class="panel table-wrap"><table id="pTable"></table></div>
+    <div class="row"><button class="btn" id="pMore">Load more</button><span class="hint" id="pCount"></span></div>
+  </section>
+
+  <section id="fixtures">
+    <div class="row"><select id="fGw"></select><span class="hint">Times in Finnish time.</span></div>
+    <div class="panel table-wrap"><table id="fTable"></table></div>
+  </section>
+
+  <section id="leagues">
+    <div id="lList"></div>
+  </section>
+</main>
+
+<aside id="drawer" hidden></aside>
+<div id="toast"></div>
+
+<script>
+const API = "/api/fantasy";
+const S = { as: "", season: null, teams: [], squad: null, byId: {}, pOffset: 0 };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const POS = { G: "Goalie", D: "Defence", F: "Forward" };
+const fmtTime = (iso) => new Date(iso).toLocaleString("fi-FI", { timeZone: "Europe/Helsinki", weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => (t.style.display = "none"), 3000); }
+
+async function api(path, { method = "GET", body } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  let token = null; try { token = localStorage.getItem("token"); } catch {}
+  if (token) headers.Authorization = "Bearer " + token;
+  if (S.as) headers["X-Fantasy-As"] = S.as; // dev bypass (DEBUG only): view as another squad
+  const res = await fetch(API + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), credentials: "omit" });
+  const data = res.status === 204 ? null : await res.json().catch(() => null);
+  if (!res.ok) throw new Error((data && data.detail) || `HTTP ${res.status}`);
+  return data;
+}
+
+// ------------------------------------------------------------------ tabs
+document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
+function show(tab) {
+  if (!document.getElementById(tab)) tab = "board";
+  history.replaceState(null, "", "#" + tab);
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
+  document.querySelectorAll("main section").forEach((s) => s.classList.toggle("on", s.id === tab));
+  ({ board: loadBoard, team: loadTeam, players: () => loadPlayers(true), fixtures: loadFixtures, leagues: loadLeagues })[tab]();
+}
+
+// ------------------------------------------------------------------ leaderboards
+function boardTable(el, rows, me) {
+  if (!rows.length) { el.innerHTML = `<tr><td class="empty">No scores yet for this selection.</td></tr>`; return; }
+  el.innerHTML = `<tr><th class="num">#</th><th>Team</th><th>Manager</th><th class="num">Points</th></tr>` + rows.map((r) =>
+    `<tr class="click ${me && me.squad_id === r.squad_id ? "me" : ""}" data-squad="${r.squad_id}">
+      <td class="num">${r.rank}</td><td>${esc(r.squad_name)}</td><td>${esc(r.manager)}</td><td class="num">${r.points}</td></tr>`).join("");
+  el.querySelectorAll("tr[data-squad]").forEach((tr) => tr.addEventListener("click", () => viewAs(tr.dataset.squad)));
+}
+
+async function loadBoard() {
+  const period = $("bPeriod").value;
+  $("bGw").hidden = period !== "week"; $("bDate").hidden = period !== "day";
+  const q = new URLSearchParams({ period, scope: $("bScope").value });
+  if (q.get("scope") === "community") q.set("community", "oulu");
+  if (period === "week") q.set("gameweek", $("bGw").value);
+  if (period === "day") q.set("date", $("bDate").value);
+  try { const d = await api(`/leaderboard/?${q}`); boardTable($("bTable"), d.rows, d.me); }
+  catch (e) { $("bTable").innerHTML = `<tr><td class="empty">${esc(e.message)}</td></tr>`; }
+}
+["bPeriod", "bGw", "bDate", "bScope"].forEach((id) => $(id).addEventListener("change", loadBoard));
+
+// ------------------------------------------------------------------ my team
+function card(p, lineup, gwPoints) {
+  const badge = lineup.captain === p.id ? `<span class="badge">C</span>` : lineup.vice_captain === p.id ? `<span class="badge vc">V</span>` : "";
+  const flag = p.injured ? `<span class="inj">INJ</span>` : p.suspended ? `<span class="inj">SUSP</span>` : "";
+  const pts = gwPoints != null ? `${gwPoints} pts last GW` : `${Math.round(p.total_points)} season pts`;
+  return `<div class="pc" data-player="${p.id}">${badge}${flag}<div class="nm">${esc(p.last_name)}</div>
+    <div class="tm">${esc(p.team || "")} · ${p.position}</div><div class="pts">${p.price} · ${pts}</div></div>`;
+}
+
+async function loadTeam() {
+  let squad, lineup, history;
+  try { [squad, lineup, history] = await Promise.all([api("/squad/"), api("/squad/lineup/"), api("/squad/history/")]); }
+  catch (e) { $("tName").textContent = "No team"; $("tStats").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  S.squad = squad; S.byId = Object.fromEntries(squad.players.map((p) => [p.id, p]));
+  const last = [...history].reverse().find((h) => h.detail && h.detail.length);
+  const lastPts = Object.fromEntries((last ? last.detail : []).map((d) => [d.player, d.points * d.multiplier]));
+
+  $("tName").textContent = squad.name;
+  $("tManager").textContent = `since GW${squad.first_gameweek}`;
+  const rank = await api("/leaderboard/").then((d) => d.me && d.me.rank).catch(() => null);
+  $("tStats").innerHTML = [
+    ["Total points", squad.total_points], ["Rank (Finland)", rank ?? "–"], ["Last GW", last ? last.total : "–"],
+    ["Squad value", squad.value], ["In the bank", squad.bank], ["Free transfers", squad.free_transfers],
+  ].map(([k, v]) => `<div class="stat"><b>${esc(v)}</b><span>${k}</span></div>`).join("");
+
+  $("tLineupGw").textContent = lineup.gameweek ? `GW${lineup.gameweek} · deadline ${fmtTime(lineup.deadline)}` : "";
+  const starters = (lineup.starters || []).map((id) => S.byId[id]).filter(Boolean);
+  const group = (pos) => starters.filter((p) => p.position === pos);
+  const f = group("F"), d = group("D");
+  const line = (label, ps) => `<div><div class="line-label">${label}</div><div class="line">${ps.map((p) => card(p, lineup, lastPts[p.id])).join("")}</div></div>`;
+  $("rink").innerHTML = line("Goalie", group("G")) + line("Defence", d) + line("Forwards · line 2", f.slice(3)) + line("Forwards · line 1", f.slice(0, 3));
+  $("bench").innerHTML = (lineup.bench || []).map((id) => S.byId[id]).filter(Boolean).map((p) => card(p, lineup, lastPts[p.id])).join("");
+  $("rink").querySelectorAll(".pc").forEach((el) => el.addEventListener("click", () => makeCaptain(lineup, +el.dataset.player)));
+  $("bench").querySelectorAll(".pc").forEach((el) => el.addEventListener("click", () => playerDrawer(+el.dataset.player)));
+
+  const max = Math.max(1, ...history.map((h) => +h.total));
+  $("bars").innerHTML = history.map((h) => `<div style="height:${(100 * h.total) / max}%" title="GW${h.gameweek}: ${h.total}"><span>${Math.round(h.total)}</span></div>`).join("");
+  $("barsX").innerHTML = history.map((h) => `<span>${h.gameweek}</span>`).join("");
+
+  $("lastGwTitle").textContent = last ? `GW${last.gameweek} breakdown · ${last.total} pts` : "Last gameweek";
+  $("lastGw").innerHTML = last ? `<tr><th>Player</th><th class="num">Pts</th><th></th></tr>` + [...last.detail].sort((a, b) => b.points * b.multiplier - a.points * a.multiplier).map((r) => {
+    const p = S.byId[r.player];
+    return `<tr><td>${p ? esc(p.first_name + " " + p.last_name) : "#" + r.player}</td><td class="num">${r.points * r.multiplier}</td>
+      <td>${r.multiplier > 1 ? `<span class="pill">captain ×${r.multiplier}</span>` : ""}${r.auto_sub ? ` <span class="pill">auto-sub</span>` : ""}</td></tr>`;
+  }).join("") : `<tr><td class="empty">No scored gameweeks yet.</td></tr>`;
+}
+
+async function makeCaptain(lineup, playerId) {
+  if (playerId === lineup.captain) return playerDrawer(playerId);
+  const vice = playerId === lineup.vice_captain ? lineup.captain : lineup.vice_captain;
+  try {
+    await api("/squad/lineup/", { method: "PUT", body: { starters: lineup.starters, bench: lineup.bench, captain: playerId, vice_captain: vice } });
+    toast(`${S.byId[playerId].last_name} is captain for GW${lineup.gameweek}`); loadTeam();
+  } catch (e) { toast(e.message); }
+}
+
+// ------------------------------------------------------------------ players
+async function loadPlayers(reset) {
+  if (reset) { S.pOffset = 0; $("pTable").innerHTML = ""; }
+  const q = new URLSearchParams({ limit: 50, offset: S.pOffset, ordering: $("pSort").value, active: "true" });
+  if ($("pPos").value) q.set("position", $("pPos").value);
+  if ($("pTeam").value) q.set("team", $("pTeam").value);
+  if ($("pSearch").value.trim()) q.set("search", $("pSearch").value.trim());
+  const d = await api(`/players/?${q}`);
+  if (reset) $("pTable").innerHTML = `<tr><th>Player</th><th>Team</th><th>Pos</th><th class="num">Price</th><th class="num">Points</th><th></th></tr>`;
+  $("pTable").insertAdjacentHTML("beforeend", d.results.map((p) =>
+    `<tr class="click" data-player="${p.id}"><td>${esc(p.first_name + " " + p.last_name)}</td><td>${esc(p.team)}</td><td>${p.position}</td>
+      <td class="num">${p.price}</td><td class="num">${p.total_points}</td><td>${p.injured ? '<span class="pill live">injured</span>' : ""}</td></tr>`).join(""));
+  $("pTable").querySelectorAll("tr[data-player]:not([data-bound])").forEach((tr) => { tr.dataset.bound = 1; tr.addEventListener("click", () => playerDrawer(+tr.dataset.player)); });
+  S.pOffset += d.results.length;
+  $("pCount").textContent = `${S.pOffset} of ${d.count}`;
+  $("pMore").hidden = S.pOffset >= d.count;
+}
+let searchTimer;
+$("pSearch").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadPlayers(true), 250); });
+["pPos", "pTeam", "pSort"].forEach((id) => $(id).addEventListener("change", () => loadPlayers(true)));
+$("pMore").addEventListener("click", () => loadPlayers(false));
+
+async function playerDrawer(id) {
+  const dr = $("drawer"); dr.hidden = false; dr.innerHTML = `<p class="hint">Loading…</p>`;
+  const [p, games] = await Promise.all([api(`/players/${id}/`), api(`/players/${id}/games/`)]);
+  dr.innerHTML = `<div class="row"><h2 style="margin:0">${esc(p.first_name + " " + p.last_name)}</h2><button class="btn" id="drClose" style="margin-left:auto">Close</button></div>
+    <p class="hint">${esc(p.team)} · ${POS[p.position]} · #${p.jersey ?? "–"} · ${esc(p.nationality)}</p>
+    <div class="stats"><div class="stat"><b>${p.price}</b><span>Price</span></div><div class="stat"><b>${p.total_points}</b><span>Season points</span></div>
+      <div class="stat"><b>${games.filter((g) => g.stats.played).length}</b><span>Games</span></div></div>
+    <h3 style="margin-top:14px">Game by game</h3>
+    <table>${games.map((g) => {
+      const opp = g.fixture.home.name === p.team ? `vs ${g.fixture.away.name}` : `@ ${g.fixture.home.name}`;
+      const why = Object.entries(g.breakdown).map(([k, v]) => `${k.replace("_", " ")} ${v > 0 ? "+" : ""}${v}`).join(", ");
+      return `<tr><td>GW${g.fixture.gameweek}<br><span class="hint">${esc(opp)} ${g.fixture.home_goals ?? ""}–${g.fixture.away_goals ?? ""}</span></td>
+        <td class="num"><b>${g.points}</b></td><td style="white-space:normal" class="hint">${esc(why || "did not play")}</td></tr>`;
+    }).join("") || `<tr><td class="empty">No games yet.</td></tr>`}</table>`;
+  $("drClose").addEventListener("click", () => (dr.hidden = true));
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("drawer").hidden = true; });
+
+// ------------------------------------------------------------------ fixtures
+async function loadFixtures() {
+  const fx = await api(`/fixtures/?gameweek=${$("fGw").value}`);
+  $("fTable").innerHTML = fx.length ? fx.map((f) => {
+    const score = f.status === "scheduled" ? `<span class="hint">${fmtTime(f.starts_at)}</span>` : `<b>${f.home_goals}–${f.away_goals}</b>`;
+    const tag = f.status === "live" ? `<span class="pill live">LIVE</span>` : f.finished_type.includes("OVERTIME") ? `<span class="pill">OT</span>` : f.finished_type.includes("SHOOTOUT") ? `<span class="pill">SO</span>` : "";
+    return `<tr><td class="num">${esc(f.home.name)}</td><td style="text-align:center">${score} ${tag}</td><td>${esc(f.away.name)}</td></tr>`;
+  }).join("") : `<tr><td class="empty">No games this gameweek.</td></tr>`;
+}
+$("fGw").addEventListener("change", loadFixtures);
+
+// ------------------------------------------------------------------ leagues
+async function loadLeagues() {
+  let leagues;
+  try { leagues = await api("/leagues/"); } catch (e) { $("lList").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  if (!leagues.length) { $("lList").innerHTML = `<div class="empty">Not in any private league.</div>`; return; }
+  $("lList").innerHTML = leagues.map((l) => `<div class="panel"><div class="row"><h2 style="margin:0">${esc(l.name)}</h2>
+    <span class="pill">code ${esc(l.code)}</span><span class="hint">${l.member_count} managers</span></div><div class="table-wrap"><table id="league-${l.id}"></table></div></div>`).join("");
+  for (const l of leagues) {
+    const d = await api(`/leaderboard/?scope=league&league=${l.id}`);
+    boardTable($(`league-${l.id}`), d.rows, d.me);
+  }
+}
+
+// ------------------------------------------------------------------ viewing as
+function viewAs(squadId) {
+  S.as = String(squadId || "");
+  $("asSel").value = S.as;
+  try { localStorage.setItem("fantasyAs", S.as); } catch {}
+  show("team");
+}
+$("asSel").addEventListener("change", () => viewAs($("asSel").value));
+
+// ------------------------------------------------------------------ boot
+(async function init() {
+  try { S.as = localStorage.getItem("fantasyAs") || ""; } catch {}
+  try { S.season = await api("/season/"); }
+  catch (e) { document.querySelector("main").innerHTML = `<div class="empty">${esc(e.message)}<br>Run <code>manage.py sync_liiga</code> first.</div>`; return; }
+  $("seasonName").textContent = `· ${S.season.name}`;
+  const played = S.season.gameweeks.filter((g) => g.status !== "upcoming");
+  const next = S.season.gameweeks.find((g) => g.number === S.season.next_deadline_gameweek);
+  if (next) $("deadline").textContent = `GW${next.number} deadline ${fmtTime(next.deadline)}`;
+  const gwOpts = (list, sel) => list.map((g) => `<option value="${g.number}" ${g.number === sel ? "selected" : ""}>Gameweek ${g.number}${g.status === "live" ? " (live)" : ""}</option>`).join("");
+  const lastPlayed = played.length ? played[played.length - 1].number : 1;
+  $("bGw").innerHTML = gwOpts(played, lastPlayed);
+  $("fGw").innerHTML = gwOpts(S.season.gameweeks, S.season.next_deadline_gameweek || lastPlayed);
+  $("bDate").value = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+
+  S.teams = await api("/teams/");
+  $("pTeam").insertAdjacentHTML("beforeend", S.teams.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join(""));
+
+  const everyone = await api("/leaderboard/?limit=500");
+  $("asSel").innerHTML = `<option value="">Me (logged in / dev admin)</option>` +
+    everyone.rows.map((r) => `<option value="${r.squad_id}">${esc(r.squad_name)} · ${esc(r.manager)}</option>`).join("");
+  $("asSel").value = S.as;
+  show(location.hash.slice(1) || "board");
+})();
+</script>
+</body>
+</html>

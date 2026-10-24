@@ -1,5 +1,9 @@
 # `docker compose up --build` starts everything; no other steps needed.
-# Startup order: db + redis -> setup (migrate, seed, admin user; then exits) -> web, worker, beat.
+# Startup order: db + redis -> setup -> web, worker, beat.
+# `setup` runs `manage.py bootstrap` once and exits: migrations, demo data (Oulu community,
+# Kaleva feeds, markets, demo users) and, on the first start only, the Liiga season +
+# Fantasy Liiga demo managers (needs internet; set SEED_FANTASY=false in .env to skip).
+# The other services wait for it, so the app always starts on a migrated, seeded database.
 # Uploaded files live in backend/media/ on your machine (mounted into the containers).
 
 x-backend: &backend

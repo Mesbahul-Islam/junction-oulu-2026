@@ -178,3 +178,97 @@ def hashing_embedding(text: str, dim: int = 64) -> list[float]:
         vec[h % dim] += 1.0 if (h >> 8) & 1 else -1.0
     norm = sum(v * v for v in vec) ** 0.5
     return [round(v / norm, 6) for v in vec] if norm else vec
+
+
+# --------------------------------------------------------------------------
+# Language check for translations (fact-checker): is the text really in the
+# language it is filed under? Deterministic, so a confused model can't vouch for itself.
+# --------------------------------------------------------------------------
+_SCRIPTS = {
+    "arabic": re.compile(r"[؀-ۿݐ-ݿ]"),
+    "cyrillic": re.compile(r"[Ѐ-ӿ]"),
+    "latin": re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿŠšŽžÕõ]"),
+}
+EXPECTED_SCRIPT = {"ar": "arabic", "uk": "cyrillic", "ru": "cyrillic"}  # everything else: latin
+_UK_ONLY, _RU_ONLY = set("іїєґІЇЄҐ"), set("ыэъёЫЭЪЁ")
+STOPWORDS = {
+    "en": {"the", "and", "of", "to", "in", "for", "is", "are", "was", "with", "on", "that", "this", "by", "from", "has", "have", "will", "at"},
+    "sv": {"och", "att", "det", "som", "ett", "för", "är", "på", "med", "av", "till", "den", "har", "inte", "om", "var", "från", "efter", "vid"},
+    "fi": {"ja", "on", "ei", "että", "oli", "ovat", "mutta", "kun", "tai", "myös", "joka", "hän", "tämä", "sen", "kanssa", "mukaan", "jälkeen"},
+    "et": {"ja", "on", "ei", "see", "et", "oli", "mis", "ka", "kui", "aga", "või", "oma", "ning", "seda", "pärast", "mitte", "kes"},
+    "so": {"iyo", "oo", "ku", "ka", "waa", "ah", "la", "uu", "ay", "lagu", "ayaa", "kale", "sida", "waxa"},
+}
+LANGUAGE_LABELS = {"en": "English", "sv": "Swedish", "fi": "Finnish", "et": "Estonian", "so": "Somali",
+                   "uk": "Ukrainian", "ru": "Russian", "ar": "Arabic"}
+
+
+def language_problem(text: str, lang: str) -> str | None:
+    """Why ``text`` doesn't look like language ``lang``, or None if it does (or can't tell)."""
+    counts = {name: len(rx.findall(text or "")) for name, rx in _SCRIPTS.items()}
+    if sum(counts.values()) < 20:
+        return None  # too little text to judge
+    script = max(counts, key=counts.get)
+    expected = EXPECTED_SCRIPT.get(lang, "latin")
+    name = LANGUAGE_LABELS.get(lang, lang)
+    if script != expected:
+        return f"text is mostly in {script} script, not {expected} as {name} should be"
+    if lang in ("uk", "ru"):
+        uk, ru = sum(c in _UK_ONLY for c in text), sum(c in _RU_ONLY for c in text)
+        if lang == "uk" and ru > uk:
+            return "text looks Russian (ы, э, ъ, ё), not Ukrainian"
+        if lang == "ru" and uk > ru:
+            return "text looks Ukrainian (і, ї, є, ґ), not Russian"
+        return None
+    if lang in STOPWORDS:
+        words = re.findall(r"[a-zåäöõüšž]+", text.lower())
+        scores = {code: sum(w in sw for w in words) for code, sw in STOPWORDS.items()}
+        best = max(scores, key=scores.get)
+        if best != lang and scores[best] >= 2 and scores[best] > 2 * scores[lang]:
+            return f"text looks {LANGUAGE_LABELS[best]}, not {name}"
+    return None
+
+
+# --------------------------------------------------------------------------
+# Name matching across Finnish inflection (fact-checker): "Oulussa" (in Oulu),
+# "Oulun" (Oulu's) and "Raksilassa" refer to Oulu / Raksila, and "Kärpille" to Kärpät.
+# --------------------------------------------------------------------------
+# Case endings, longest first; stripping one yields candidate base forms.
+_FI_ENDINGS = (
+    "ineen", "ssa", "ssä", "sta", "stä", "lla", "llä", "lta", "ltä", "lle", "ksi", "tta", "ttä", "hin",
+    "na", "nä", "ta", "tä", "an", "än", "en", "in", "on", "un", "yn", "n", "a", "ä", "t",
+)
+
+
+def name_stems(name: str) -> set[str]:
+    """The name in lower case plus its forms with one Finnish case ending removed (min. 3 letters left)."""
+    low = name.lower()
+    return {low} | {low[: -len(e)] for e in _FI_ENDINGS if low.endswith(e) and len(low) - len(e) >= 3}
+
+
+def _common_prefix(a: str, b: str) -> int:
+    n = 0
+    for x, y in zip(a, b):
+        if x != y:
+            break
+        n += 1
+    return n
+
+
+def name_matches(name: str, candidates) -> bool:
+    """Is ``name`` (possibly inflected) one of ``candidates`` (words, possibly inflected)?
+
+    Both sides are reduced to stems. Two stems match if equal, or if they agree apart
+    from a short ending (consonant gradation such as Kärpät/Kärpille, Tampere/Tampereella).
+    A merely longer word doesn't count ("Oulu" is not "Oulunsalo"); names under 4 letters
+    only match exactly or with a case ending ("TPS", "TPSn").
+    """
+    stems = name_stems(name)
+    for cand in candidates:
+        for a in stems:
+            for b in name_stems(cand):
+                if a == b:
+                    return True
+                shared = _common_prefix(a, b)
+                if shared >= max(4, min(len(a), len(b)) - 1) and max(len(a), len(b)) - shared <= 3:
+                    return True
+    return False

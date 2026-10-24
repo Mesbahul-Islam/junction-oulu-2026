@@ -23,10 +23,10 @@ from typing import Any
 
 from apps.common.choices import SOURCE_LANGUAGE
 
-from ..llm import language_chunks, structured_call
+from ..llm import language_chunks, match_languages, structured_call
 from ..schemas import BackTranslationOut, BackTranslationsOut, LanguageBackTranslation
 from ..state import NewsroomState
-from ..text import jaccard, normalize_digits, truncate
+from ..text import jaccard, language_problem, name_matches, normalize_digits, truncate
 
 _FULL_DATE_RE = re.compile(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b")
 _SHORT_DATE_RE = re.compile(r"\b(\d{1,2})\.(\d{1,2})\.(?!\d)")
@@ -116,9 +116,9 @@ def compare_facts(reference: dict, candidate: dict, *, language: str, check_name
             out.append({"language": language, "kind": kind, "value": v, "issue": "not_in_original", "severity": "error"})
     if check_names:
         skip = {t.lower() for t in glossary_terms}
-        cand_low = {n.lower() for n in candidate["names"]}
         for name in sorted(reference["names"]):
-            if name.lower() in skip or name.lower() in cand_low:
+            # Finnish inflects names (Oulussa = in Oulu), so compare stems, not exact words.
+            if name.lower() in skip or name_matches(name, candidate["names"]):
                 continue
             out.append({"language": language, "kind": "name", "value": name, "issue": "missing_in_translation", "severity": "warning"})
     return out
@@ -138,9 +138,9 @@ def check_draft_against_source(draft: dict, source_text: str) -> list[dict]:
     for kind in ("times", "numbers"):
         for v in sorted(d[kind] - s[kind]):
             out.append({"language": lang, "kind": kind[:-1], "value": v, "issue": "not_in_source", "severity": "error"})
-    src_low = source_text.lower()
+    src_words = set(re.findall(r"[\w-]+", source_text))
     for name in sorted(d["names"]):
-        if name.lower() not in src_low:
+        if not name_matches(name, src_words):
             out.append({"language": lang, "kind": "name", "value": name, "issue": "not_in_source", "severity": "warning"})
     return out
 
@@ -157,8 +157,21 @@ def stub_back_translation(version: dict, draft: dict) -> BackTranslationOut:
     return BackTranslationOut(back_translation=back, meaning_preserved=sim >= 0.6, similarity=round(sim, 3), issues=[])
 
 
+def check_language(text: str, lang: str, finnish: str) -> list[dict]:
+    """Is the version really in ``lang`` (and actually translated)? Offline-stub text is skipped."""
+    if _LANG_PREFIX_RE.match(text or ""):
+        return []
+    if lang != SOURCE_LANGUAGE.value and jaccard(text, finnish) > 0.6:
+        problem = "text is the Finnish original, not a translation"
+    else:
+        problem = language_problem(text, lang)
+    if problem is None:
+        return []
+    return [{"language": lang, "kind": "language", "value": "", "issue": problem, "severity": "error"}]
+
+
 def back_translate_all(draft: dict, versions: dict[str, dict], errors: list) -> dict[str, BackTranslationOut]:
-    """Back-translate every language version of one story with ONE LLM call."""
+    """Back-translate the given language version(s) of one story with one LLM call."""
     blocks = "\n\n".join(f"TRANSLATION ({lang}):\n{truncate(_version_text(v), 2500)}" for lang, v in versions.items())
     prompt = (
         "For each translation below: translate it back into Finnish, then compare it with the Finnish "
@@ -173,7 +186,7 @@ def back_translate_all(draft: dict, versions: dict[str, dict], errors: list) -> 
         ])
 
     out = structured_call(prompt, BackTranslationsOut, fallback, errors=errors, agent="fact_checker")
-    got = {c.language.strip().lower(): c for c in out.checks}
+    got = match_languages(out.checks, list(versions), "fact_checker", errors)
     result = {}
     for lang, v in versions.items():
         if lang not in got:
@@ -218,9 +231,12 @@ def fact_checker(state: NewsroomState) -> dict[str, Any]:
         for lang, version in (state.get("translations") or {}).get(key, {}).items():
             if version.get("needs_human_translation"):
                 continue  # Sámi placeholder: nothing to verify yet
-            cand = extract_facts(_LANG_PREFIX_RE.sub("", _version_text(version)))
+            text = _version_text(version)
+            cand = extract_facts(_LANG_PREFIX_RE.sub("", text))
             terms = [g["term_fi"] for g in glossary if g.get("language") == lang]
-            checked[lang] = (version, compare_facts(ref, cand, language=lang, check_names=lang in LATIN_SCRIPT, glossary_terms=terms))
+            mism = compare_facts(ref, cand, language=lang, check_names=lang in LATIN_SCRIPT, glossary_terms=terms)
+            mism += check_language(text, lang, _version_text(draft))
+            checked[lang] = (version, mism)
 
         back = {}
         for chunk in language_chunks(list(checked)) if checked else []:
