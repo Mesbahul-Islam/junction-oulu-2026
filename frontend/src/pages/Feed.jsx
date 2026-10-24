@@ -1,11 +1,10 @@
-import { ArrowLeft, Plus, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Plus, Users } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import NewsCard from "../components/NewsCard";
 import PostSlide from "../components/PostSlide";
 import { Spinner } from "../components/Spinner";
-import StorySlide from "../components/StorySlide";
 import { getCommunityNews, getFeed } from "../lib/api";
 
 const TABS = [
@@ -13,19 +12,25 @@ const TABS = [
   { id: "foryou", label: "For You" },
 ];
 
-/** Home. For You = reviewed news ranked for you, shown two photo cards per screen;
- *  tapping one opens the full-screen swipe view from that story onwards (?story=<id>).
- *  Community News = posts written by members of your communities (full-screen swipe). */
+// For You is kept while the app is open, so coming back from a story returns to the same
+// place in the list instead of reloading it from the top.
+const forYou = { stories: null, scroll: 0 };
+
+/** Home. For You = reviewed news ranked for you, one continuous list like an RSS reader;
+ *  tapping a story opens its page. Community News = posts by members (full-screen swipe). */
 export default function Feed() {
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") === "community" ? "community" : "foryou";
-  const [stories, setStories] = useState(null);
+  const [stories, setStories] = useState(forYou.stories);
+  const listRef = useRef(null);
   const [posts, setPosts] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    if (tab === "foryou" && stories === null) getFeed({ limit: 30 }).then((d) => setStories(d.results), (e) => setError(e.message));
+    if (tab === "foryou" && stories === null) {
+      getFeed({ limit: 30 }).then((d) => { forYou.stories = d.results; setStories(d.results); }, (e) => setError(e.message));
+    }
     if (tab === "community" && posts === null) {
       getCommunityNews().then((d) => setPosts(Array.isArray(d) ? d : d.results || []), (e) => setError(e.message));
     }
@@ -33,25 +38,10 @@ export default function Feed() {
 
   const items = tab === "foryou" ? stories : posts;
 
-  // Swipe view: open on the tapped story and keep going through the ones after it.
-  const openId = params.get("story");
-  const openIndex = openId && stories ? stories.findIndex((c) => String(c.id) === openId) : -1;
-  if (tab === "foryou" && openIndex >= 0) {
-    return (
-      <main className="tt-feed-wrap">
-        <button className="tt-back" aria-label="Back to all news" onClick={() => setParams({}, { replace: true })}>
-          <ArrowLeft size={24} />
-        </button>
-        <div className="tt-feed">
-          {stories.slice(openIndex).map((c, i) => <StorySlide key={c.id} card={c} index={openIndex + i} />)}
-        </div>
-      </main>
-    );
-  }
-
-  // Overview: stories grouped in twos, one pair per screen.
-  const pairs = [];
-  for (let i = 0; i < (stories?.length || 0); i += 2) pairs.push(stories.slice(i, i + 2));
+  // Back from a story: scroll the list to where the reader was.
+  useLayoutEffect(() => {
+    if (tab === "foryou" && stories && listRef.current) listRef.current.scrollTo({ top: forYou.scroll, behavior: "instant" });
+  }, [tab, stories]);
 
   return (
     <main className="tt-feed-wrap">
@@ -64,7 +54,8 @@ export default function Feed() {
         ))}
       </nav>
 
-      <div className="tt-feed" key={tab}>
+      <div className={tab === "foryou" ? "rss-feed" : "tt-feed"} key={tab} ref={tab === "foryou" ? listRef : null}
+        onScroll={tab === "foryou" ? (e) => { forYou.scroll = e.currentTarget.scrollTop; } : undefined}>
         {error && <div className="tt-empty">{error}</div>}
         {!error && items === null && <div className="tt-empty"><Spinner /></div>}
         {items?.length === 0 && (
@@ -80,11 +71,7 @@ export default function Feed() {
             )}
           </div>
         )}
-        {tab === "foryou" && pairs.map((pair, p) => (
-          <section key={pair[0].id} className="tt-pair">
-            {pair.map((c, i) => <NewsCard key={c.id} card={c} index={p * 2 + i} onOpen={() => setParams({ story: c.id })} />)}
-          </section>
-        ))}
+        {tab === "foryou" && stories?.map((c, i) => <NewsCard key={c.id} card={c} index={i} />)}
         {tab === "community" && posts?.map((p) => (
           <PostSlide key={p.id} post={p} onFlagged={(id) => setPosts((list) => list.filter((x) => x.id !== id))} />
         ))}

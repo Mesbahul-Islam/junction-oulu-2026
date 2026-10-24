@@ -53,7 +53,7 @@ src/
     Welcome           sign up / log in / demo accounts
     Onboarding        language → categories → situation + arrival date → communities to join (also "Edit preferences")
     Communities       your communities, suggested ones (with why) and the rest; Join / Leave
-    Feed              home: "Community News | For You" tabs over snap-scrolling slides
+    Feed              home: For You = one continuous list of story cards (tap opens the story); Community News = full-screen swipe of member posts
     Create            "+": post to your community, or send a tip / question to the newsroom
     Story             full story: for-you text, key facts, Finnish original, why ranked, report
     Explore           "Discover": topics + the newcomer "first week" sequence

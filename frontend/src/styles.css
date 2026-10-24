@@ -189,11 +189,11 @@ a { color: inherit; text-decoration: none; }
 .tt-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .tt-bg-icon { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); color: rgba(255, 255, 255, 0.13); pointer-events: none; }
 .tt-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.78) 100%); pointer-events: none; }
-/* Home overview: two photo cards per screen, snapping pair by pair (space for the tabs and bottom nav). */
-.tt-pair { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; gap: 12px; padding: 60px 12px 92px; }
-.tt-pair .news-card { flex: 1; min-height: 0; display: flex; flex-direction: column; width: 100%; text-align: left; font: inherit; border: 0; padding: 0; cursor: pointer; }
-.tt-pair .news-card .media { flex: 1; height: auto; min-height: 0; }
-.tt-back { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 12px; z-index: 6; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(8px); }
+/* Home, For You: one continuous list like an RSS reader (room for the tabs and the bottom nav). */
+.rss-feed { height: 100%; overflow-y: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 14px; padding: 64px 12px 96px; scrollbar-width: none; }
+.rss-feed::-webkit-scrollbar { display: none; }
+.rss-feed .news-card { flex-shrink: 0; }
 .tt-post { background: linear-gradient(165deg, #1a1a2e 0%, #23395b 50%, #0e2f2f 100%); }
 
 .tt-tabs { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; z-index: 5; display: flex; justify-content: center; gap: 22px; pointer-events: none; }
