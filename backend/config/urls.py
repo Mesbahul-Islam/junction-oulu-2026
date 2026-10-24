@@ -6,6 +6,8 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from apps.accounts.views import OAuthCallbackView
+
 def fantasy_frontend(request):
     """Basic Fantasy Liiga UI (backend/frontend/fantasy.html) over /api/fantasy/."""
     return FileResponse(open(settings.BASE_DIR / "frontend" / "fantasy.html", "rb"), content_type="text/html")
@@ -20,6 +22,7 @@ urlpatterns = [
     path("", frontend, name="frontend"),
     path("fantasy/", fantasy_frontend, name="fantasy-frontend"),
     path("admin/", admin.site.urls),
+    path("accounts/oauth/callback/", OAuthCallbackView.as_view(), name="oauth_callback"),
     path("accounts/", include("allauth.urls")),
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),

@@ -94,8 +94,9 @@ ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_EMAIL_VERIFICATION = "none"
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/accounts/oauth/callback/"
 ACCOUNT_LOGOUT_REDIRECT_URL = "/"
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
         "APP": {
