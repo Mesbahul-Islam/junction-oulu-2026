@@ -305,3 +305,11 @@ dialog .actions { justify-content: flex-end; }
 .setting-row dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 1199px) { .settings-grid { grid-template-columns: minmax(0,1fr); } }
 @media (max-width: 767px) { .settings-notice { flex-direction: column; gap: 8px; }.settings-grid { gap: 18px; }.setting-row { gap: 12px; } }
+
+/* "What this means for you" in the editor queue */
+.for-you { margin-block: 14px 4px; padding: 12px 14px; border-radius: 10px; background: var(--sunk); }
+.for-you.empty { background: none; padding: 0; }
+.for-you-title { font-weight: 600; margin-bottom: 6px; }
+.for-you dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+.for-you dt { font-size: 13px; color: var(--muted); font-weight: 600; }
+.for-you dd { margin: 0; font-size: 15px; line-height: 22px; }

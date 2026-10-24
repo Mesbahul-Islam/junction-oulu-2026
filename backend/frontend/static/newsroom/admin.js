@@ -363,6 +363,15 @@ function flagsHtml(t) {
   return out.join("");
 }
 
+// "What this means for you": one text per reader situation (SnippetVersion.explainer).
+const SITUATIONS = [["newcomer", "Newcomer"], ["seasonal_worker", "Seasonal worker"], ["student", "Student"], ["resident", "Resident"]];
+function forYouHtml(explainer) {
+  const rows = SITUATIONS.filter(([k]) => (explainer || {})[k]);
+  if (!rows.length) return `<div class="for-you empty small muted">No "What this means for you" text for this version.</div>`;
+  return `<div class="for-you"><div class="for-you-title">What this means for you <span class="small muted">· each reader sees the one for their situation</span></div>
+    <dl>${rows.map(([k, label]) => `<dt>${label}</dt><dd dir="auto">${esc(explainer[k])}</dd>`).join("")}</dl></div>`;
+}
+
 async function loadQueue() {
   const box = $("queue");
   box.innerHTML = `<div class="empty">Loading…</div>`;
@@ -385,13 +394,15 @@ async function loadQueue() {
         ${!t.language && (t.review_reasons || []).some((x) => x.blocking) ? `<div class="flag warn"><b>Why the newsroom wants a person to read this</b><ul>${t.review_reasons.filter((x) => x.blocking).map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>` : ""}
         ${(t.language ? t.versions : (t.versions || []).filter((x) => x.language === "fi")).map((x) => `<div class="version"><span class="pill">${esc(lang(x.language))}${x.is_machine_translated ? " · machine-translated" : ""}</span>
           <div dir="auto"><b>${esc(x.headline) || "<i>Empty: write the translation with Edit text</i>"}</b></div><div class="muted" dir="auto">${esc(x.summary)}</div>
-          ${(x.key_facts || []).length ? `<ul class="small">${x.key_facts.map((k) => `<li dir="auto">${esc(k)}</li>`).join("")}</ul>` : ""}</div>`).join("")}
+          ${(x.key_facts || []).length ? `<ul class="small">${x.key_facts.map((k) => `<li dir="auto">${esc(k)}</li>`).join("")}</ul>` : ""}
+          ${forYouHtml(x.explainer)}</div>`).join("")}
         ${!t.language && t.versions.length > 1 ? `<div class="small muted">${t.versions.length - 1} translation(s) are reviewed separately by language reviewers (Translations tab).</div>` : ""}
         ${flagsHtml(t)}
         <div class="edit-box" dir="auto">
           <label for="edit-headline-${t.id}">Headline (${esc(lang(editLang))})</label><input id="edit-headline-${t.id}" data-e="headline" value="${esc(v.headline)}" class="full-width">
           <label for="edit-summary-${t.id}">Summary</label><textarea id="edit-summary-${t.id}" data-e="summary" rows="3">${esc(v.summary)}</textarea>
           <label for="edit-facts-${t.id}">Key facts (one per line)</label><textarea id="edit-facts-${t.id}" data-e="key_facts" rows="3">${esc((v.key_facts || []).join("\n"))}</textarea>
+          ${SITUATIONS.map(([k, label]) => `<label for="edit-foryou-${k}-${t.id}">What this means for you: ${label}</label><textarea id="edit-foryou-${k}-${t.id}" data-for-you="${k}" rows="2">${esc((v.explainer || {})[k] || "")}</textarea>`).join("")}
         </div>
         <div class="actions">
           <button class="btn primary" data-do="approve">Approve</button>
@@ -415,7 +426,8 @@ async function taskAction(b) {
       const body = { confirm: open.map((c) => c.dataset.check) };
       if (editBox.classList.contains("on")) {
         const val = (k) => card.querySelector(`[data-e="${k}"]`).value;
-        body.edits = { headline: val("headline").trim(), summary: val("summary").trim(), key_facts: val("key_facts").split("\n").map((s) => s.trim()).filter(Boolean) };
+        const explainer = Object.fromEntries([...card.querySelectorAll("[data-for-you]")].map((el) => [el.dataset.forYou, el.value.trim()]).filter(([, text]) => text));
+        body.edits = { headline: val("headline").trim(), summary: val("summary").trim(), key_facts: val("key_facts").split("\n").map((s) => s.trim()).filter(Boolean), explainer };
       }
       await api(`/editorial/tasks/${id}/approve/`, { method: "POST", body });
       toast("Approved.");
