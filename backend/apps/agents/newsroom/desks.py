@@ -149,7 +149,7 @@ def translate_one(story: dict, lang: str) -> tuple[dict | None, str]:
     data, problem = ai.ask_json(
         "translator",
         f"Translate every value of this JSON from Finnish into {name}. Keep names of people, places and "
-        "organisations, and every number, date and time exactly. Translate faithfully; add nothing.\n\n"
+        f"organisations, and every number, date and time exactly. Translate faithfully, make sure the translations make sense in the {name} language; add nothing.\n\n"
         f"{source}",
         fields,
     )
