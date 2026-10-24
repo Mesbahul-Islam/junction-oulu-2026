@@ -372,7 +372,9 @@ def batch_approve(tasks, user) -> dict:
 
 def queue_for(user):
     """Review queue visible to `user`: tasks matching their roles; community_editor scoped to community."""
-    qs = ReviewTask.objects.filter(active=True).select_related("snippet", "snippet__community")
+    qs = (ReviewTask.objects.filter(active=True)
+          .exclude(status=ReviewTask.Status.OPEN, snippet__review_status__in=[ReviewStatus.REJECTED, ReviewStatus.EXPIRED])
+          .select_related("snippet", "snippet__community"))
     if user.is_superuser or user.roles.filter(role="admin").exists():
         return qs
     q = Q(pk__in=[])

@@ -1,8 +1,11 @@
+import hashlib
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.urls import include, path
+from django.views.decorators.cache import never_cache
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -13,9 +16,16 @@ def fantasy_frontend(request):
     return FileResponse(open(settings.BASE_DIR / "frontend" / "fantasy.html", "rb"), content_type="text/html")
 
 
+@never_cache
 def frontend(request):
-    """The dev UI: one static page that talks to the API below (backend/frontend/index.html)."""
-    return FileResponse(open(settings.BASE_DIR / "frontend" / "index.html", "rb"), content_type="text/html")
+    """Serve the newsroom with asset fingerprints so refreshes pick up UI fixes."""
+    root = settings.BASE_DIR / "frontend"
+    page = (root / "index.html").read_text()
+    for asset in ("admin.css", "admin.js"):
+        version = hashlib.sha256((root / "static" / "newsroom" / asset).read_bytes()).hexdigest()[:12]
+        url = f"/static/newsroom/{asset}"
+        page = page.replace(url, f"{url}?v={version}")
+    return HttpResponse(page, content_type="text/html")
 
 
 urlpatterns = [

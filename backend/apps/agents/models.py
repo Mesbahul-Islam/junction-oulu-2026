@@ -1,7 +1,7 @@
 """The AI newsroom's bookkeeping (FR-3.1–3.3, FR-3.6).
 
 A newsroom ``AgentRun`` fetches the Kaleva feeds, lets Jev pick the stories worth covering
-and sends each one through the desks (reporter, explainer, translator, fact-checker,
+and sends each one through the desks (brief and explanation, translator, fact-checker,
 standards editor) to the human editors. ``RunStory`` follows one story through the desks
 so the dashboard can show live progress; ``AgentStep`` logs each piece of desk work.
 """
@@ -14,8 +14,7 @@ from apps.common.models import TimeStampedModel
 DESKS = [
     ("wire", "Wire desk"),
     ("news_editor", "News editor"),
-    ("reporter", "Reporter"),
-    ("explainer", "Explainer"),
+    ("explainer", "Brief and explanation"),
     ("translator", "Translator"),
     ("fact_checker", "Fact-checker"),
     ("standards", "Standards editor"),
@@ -61,8 +60,7 @@ class RunStory(TimeStampedModel):
 
     class Stage(models.TextChoices):
         PICKED = "picked", "Picked"
-        REPORTER = "reporter", "Reporter"
-        EXPLAINER = "explainer", "Explainer"
+        EXPLAINER = "explainer", "Brief and explanation"
         TRANSLATOR = "translator", "Translator"
         FACT_CHECKER = "fact_checker", "Fact-checker"
         STANDARDS = "standards", "Standards editor"

@@ -6,8 +6,7 @@ from .models import DESKS, AgentRun, RunStory
 DESK_INFO = {
     "wire": ("Fetches the Kaleva RSS feeds, drops opinion and paid content", "Kaleva RSS"),
     "news_editor": ("Ranks every article for Oulu's readers, adds members' votes, picks the top ones", ""),
-    "reporter": ("Writes the Finnish headline, summary and key facts", ""),
-    "explainer": ("Explains what it means for newcomers, students, workers, residents", ""),
+    "explainer": ("Writes a source-grounded brief and explains supported reader implications", ""),
     "translator": ("Translates into every reader language (Sámi is left to people)", ""),
     "fact_checker": ("Checks the draft's numbers against the article", "rules, no AI model"),
     "standards": ("JSN checks: risk, crime, minors, right of reply...", "rules, no AI model"),
@@ -108,6 +107,8 @@ class AgentRunDetailSerializer(AgentRunSerializer):
             working_on = next((s for s in stories if s.stage == key), None) if active else None
             status = "active" if active else "done" if total and done >= total else (
                 "failed" if run.status == AgentRun.Status.FAILED and done < total else "waiting")
+            if not live and total == 0:
+                status = "skipped"
             out.append({
                 "key": key, "label": label, "does": DESK_INFO[key][0], "who": _who(key), "status": status,
                 "done": done, "total": total, "summary": summary,

@@ -168,34 +168,44 @@ class DashboardView(APIView):
         from django.utils import timezone
 
         from .graph import llm
+        from .newsroom import wire
+        from .newsroom.runner import target_languages
 
         now = timezone.now()
         day = now - timedelta(hours=24)
-        ReviewTask = django_apps.get_model("editorial", "ReviewTask")
         ChecklistItem = django_apps.get_model("editorial", "ChecklistItem")
         Snippet = django_apps.get_model("feed", "Snippet")
         Post = django_apps.get_model("communities", "Post")
 
-        open_tasks = ReviewTask.objects.filter(active=True, status="open")
+        from apps.editorial.services import queue_for
+        from apps.communities.services import can_moderate
+
+        open_tasks = queue_for(request.user).filter(status="open")
+
+        from django_celery_beat.models import PeriodicTask
 
         minutes = settings.AGENT_SCHEDULE_MINUTES
         last_scheduled = AgentRun.objects.filter(trigger=AgentRun.Trigger.SCHEDULE).order_by("-created_at").first()
+        beat = (PeriodicTask.objects.filter(task="apps.agents.tasks.ingest_all_communities")
+                .select_related("interval", "crontab", "clocked", "solar").first())
+        enabled = bool(beat and beat.enabled)
         next_run = None
-        try:
-            from django_celery_beat.models import PeriodicTask
-
-            beat = PeriodicTask.objects.filter(task="apps.agents.tasks.ingest_all_communities", enabled=True).first()
-            if beat and beat.last_run_at:
-                next_run = beat.last_run_at + timedelta(minutes=minutes)
-        except Exception:
-            pass
-        if next_run is None and last_scheduled:
-            next_run = last_scheduled.created_at + timedelta(minutes=minutes)
+        if beat and beat.interval:
+            interval = beat.interval.schedule.run_every
+            minutes = interval.total_seconds() / 60
+            if enabled and beat.last_run_at:
+                next_run = beat.last_run_at + interval
+        elif beat:
+            minutes = None
+        community = services.newsroom_community()
 
         runs = AgentRun.objects.filter(created_at__gte=day)
         return Response({
             "schedule": {
                 "every_minutes": minutes,
+                "enabled": enabled,
+                "description": str(beat.schedule) if beat else "Not registered",
+                "last_dispatched_at": beat.last_run_at if beat else None,
                 "max_stories_per_run": settings.AGENT_MAX_ITEMS,
                 "last_scheduled_run_at": last_scheduled.created_at if last_scheduled else None,
                 "next_run_at": next_run,
@@ -203,15 +213,37 @@ class DashboardView(APIView):
             "counts": {
                 "editor_tasks": open_tasks.filter(language__isnull=True).count(),
                 "translation_tasks": open_tasks.filter(language__isnull=False).count(),
-                "checklist_pending": ChecklistItem.objects.filter(confirmed_at__isnull=True).count(),
+                "checklist_pending": ChecklistItem.objects.filter(
+                    confirmed_at__isnull=True,
+                    snippet_id__in=open_tasks.filter(language__isnull=True).values("snippet_id"),
+                ).count(),
                 "published_24h": Snippet.objects.filter(published_at__gte=day).count(),
-                "flagged_posts": Post.objects.filter(status=Post.Status.HIDDEN).count(),
+                "flagged_posts": sum(1 for post in Post.objects.filter(status=Post.Status.HIDDEN).select_related("community")
+                                     if can_moderate(request.user, post.community)),
                 "runs_24h": runs.count(),
                 "failed_runs_24h": runs.filter(status=AgentRun.Status.FAILED).count(),
             },
             "running": AgentRunSerializer(AgentRun.objects.filter(status__in=["queued", "running"]), many=True).data,
             "llm": self._llm_status(llm),
             # The newsroom runs for one community; the Kaleva feed is fixed in wire.py.
-            "communities": [{"id": c.pk, "name": c.name, "slug": c.slug}
-                            for c in [services.newsroom_community()] if c],
+            "communities": [{"id": community.pk, "name": community.name, "slug": community.slug}] if community else [],
+            "settings": {
+                "source": {
+                    "name": wire.KALEVA_FEED_NAME, "url": wire.KALEVA_FEED_URL,
+                    "max_entries": wire.MAX_ENTRIES_PER_FEED,
+                    "candidate_hours": wire.CANDIDATE_HOURS, "max_candidates": wire.MAX_CANDIDATES,
+                },
+                "languages": target_languages(community) if community else [],
+                "ranking": {
+                    "feed_ranker": settings.FEED_RANKER,
+                    "jev_configured": bool(settings.TYPESAFE_API_KEY), "model": settings.JEV_MODEL,
+                    "top_k": settings.JEV_TOP_K, "weight": settings.JEV_WEIGHT,
+                    "timeout_seconds": settings.JEV_TIMEOUT, "cache_seconds": settings.JEV_CACHE_SECONDS,
+                },
+                "credentials": {provider: bool(key) for provider, key in settings.LLM_API_KEYS.items()},
+                "shared_model_key_configured": bool(settings.LLM_API_KEY),
+                "confidence_threshold": settings.AGENT_CONFIDENCE_THRESHOLD,
+                "timezone": settings.TIME_ZONE,
+                "tasks_eager": settings.CELERY_TASK_ALWAYS_EAGER,
+            },
         })
