@@ -535,6 +535,59 @@ The "different communities" check is a simple stand-in for X's bridging algorith
 
 ---
 
+## 10b. Fantasy Liiga (`apps/fantasy/`)
+
+A season-long manager game in the style of Fantasy Premier League, built on real Liiga data. It is **free to play**: no entry fees, no prizes and no wallet. The rewards are the leaderboards.
+
+**Import data** from the Liiga stats API (no key needed for reads; `LIIGAFI_API_KEY` is sent if set):
+
+```bash
+python manage.py sync_liiga            # current season (2027 = 2026-27): teams, gameweeks, games, rosters, box scores, prices (~2 min)
+python manage.py sync_liiga --skip-stats   # schedule and rosters only
+python manage.py seed_fantasy_demo         # demo: 30 managers since gameweek 1, scored on real stats, 2 leagues
+```
+
+`seed_fantasy_demo` replaces its demo users (`*@demo.fantasy`, password `demo1234`) each time it runs. It is local/demo only.
+
+After that, Celery keeps the data current:
+- `fantasy-sync-live`, every 10 min: box scores for games in progress, then rescoring.
+- `fantasy-sync-schedule`, daily at 06:00: schedule and rosters.
+
+**Rules** (all constants are in `apps/fantasy/rules.py`):
+- **Squad:** 15 players (2 G, 5 D, 8 F), budget 100, at most 3 players per team.
+- **Lineup:** each gameweek, start 11 players (1 G, 4 D, 6 F); the other 4 sit on the bench. Gameweeks are Liiga's own `gameWeek`, and the deadline is the first puck drop.
+- **Captain:** scores double. If the captain doesn't play, the vice-captain scores double instead.
+- **Auto-substitution:** a starter who didn't play is replaced by the first bench player of the same position, once their team has no games left that week.
+- **Transfers:**
+  - Unlimited before your first deadline.
+  - After that, you get 1 free transfer per gameweek, banking up to 5. Each extra transfer costs 4 points.
+- **Prices:** set by points-per-game rank within each position, from 4.0 to 13.0. A player's price is fixed once someone owns them.
+- **Points:**
+  - Goals: F 4, D 6, G 8. Assists: 3.
+  - Skaters: +/−, 1 point per 3 shots and per 3 blocked shots, a bonus for 15+ minutes of ice time.
+  - Defence: 3-point shutout bonus.
+  - Goalies: 1 point per 5 saves, −1 per 2 goals against, win 3, shutout 5.
+  - Penalties: −1 per 2 penalty minutes.
+
+**Endpoints** (`/api/fantasy/`):
+
+| Endpoint | What |
+|---|---|
+| `GET season/` | Current season, gameweeks, next deadline |
+| `GET players/` | `?position=G\|D\|F&team=&search=&ordering=-total_points` |
+| `GET players/{id}/games/` | Per-game points with breakdown |
+| `GET fixtures/?gameweek=9` | Games in a gameweek |
+| `GET/POST squad/` | Your squad / create `{name, player_ids[15]}` |
+| `GET/PUT squad/lineup/` | `{starters[11], bench[4], captain, vice_captain}` for the next deadline |
+| `GET/POST squad/transfers/` | History / `{"out": [ids], "in": [ids]}` |
+| `GET squad/history/` | Your points per gameweek |
+| `GET/POST leagues/`, `POST leagues/join/` | Private leagues with a 6-character invite code |
+| `GET leaderboard/` | `?period=day\|week\|season` `&scope=global\|community\|league` `&date=` `&gameweek=` `&community=oulu` `&league=` |
+
+**Local leaderboards:** the `community` scope ranks members of a `CommunityGroup`. Kärpät is linked to Oulu (`TEAM_COMMUNITIES` in `services/liiga.py`).
+
+---
+
 ## 11. Hands-on: the whole flow with curl
 
 With the stack running:

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.editorial",
     "apps.notes",
     "apps.markets",
+    "apps.fantasy",
 ]
 
 MIDDLEWARE = [
@@ -192,3 +193,7 @@ JEV_CACHE_SECONDS = env.int("JEV_CACHE_SECONDS", default=6 * 3600)
 
 # Prediction markets: virtual points only (FR-5.2)
 MARKETS_SIGNUP_GRANT = env.int("MARKETS_SIGNUP_GRANT", default=1000)
+
+# Fantasy Liiga: Liiga stats API (https://prod.liiga-backend.liiga.fi/stats/swagger-ui)
+LIIGA_API_BASE = env("LIIGA_API_BASE", default="https://prod.liiga-backend.liiga.fi/stats/api/v1")
+LIIGA_API_KEY = env("LIIGAFI_API_KEY", default="")

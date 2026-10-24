@@ -6,6 +6,11 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+def fantasy_frontend(request):
+    """Basic Fantasy Liiga UI (backend/frontend/fantasy.html) over /api/fantasy/."""
+    return FileResponse(open(settings.BASE_DIR / "frontend" / "fantasy.html", "rb"), content_type="text/html")
+
+
 def frontend(request):
     """The dev UI: one static page that talks to the API below (backend/frontend/index.html)."""
     return FileResponse(open(settings.BASE_DIR / "frontend" / "index.html", "rb"), content_type="text/html")
@@ -13,6 +18,7 @@ def frontend(request):
 
 urlpatterns = [
     path("", frontend, name="frontend"),
+    path("fantasy/", fantasy_frontend, name="fantasy-frontend"),
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
@@ -26,4 +32,5 @@ urlpatterns = [
     path("api/editorial/", include("apps.editorial.urls")),
     path("api/notes/", include("apps.notes.urls")),
     path("api/markets/", include("apps.markets.urls")),
+    path("api/fantasy/", include("apps.fantasy.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
