@@ -38,6 +38,10 @@ SUGGESTIONS = {
 }
 NUDGE = {"en": "Ask me who to captain, who to start, which transfer to make or how to climb the leaderboard.",
          "fi": "Kysy minulta kapteenista, kokoonpanosta, vaihdoista tai siitä, miten nouset tulostaulukossa."}
+# A question about your own team, asked before you have one.
+NO_TEAM = {"en": "You don't have a team yet. Pick one in Lämäri and I can tell you who to captain, who to start and which transfer to make.",
+           "fi": "Sinulla ei ole vielä joukkuetta. Valitse joukkue Lämärissä, niin kerron kapteenin, kokoonpanon ja vaihdot."}
+NEEDS_TEAM = {"captain", "lineup", "transfer", "climb", "lastweek", "standing"}
 # Order matters: the first match wins. Every pattern needs a fantasy or hockey word, so general
 # questions ("who will win the election") never match.
 TOPICS = {
@@ -341,6 +345,10 @@ def reply(message: str, squad: Squad | None, season, lang: str = "en", recent: l
             new_context = context
     except Exception:
         logger.exception("Chat answer failed for %r", text)
+    if not lines and not squad and topic in NEEDS_TEAM:
+        lines = [NO_TEAM[lang]]
+        if topic == "climb":
+            lines += answer_league(season, None, lang)  # who you would be chasing
     if not lines:
         return {"answer": NUDGE[lang], "source": "data", "suggestions": SUGGESTIONS[lang], "refused": False,
                 "clearly_off": False, "gate": gate, "context": context}

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { makeTransfers, shakeUp } from "@/features/fantasy/api";
 import { forget, photoOf } from "../lib/fantasyPreload";
 import { useT } from "../lib/lamariText";
+import { isPremium, MAX_PREMIUM } from "./SquadBuilder";
 
 const MAX_PER_TEAM = 3;
 
@@ -35,8 +36,10 @@ export default function Transfers({ squad, players, teams, onDone, onClose }) {
   const cost = (p) => p.transfer_cost ?? 0;
   const money = out ? Number(squad.bank) + Number(out.purchase_price ?? out.price) : 0;
 
+  const premiumNow = squad.players.filter(isPremium).length;
   const fits = (p) => !owned.has(p.id) && p.position === out.position && Number(p.price) <= money
-    && (perTeam[p.team_id] || 0) - (p.team_id === out.team_id ? 1 : 0) < MAX_PER_TEAM;
+    && (perTeam[p.team_id] || 0) - (p.team_id === out.team_id ? 1 : 0) < MAX_PER_TEAM
+    && (!isPremium(p) || isPremium(out) || premiumNow < MAX_PREMIUM);
   const options = out ? players.filter((p) => fits(p) && (!team || p.team_id === team)).sort((a, b) => b.total_points - a.total_points) : [];
 
   const reset = () => { setOut(null); setInn(null); setTeam(null); setPlan(null); };

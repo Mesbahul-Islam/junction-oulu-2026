@@ -15,10 +15,13 @@ Code: `backend/apps/fantasy/` (rules in `rules.py`) and `frontend/src/pages/Fant
 | Squad | 15 players: 2 goalies, 5 defenders, 8 forwards |
 | Budget | 100.0 |
 | Players from one Liiga team | at most 3 |
+| Stars (price 11.0 or more) | at most 2 |
 | Lineup each gameweek | 11 starters (1 goalie, 4 defenders, 6 forwards) and 4 on the bench |
 | Captain | scores double. If the captain doesn't play, the vice-captain scores double instead. |
 
 **Player prices** run from 4.0 to 13.0. Each player is priced by his rank in points per game within his position. A price is set when he is first priced and doesn't change after someone owns him.
+
+**Stars:** the budget alone would still fit about four of the league's best players, so a squad may hold at most 2 stars (marked ★). Transfers can't take you above 2. A squad made before this rule keeps its stars but can't add more. **Random pick** fills the open places with a random, legal squad of ordinary players and at most one star, so it is never the strongest team: over 300 tries its median squad had 472 season points and its best 693, against about 900 for a squad picked with care.
 
 **Gameweeks** follow Liiga's own gameweek numbers. A gameweek locks at the first face-off of its first game. Changes made after that count from the next gameweek.
 

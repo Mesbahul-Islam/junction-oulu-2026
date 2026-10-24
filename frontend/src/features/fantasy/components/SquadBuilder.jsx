@@ -10,6 +10,10 @@ export const SQUAD = { G: 2, D: 5, F: 8 };
 const SQUAD_SIZE = 15;
 const MAX_PER_TEAM = 3;
 const MIN_PRICE = 4;
+// Premium players (price 11 or more): at most 2 per squad, so nobody can stack the stars.
+export const PREMIUM_PRICE = 11;
+export const MAX_PREMIUM = 2;
+export const isPremium = (p) => Number(p.price) >= PREMIUM_PRICE;
 const LIST_PAGE = 25;
 
 /** "Make your team": pick 15 players under the budget, max 3 from one Liiga team. */
@@ -35,6 +39,7 @@ export default function SquadBuilder({ season, players, onCreated }) {
   const blocked = (p, list = chosen, money = spent) => {
     if (list.filter((x) => x.position === p.position).length >= SQUAD[p.position]) return t("full_", { pos: POS_NAME[p.position] });
     if (list.filter((x) => x.team_id === p.team_id).length >= MAX_PER_TEAM) return t("threeFrom", { team: p.team });
+    if (isPremium(p) && list.filter(isPremium).length >= MAX_PREMIUM) return t("premiumFull");
     const slotsLeft = SQUAD_SIZE - list.length - 1;
     if (money + Number(p.price) + slotsLeft * MIN_PRICE > budget) return t("overBudget");
     return "";
@@ -42,14 +47,24 @@ export default function SquadBuilder({ season, players, onCreated }) {
   const toggle = (p) => setPicked((ids) => (ids.includes(p.id) ? ids.filter((i) => i !== p.id) : blocked(p) ? ids : [...ids, p.id]));
 
   // Quick pick: fill the open slots with the best points-per-price players that still fit.
+  // Random pick: a different balanced squad each time, from ordinary players (at most one star).
+  // It is deliberately not an optimiser, so a thoughtful manager does better than the button.
   const quickPick = () => {
     const list = [...chosen];
     let money = spent;
+    const allowPremium = Math.random() < 0.5 && list.filter(isPremium).length === 0 ? 1 : 0;
     const pool = players.filter((p) => !picked.includes(p.id) && !p.injured && !p.suspended)
-      .sort((a, b) => b.total_points / b.price - a.total_points / a.price);
+      .map((p) => ({ p, r: Math.random() }))
+      .sort((a, b) => a.r - b.r)
+      .map(({ p }) => p);
+    let premiumAdded = 0;
     for (const p of pool) {
+      if (isPremium(p)) {
+        if (premiumAdded >= allowPremium) continue;
+        premiumAdded += 1;
+      }
       if (list.length === SQUAD_SIZE) break;
-      if (!blocked(p, list, money)) { list.push(p); money += Number(p.price); }
+      if (!blocked(p, list, money)) { list.push(p); money += Number(p.price); } else if (isPremium(p)) premiumAdded -= 1;
     }
     setPicked(list.map((p) => p.id));
   };
@@ -75,7 +90,8 @@ export default function SquadBuilder({ season, players, onCreated }) {
         <div className="fx-budget">
           <div><b>{left.toFixed(1)}</b><span>{t("budgetLeft")}</span></div>
           <div><b>{picked.length}/15</b><span>{t("players")}</span></div>
-          <button type="button" className="fx-quick" onClick={quickPick} disabled={picked.length === SQUAD_SIZE}><Wand2 size={16} /> {t("quickPick")}</button>
+          <div><b>{chosen.filter(isPremium).length}/{MAX_PREMIUM}</b><span>{t("premium")}</span></div>
+          <button type="button" className="fx-quick" onClick={quickPick} disabled={picked.length === SQUAD_SIZE}><Wand2 size={16} /> {t("randomPick")}</button>
         </div>
         <div className="fx-meter"><span style={{ width: `${Math.min(100, (spent / budget) * 100)}%` }} /></div>
       </div>
@@ -96,7 +112,7 @@ export default function SquadBuilder({ season, players, onCreated }) {
           return (
             <button key={p.id} type="button" className={`fx-prow${isIn ? " in" : ""}${why ? " off" : ""}`} onClick={() => toggle(p)}>
               <span className="fx-face sm">{photoOf(p) && <img src={photoOf(p)} alt="" loading="lazy" referrerPolicy="no-referrer" onLoad={(e) => e.currentTarget.classList.add("ready")} onError={(e) => { e.currentTarget.style.display = "none"; }} />}<span className="fx-initials">{p.first_name[0]}{p.last_name[0]}</span></span>
-              <span className="fx-pinfo"><b>{p.first_name} {p.last_name}</b><small>{p.team}{p.injured ? `, ${t("injured")}` : ""}{why ? `. ${why}` : ""}</small></span>
+              <span className="fx-pinfo"><b>{p.first_name} {p.last_name}{isPremium(p) && <span className="fx-star" title={t("premium")}>★</span>}</b><small>{p.team}{p.injured ? `, ${t("injured")}` : ""}{why ? `. ${why}` : ""}</small></span>
               <span className="fx-pnum"><b>{Math.round(p.total_points)}</b><small>{t("ptsShort")}</small></span>
               <span className="fx-pnum"><b>{p.price}</b><small>{t("price")}</small></span>
               <span className="fx-add">{isIn ? <Check size={18} /> : <Plus size={18} />}</span>

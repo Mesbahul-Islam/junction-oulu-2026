@@ -44,8 +44,12 @@ def _load_players(player_ids) -> list[Player]:
     return players
 
 
-def validate_squad(players: list[Player], budget: Decimal) -> Decimal:
-    """Composition, per-team limit and budget. Returns the squad's cost."""
+def premium_error(count: int) -> FantasyError:
+    return FantasyError(f"At most {rules.MAX_PREMIUM} premium players (price {rules.PREMIUM_PRICE} or more) in a squad")
+
+
+def validate_squad(players: list[Player], budget: Decimal, check_premium: bool = True) -> Decimal:
+    """Composition, per-team limit, premium limit and budget. Returns the squad's cost."""
     if len(players) != rules.SQUAD_SIZE:
         raise FantasyError(f"A squad has exactly {rules.SQUAD_SIZE} players")
     counts = Counter(p.position for p in players)
@@ -55,6 +59,8 @@ def validate_squad(players: list[Player], budget: Decimal) -> Decimal:
     for team, n in Counter(p.team_id for p in players).items():
         if n > rules.MAX_PER_TEAM:
             raise FantasyError(f"At most {rules.MAX_PER_TEAM} players from one team")
+    if check_premium and sum(1 for p in players if rules.is_premium(p)) > rules.MAX_PREMIUM:
+        raise premium_error(rules.MAX_PREMIUM)
     inactive = [p.name for p in players if not p.active]
     if inactive:
         raise FantasyError(f"No longer on a Liiga roster: {', '.join(inactive)}")
@@ -217,7 +223,13 @@ def make_transfers(squad: Squad, out_ids, in_ids) -> list[Transfer]:
         picks = {pick.player_id: pick for pick in squad.picks.all()}
         sale_value = sum((picks[p.pk].purchase_price for p in outgoing), Decimal(0))
         out_pks = {p.pk for p in outgoing}
-        validate_squad([p for p in current if p.pk not in out_pks] + incoming, budget=Decimal("Infinity"))
+        after = [p for p in current if p.pk not in out_pks] + incoming
+        validate_squad(after, budget=Decimal("Infinity"), check_premium=False)
+        # Teams made before the cap keep their players, but a transfer can't add premium beyond it.
+        before_premium = sum(1 for p in current if rules.is_premium(p))
+        after_premium = sum(1 for p in after if rules.is_premium(p))
+        if after_premium > rules.MAX_PREMIUM and after_premium > before_premium:
+            raise premium_error(rules.MAX_PREMIUM)
         purchase = sum((p.price for p in incoming), Decimal(0))
         if purchase > squad.bank + sale_value:
             raise FantasyError(f"Not enough money: incoming players cost {purchase}, you have {squad.bank + sale_value}")
@@ -281,6 +293,7 @@ def shake_up(squad: Squad, max_points: int, max_changes: int = 3, rng=None) -> l
     per_team = defaultdict(int)
     for p in current:
         per_team[p.team_id] += 1
+    premium = sum(1 for p in current if rules.is_premium(p))
     budget, points_left = squad.bank, max_points
     outs, ins = [], []
     for out in sorted(starters, key=value):
@@ -290,7 +303,8 @@ def shake_up(squad: Squad, max_points: int, max_changes: int = 3, rng=None) -> l
         options = [p for p in pool if p.position == out.position and p.pk not in {i.pk for i in ins}
                    and p.price <= money and costs.get(p.pk, 0) <= points_left
                    and per_team[p.team_id] - (1 if p.team_id == out.team_id else 0) < rules.MAX_PER_TEAM
-                   and value(p) > value(out)]
+                   and value(p) > value(out)
+                   and (not rules.is_premium(p) or rules.is_premium(out) or premium < rules.MAX_PREMIUM)]
         if not options:
             continue
         pick = rng.choice(sorted(options, key=value, reverse=True)[:5])
@@ -298,6 +312,7 @@ def shake_up(squad: Squad, max_points: int, max_changes: int = 3, rng=None) -> l
         ins.append(pick)
         budget = money - pick.price
         points_left -= costs.get(pick.pk, 0)
+        premium += int(rules.is_premium(pick)) - int(rules.is_premium(out))
         per_team[out.team_id] -= 1
         per_team[pick.team_id] += 1
     if not outs:
