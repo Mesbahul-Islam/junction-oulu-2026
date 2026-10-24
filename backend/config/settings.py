@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.fantasy",
     "apps.trust",
     "apps.rewards",
+    "apps.telegrambot",
 ]
 
 MIDDLEWARE = [
@@ -208,6 +209,9 @@ JEV_CACHE_SECONDS = env.int("JEV_CACHE_SECONDS", default=6 * 3600)
 # Contributor rewards: the service that sends contribution statistics shows this key
 # (X-Rewards-Key). Empty: only a DEBUG server accepts statistics.
 REWARDS_INGEST_KEY = env("REWARDS_INGEST_KEY", default="")
+
+# Telegram news bot (@BotFather token). Empty: the bot is idle and sends nothing.
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_API", default="")
 
 # Prediction markets: virtual points only (FR-5.2)
 MARKETS_SIGNUP_GRANT = env.int("MARKETS_SIGNUP_GRANT", default=1000)
