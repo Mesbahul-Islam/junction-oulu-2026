@@ -120,7 +120,7 @@
     <div class="brand"><span>N</span> Newsroom Admin</div>
     <button class="nav on" data-view="overview">Overview</button>
     <button class="nav" data-view="queue">Editor queue <span class="badge" id="b-queue" data-zero></span></button>
-    <button class="nav" data-view="moderation">Moderation <span class="badge" id="b-mod" data-zero></span></button>
+    <button class="nav" data-view="moderation">Community <span class="badge" id="b-mod" data-zero></span></button>
     <button class="nav" data-view="newsroom">AI newsroom <span class="badge" id="b-run" data-zero></span></button>
     <button class="nav" data-view="compare">Compare feeds</button>
     <div class="links">
@@ -174,8 +174,8 @@
     <!-- Moderation -->
     <section class="view" id="v-moderation">
       <header class="page">
-        <div><h1>Moderation</h1><p>Community posts readers reported. Reported posts stay hidden until you decide.</p></div>
-        <div class="seg" id="mStatus"><button data-v="pending" class="on">Pending</button><button data-v="removed">Removed</button><button data-v="kept">Kept</button></div>
+        <div><h1>Community</h1><p>Reported posts stay hidden until you decide. Questions members ask can be answered with a newsroom story.</p></div>
+        <div class="seg" id="mStatus"><button data-v="pending" class="on">Reported</button><button data-v="questions">Unanswered questions</button><button data-v="removed">Removed</button><button data-v="kept">Kept</button></div>
       </header>
       <div id="modList"></div>
     </section>
@@ -444,7 +444,7 @@ async function loadModeration() {
   const box = $("modList");
   try {
     const posts = results(await api(`/communities/moderation/?status=${mState.status}`));
-    if (!posts.length) { box.innerHTML = `<div class="card empty">${mState.status === "pending" ? "Nothing to moderate. Reported posts appear here." : "Nothing here yet."}</div>`; return; }
+    if (!posts.length) { box.innerHTML = `<div class="card empty">${{ pending: "Nothing to moderate. Reported posts appear here.", questions: "No unanswered questions. Questions members post in Community News appear here." }[mState.status] || "Nothing here yet."}</div>`; return; }
     box.innerHTML = posts.map((p) => `<div class="card task" data-id="${p.id}">
       <div class="task-head"><b>${esc(p.author_name)}</b><span class="muted">in ${esc(p.community_name)} · posted ${ago(p.created_at)}</span>
         ${p.reports.length ? `<span class="pill bad">${p.reports.length} report${p.reports.length > 1 ? "s" : ""}</span>` : ""}</div>
@@ -452,7 +452,15 @@ async function loadModeration() {
       ${p.reports.length ? `<div class="flag warn"><b>Reports</b><ul>${p.reports.map((r) => `<li>${esc(r.reason)}${r.note ? `: ${esc(r.note)}` : ""} <span class="small">(${esc(r.by)}, ${ago(r.at)})</span></li>`).join("")}</ul></div>` : ""}
       ${p.moderated_at ? `<div class="small muted">${p.status === "removed" ? "Removed" : "Kept"} by ${esc(p.moderated_by_name || "–")} ${ago(p.moderated_at)}${p.moderation_note ? `: “${esc(p.moderation_note)}”` : ""}</div>` : ""}
       ${mState.status === "pending" ? `<div class="actions"><button class="btn primary" data-mod="keep">Keep (restore)</button><button class="btn danger" data-mod="remove">Remove</button></div>` : ""}
+      ${mState.status === "questions" ? `<div class="actions"><label class="small muted">Answered by story # <input data-answer type="number" min="1" style="width:90px"></label>
+        <button class="btn primary" data-link="1">Link answer</button><span class="small muted">The post then shows "Answered by the newsroom" with a link.</span></div>` : ""}
     </div>`).join("");
+    box.querySelectorAll("[data-link]").forEach((b) => (b.onclick = async () => {
+      const card = b.closest(".task"), story = card.querySelector("[data-answer]").value;
+      if (!story) return toast("Enter the number of the story that answers this question.");
+      try { await api(`/communities/news/${card.dataset.id}/answer/`, { method: "POST", body: { snippet: Number(story) } }); toast("Answer linked."); loadModeration(); }
+      catch (e) { toast(e.message); }
+    }));
     box.querySelectorAll("[data-mod]").forEach((b) => (b.onclick = async () => {
       const id = b.closest(".task").dataset.id;
       const note = b.dataset.mod === "remove" ? prompt("Reason for removing (kept in the record):") : "";

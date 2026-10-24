@@ -34,13 +34,41 @@ class PostSerializer(serializers.ModelSerializer):
     community_slug = serializers.CharField(source="community.slug", read_only=True)
     is_mine = serializers.SerializerMethodField()
     flag_count = serializers.IntegerField(source="flags.count", read_only=True)
+    answered_by = serializers.SerializerMethodField()
+    translation = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
         fields = ["id", "community", "community_name", "community_slug", "author", "author_name", "is_mine", "kind",
-                  "body", "image", "parent", "reply_count", "status", "flag_count", "moderation_note",
+                  "body", "language", "translation", "answered_by", "image", "parent", "reply_count", "status",
+                  "flag_count", "moderation_note",
                   "created_at", "updated_at"]
-        read_only_fields = ["community", "author", "status", "moderation_note", "created_at", "updated_at"]
+        read_only_fields = ["community", "author", "status", "language", "moderation_note", "created_at", "updated_at"]
+
+    def _reader_chain(self):
+        from apps.feed.services import language_chain, requester_language
+
+        request = self.context.get("request")
+        return language_chain(requester_language(request)) if request else ["fi", "en"]
+
+    def get_answered_by(self, obj):
+        """The published newsroom story that answers this question, in the reader's language."""
+        from apps.common.choices import ReviewStatus
+        from apps.feed.services import pick_version
+
+        snippet = getattr(getattr(obj, "question", None), "linked_snippet", None)
+        if not snippet or snippet.review_status != ReviewStatus.PUBLISHED:
+            return None
+        version = pick_version(snippet.versions.all(), self._reader_chain())
+        return {"snippet": snippet.pk, "headline": version.headline if version else ""}
+
+    def get_translation(self, obj):
+        """Machine translation into the reader's language, if there is one (labelled in the app)."""
+        want = self._reader_chain()[0]
+        if not want or want == obj.language:
+            return None
+        t = next((t for t in obj.translations.all() if t.language == want), None)
+        return {"language": t.language, "text": t.text, "from_language": obj.language} if t else None
 
     def get_is_mine(self, obj) -> bool:
         request = self.context.get("request")

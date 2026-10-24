@@ -102,8 +102,10 @@ class Command(BaseCommand):
         authors = {u.email: u for u in User.objects.filter(email__in=[r[0] for r in DEMO_READERS])}
         if not oulu or len(authors) < 2 or Post.objects.filter(community=oulu).exists():
             return
+        from apps.communities.services import register_post
+
         for email, body in DEMO_POSTS:
-            Post.objects.create(community=oulu, author=authors[email], body=body)
+            register_post(Post.objects.create(community=oulu, author=authors[email], body=body))
         self.stdout.write(f"Created {len(DEMO_POSTS)} demo community posts.")
 
     def _ensure_admin(self):

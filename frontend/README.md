@@ -64,7 +64,7 @@ src/
 | Log in / sign up | `POST /api/auth/token/`, `POST /api/accounts/register/` |
 | Onboarding | `GET /api/accounts/interests/`, `POST /api/accounts/onboarding/`, `GET /api/accounts/onboarding-link/<code>/` (QR) |
 | For You, Discover | `GET /api/feed/snippets/?tag=…`, `GET /api/feed/arrival/` |
-| Community News | `GET /api/communities/news/`, `POST /api/communities/groups/<slug>/posts/<id>/flag/` |
+| Community News | `GET /api/communities/news/` (with `translation`, `answered_by`), `POST /api/communities/groups/<slug>/posts/<id>/flag/` |
 | Create (+) | `POST /api/communities/groups/<slug>/posts/`, `POST /api/communities/contributions/` (tip/question) |
 | Story | `GET /api/feed/snippets/<id>/`, `POST …/interact/` (like, bookmark, view, read_through, expand, share), `POST …/report/` |
 | Saved | `GET /api/feed/snippets/bookmarks/` |
@@ -80,8 +80,12 @@ http://localhost:8000/api/docs/.
 - **For You** is journalism: AI-drafted, approved by human editors, translated and checked.
 - **Community News** is written by readers and published straight away. Every post says
   "Community post · not reviewed by editors". Anyone can report a post, and it is then
-  hidden until a moderator (community editor or editor) keeps or removes it in the dev UI's
-  Moderation tab. This follows the JSN guidelines' annex on content published by the public.
+  hidden until a moderator (community editor or editor) keeps or removes it in the admin
+  dashboard's Community section. This follows the JSN guidelines' annex on content published by the public.
+  - Posts arrive translated into the reader's language when a model is available (`translation`);
+    `PostSlide` shows it with an "Auto-translated from X · Show original" toggle.
+  - A question post links to the newsroom story that answers it (`answered_by`), shown as
+    "Answered by the newsroom" on the slide.
 - **Tips and questions** sent with "+" go privately to the newsroom and are never published as written.
 
 ## Notes for changes

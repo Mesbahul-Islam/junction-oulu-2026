@@ -302,3 +302,27 @@ def classify_content(title: str, body: str = "", url: str = "") -> tuple[str, st
         if m := re.search(pattern, target, re.M):
             return "opinion", m.group(0).strip()
     return "news", ""
+
+
+def guess_language(text: str) -> str:
+    """Best guess of the language of a short text ("" if unsure), for community posts."""
+    counts = {name: len(rx.findall(text or "")) for name, rx in _SCRIPTS.items()}
+    if sum(counts.values()) < 8:
+        return ""
+    script = max(counts, key=counts.get)
+    if script == "arabic":
+        return "ar"
+    if script == "cyrillic":
+        return "uk" if sum(c in _UK_ONLY for c in text) >= sum(c in _RU_ONLY for c in text) else "ru"
+    low = (text or "").lower()
+    words = re.findall(r"[a-zåäöõüšž]+", low)
+    scores = {code: sum(w in sw for w in words) for code, sw in STOPWORDS.items()}
+    # Letters only break ties between Latin-script languages: å Swedish, õ Estonian, ä/ö Finnish.
+    if "å" in low:
+        scores["sv"] += 0.5
+    elif "õ" in low:
+        scores["et"] += 0.5
+    elif re.search(r"[äö]", low):
+        scores["fi"] += 0.5
+    best = max(scores, key=scores.get)
+    return best if scores[best] >= 1 else ""

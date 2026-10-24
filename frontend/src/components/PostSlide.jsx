@@ -1,9 +1,10 @@
-import { Flag, MessageCircle, Share2, Users } from "lucide-react";
+import { ArrowRight, Flag, Languages, MessageCircle, Newspaper, Share2, Users } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { flagPost } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { timeAgo } from "../lib/i18n";
+import { languageName, timeAgo } from "../lib/i18n";
 
 const REASONS = [
   { value: "hate", label: "Hate or harassment" },
@@ -21,6 +22,8 @@ export default function PostSlide({ post, onFlagged }) {
   const { me } = useAuth();
   const [flagging, setFlagging] = useState(false);
   const [done, setDone] = useState("");
+  const [showOriginal, setShowOriginal] = useState(false);
+  const t = post.translation; // machine translation into the reader's language, if any
   const initials = (post.author_name || "?").slice(0, 2).toUpperCase();
 
   const flag = async (reason) => {
@@ -54,7 +57,22 @@ export default function PostSlide({ post, onFlagged }) {
       <div className="tt-caption">
         <div className="tt-label"><Users size={14} /> Community post · not reviewed by editors</div>
         <div className="tt-meta"><b>@{post.author_name}</b> · {post.community_name} · {timeAgo(post.created_at, me?.preferred_language)}</div>
-        <p className="tt-post-body">{post.body}</p>
+        <p className="tt-post-body" lang={t && !showOriginal ? t.language : post.language || undefined}>
+          {t && !showOriginal ? t.text : post.body}
+        </p>
+        {t && (
+          <button className="tt-chip" style={{ marginTop: 8 }} onClick={() => setShowOriginal(!showOriginal)}>
+            <Languages size={14} />
+            {showOriginal ? `Show in ${languageName(t.language)}` : `Auto-translated${t.from_language ? ` from ${languageName(t.from_language)}` : ""} · Show original`}
+          </button>
+        )}
+        {post.answered_by && (
+          <Link to={`/story/${post.answered_by.snippet}`} className="tt-answer">
+            <Newspaper size={18} />
+            <span><b>Answered by the newsroom</b><br />{post.answered_by.headline}</span>
+            <ArrowRight size={18} />
+          </Link>
+        )}
         {post.is_mine && post.status === "hidden" && (
           <div className="tt-panel">Your post was reported and is hidden from others until a moderator reviews it.</div>
         )}

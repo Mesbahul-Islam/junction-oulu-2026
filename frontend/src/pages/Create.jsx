@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { createPost, getMyCommunities, sendContribution } from "../lib/api";
 
 const MODES = [
-  { id: "post", label: "Community post", hint: "Shown in Community News to members of your community. Written by you, not reviewed by editors; others can report it." },
+  { id: "post", label: "Community post", hint: "Shown in Community News to members of your community, translated for neighbours who read other languages. Written by you, not reviewed by editors; others can report it. Questions also reach the newsroom: if a story answers yours, your post links to it." },
   { id: "tip", label: "Tip or question", hint: "Goes privately to the newsroom. Editors may turn it into a story; it is never published as you wrote it." },
 ];
 const TIP_KINDS = [

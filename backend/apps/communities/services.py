@@ -148,3 +148,58 @@ def moderate_post(post, user, decision: str, note: str = "") -> Post:
     if decision == "keep":
         post.flags.all().delete()
     return post
+
+
+# --- Community News: answers from the newsroom, translations --------------------------------
+
+def is_question(body: str) -> bool:
+    return "?" in (body or "")
+
+
+def register_post(post) -> None:
+    """After a member posts: note its language, pass questions on to the newsroom (FR-3.10),
+    and translate it in the background for the community's other language groups."""
+    from django.db import transaction
+
+    from apps.agents.graph.text import guess_language
+
+    post.language = guess_language(post.body)
+    fields = ["language", "updated_at"]
+    if post.parent_id is None and is_question(post.body):
+        with transaction.atomic():
+            post.question, _ = record_question(community=post.community, author=post.author, body=post.body)
+        fields.append("question")
+    post.save(update_fields=fields)
+
+    from .tasks import translate_post
+
+    transaction.on_commit(lambda: translate_post.delay(post.pk))
+
+
+def post_translation_targets(post) -> list[str]:
+    """The community's languages plus its members' profile languages, minus the post's own."""
+    from apps.common.choices import SAMI_LANGUAGES
+
+    from django.contrib.auth import get_user_model
+
+    members = get_user_model().objects.filter(memberships__community=post.community)
+    langs = set(post.community.languages or []) | set(members.values_list("preferred_language", flat=True))
+    # Sámi is never machine-written (FR-3.9), not even for community posts.
+    return sorted(lang for lang in langs if lang and lang != post.language and lang not in SAMI_LANGUAGES)
+
+
+def answer_post(post, snippet, user):
+    """Link a question post to the newsroom story that answers it (editors / community editors)."""
+    if post.question is None:
+        post.question = CommunityContribution.objects.create(
+            community=post.community, author=post.author, kind=CommunityContribution.Kind.QUESTION,
+            body=post.body, normalized_body=normalize_text(post.body),
+        )
+        post.save(update_fields=["question", "updated_at"])
+    question = post.question
+    question.linked_snippet = snippet
+    question.status = (
+        CommunityContribution.Status.ANSWERED if snippet.published_at else CommunityContribution.Status.IN_REVIEW
+    )
+    question.save(update_fields=["linked_snippet", "status", "updated_at"])
+    return question

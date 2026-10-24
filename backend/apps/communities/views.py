@@ -100,7 +100,8 @@ class PostViewSet(viewsets.ModelViewSet):
         kind = serializer.validated_data.get("kind", Post.Kind.POST)
         if kind in (Post.Kind.ANNOUNCEMENT, Post.Kind.SNIPPET) and not services.can_moderate(self.request.user, self.community):
             kind = Post.Kind.POST
-        serializer.save(community=self.community, author=self.request.user, kind=kind)
+        post = serializer.save(community=self.community, author=self.request.user, kind=kind)
+        services.register_post(post)
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsCommunityMember])
     def flag(self, request, community_slug=None, pk=None):
@@ -122,7 +123,20 @@ class CommunityNewsView(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     def get_queryset(self):
         ids = self.request.user.memberships.values_list("community_id", flat=True)
-        return services.visible_posts(self.request.user, ids)
+        return services.visible_posts(self.request.user, ids).select_related("question__linked_snippet").prefetch_related("translations")
+
+    @action(detail=True, methods=["post"])
+    def answer(self, request, pk=None):
+        """POST /api/communities/news/<id>/answer/ {"snippet": <id>}: an editor or community editor
+        links the newsroom story that answers this question post."""
+        from apps.feed.models import Snippet
+
+        post = get_object_or_404(Post, pk=pk)
+        if not services.can_moderate(request.user, post.community):
+            return Response({"detail": "Only editors of this community can link answers."}, status=status.HTTP_403_FORBIDDEN)
+        snippet = get_object_or_404(Snippet, pk=request.data.get("snippet"))
+        services.answer_post(post, snippet, request.user)
+        return Response(PostSerializer(post, context=self.get_serializer_context()).data)
 
 
 class PostModerationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -133,10 +147,14 @@ class PostModerationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        """?status=pending (default, reported and hidden) | removed | kept (reported, then restored)."""
+        """?status=pending (default, reported and hidden) | removed | kept (reported, then restored)
+        | questions (question posts the newsroom hasn't answered yet)."""
         view = self.request.query_params.get("status", "pending")
         qs = Post.objects.select_related("author", "community", "moderated_by").prefetch_related("flags__user")
-        if view == "removed":
+        if view == "questions":
+            qs = qs.filter(status=Post.Status.VISIBLE, parent__isnull=True, question__isnull=False,
+                           question__linked_snippet__isnull=True)
+        elif view == "removed":
             qs = qs.filter(status=Post.Status.REMOVED)
         elif view == "kept":
             qs = qs.filter(status=Post.Status.VISIBLE, moderated_at__isnull=False)

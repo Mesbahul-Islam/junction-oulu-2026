@@ -76,6 +76,12 @@ class Post(TimeStampedModel):
     image = models.ImageField(upload_to="posts/", null=True, blank=True)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.VISIBLE, db_index=True)
+    language = models.CharField(max_length=5, blank=True)  # detected source language ("" = unknown)
+    # A question post is also a reader question for the newsroom (FR-3.10); its answer is
+    # question.linked_snippet once editors publish a story that answers it.
+    question = models.ForeignKey(
+        "communities.CommunityContribution", null=True, blank=True, on_delete=models.SET_NULL, related_name="posts"
+    )
     moderated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="moderated_posts"
     )
@@ -87,6 +93,18 @@ class Post(TimeStampedModel):
 
     def __str__(self):
         return f"{self.kind} by {self.author} in {self.community}"
+
+
+class PostTranslation(TimeStampedModel):
+    """Machine translation of a community post into a reader language (labelled as such in the app)."""
+
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="translations")
+    language = models.CharField(max_length=5)
+    text = models.TextField()
+    model = models.CharField(max_length=120, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["post", "language"], name="uniq_post_translation")]
 
 
 class PostFlag(TimeStampedModel):

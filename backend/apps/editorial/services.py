@@ -336,6 +336,8 @@ def publish(snippet) -> bool:
     snippet.review_status = ReviewStatus.PUBLISHED
     snippet.save(update_fields=["published_at", "verified_at", "review_status", "updated_at"])
     _release_corrections(snippet, now)
+    # Reader questions this story answers (community posts show "Answered by the newsroom").
+    snippet.contributions.filter(kind="question").update(status="answered")
     log(snippet, "published", payload={"verified_at": now.isoformat()})
     return True
 
