@@ -1,12 +1,15 @@
 """FR-4 Community Notes scoring (bridging-style, simplified).
 
-A note is `helpful` only when (a) it has ≥ MIN_RATINGS ratings, (b) the mean
-helpfulness score (helpful=1, somewhat=0.5, not=0) ≥ HELPFUL_THRESHOLD and (c) the
-positive raters span ≥ MIN_PERSPECTIVES distinct perspective groups. `not_helpful`
-when the score ≤ NOT_HELPFUL_THRESHOLD. Otherwise `needs_more_ratings`.
+A note is `helpful` (shown on the post as "Readers added context") only when (a) it
+has ≥ MIN_RATINGS ratings, (b) the mean helpfulness score (helpful=1, somewhat=0.5,
+not=0) ≥ HELPFUL_THRESHOLD and (c) the positive raters span ≥ MIN_PERSPECTIVES
+perspective groups. `not_helpful` when the score ≤ NOT_HELPFUL_THRESHOLD. Otherwise
+`needs_more_ratings`.
 
-Perspective group ≈ the rater's primary (earliest) community membership; raters
-without any membership do not count towards (c), which keeps the rule conservative.
+Perspective group = the rater's life situation (newcomer, student, seasonal worker,
+resident): a note is shown only when people in different situations agree it helps,
+so one group can't push its view on everyone. A shown note is then translated into
+the community's languages (``tasks.translate_note``).
 TODO: replace with matrix-factorization bridging (X/Twitter Community Notes) using
 past rating agreement between raters.
 """
@@ -16,7 +19,7 @@ from django.db import transaction
 
 from .models import CommunityNote, NoteRating
 
-MIN_RATINGS = 5
+MIN_RATINGS = 3
 HELPFUL_THRESHOLD = 0.7
 NOT_HELPFUL_THRESHOLD = 0.3
 MIN_PERSPECTIVES = 2
@@ -40,14 +43,9 @@ def status_from_ratings(ratings) -> str:
 
 
 def perspective_groups(user_ids) -> dict:
-    """user_id → primary community id (earliest membership), or absent."""
-    Membership = apps.get_model("communities", "Membership")
-    groups = {}
-    for uid, cid in (
-        Membership.objects.filter(user_id__in=user_ids).order_by("created_at").values_list("user_id", "community_id")
-    ):
-        groups.setdefault(uid, cid)
-    return groups
+    """user_id → the rater's life situation (newcomer, student, seasonal_worker, resident)."""
+    User = apps.get_model("accounts", "User")
+    return dict(User.objects.filter(pk__in=user_ids).exclude(reader_situation="").values_list("pk", "reader_situation"))
 
 
 def compute_status(note) -> str:
@@ -58,7 +56,24 @@ def compute_status(note) -> str:
     if new != note.status:
         note.status = new
         note.save(update_fields=["status", "updated_at"])
+        if new == Status.HELPFUL and note.post_id:
+            from .tasks import translate_note
+
+            transaction.on_commit(lambda: translate_note.delay(note.pk))
     return new
+
+
+def create_note(*, author, post=None, snippet=None, **fields) -> CommunityNote:
+    """A member proposes a note. On a community post, only members of that community may write."""
+    from apps.agents.graph.text import guess_language
+
+    if post is not None and not post.community.memberships.filter(user=author).exists():
+        raise ValueError("Join this community to add notes to its posts.")
+    note = CommunityNote(author=author, post=post, snippet=snippet, **fields)
+    note.language = guess_language(f"{note.claim_summary} {note.context}")
+    note.full_clean()
+    note.save()
+    return note
 
 
 @transaction.atomic

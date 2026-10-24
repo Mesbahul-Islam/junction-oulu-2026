@@ -68,6 +68,8 @@ DEMO_POSTS = [
     ("newcomer@example.com", "oulu", "Does anyone know where to get a library card in Oulu? I arrived last week. Thanks!"),
     ("fan@example.com", "oulu", "Ice on the Toppilansalmi walking path this morning, careful with strollers and bikes."),
     ("newcomer@example.com", "oulu", "Ukrainian-speaking parents in Oulu: we meet at the main library on Sundays at 12, everyone welcome."),
+    # A rumour members reported as misleading; it gets a Community Note (DEMO_NOTES).
+    ("jussi@example.com", "oulu", "Heard Kela will stop paying housing allowance to everyone in Oulu next month. Better start looking for a cheaper flat now!"),
 ]
 
 # Replies under demo posts: (index in DEMO_POSTS, author, text). Authors are members of that post's community.
@@ -81,6 +83,20 @@ DEMO_REPLIES = [
     (10, "newcomer@example.com", "About two weeks for me too."),
     (12, "aino@example.com", "Kierrätyskeskus on halvin, ja Pekurinkulman kirpputori lauantaisin."),
     (17, "maria@example.com", "Just go to any library with your ID, it took me five minutes!"),
+]
+
+# Community Notes on demo posts: (index in DEMO_POSTS, author, claim, context, source, raters, flaggers).
+# The first has helpful ratings from residents and a newcomer, so it is shown ("Readers added context");
+# the second still needs ratings. Flaggers reported the post as false or misleading.
+DEMO_NOTES = [
+    (20, "maria@example.com", "Kela hasn't announced any end to housing allowance in Oulu.",
+     "Housing allowance is decided by Kela case by case, under the same national rules everywhere in Finland. "
+     "There is no Oulu-wide stop. If you're worried about your own allowance, check your decision in OmaKela or ask Kela.",
+     "https://www.kela.fi/housing-allowance", ["aino@example.com", "newcomer@example.com", "erik@example.com"],
+     ["newcomer@example.com", "iryna@example.com"]),
+    (8, "aino@example.com", "The shared swimming evening may not be every Wednesday.",
+     "Winter opening hours at Nallikari change during the season. Check the city's sauna page before you go.",
+     "https://www.ouka.fi", ["erik@example.com"], []),
 ]
 
 
@@ -173,6 +189,32 @@ class Command(BaseCommand):
                     created_at=now - datetime.timedelta(hours=2.5 * i))
             self.stdout.write(f"Created {created} demo community posts.")
         self._ensure_demo_engagement()
+        self._ensure_demo_notes()
+
+    def _ensure_demo_notes(self):
+        """Community Notes on demo posts: one shown, one waiting for ratings (see DEMO_NOTES)."""
+        from apps.communities.models import Membership, Post, PostFlag, PostLike
+        from apps.notes import services as notes
+
+        User = get_user_model()
+        users = {u.email: u for u in User.objects.all()}
+        for index, author, claim, context, source, raters, flaggers in DEMO_NOTES:
+            email, slug, body = DEMO_POSTS[index]
+            post = Post.objects.filter(community__slug=slug, author__email=email, body=body, parent=None).first()
+            if not post or post.community_notes.exists() or author not in users:
+                continue
+            for flagger in flaggers:
+                PostFlag.objects.get_or_create(post=post, user=users[flagger], defaults={"reason": "false"})
+            if index == 20:  # the rumour spreads: make it hot
+                for user_id in Membership.objects.filter(community=post.community).exclude(user=post.author) \
+                        .values_list("user_id", flat=True)[:14]:
+                    PostLike.objects.get_or_create(post=post, user_id=user_id)
+                Post.objects.filter(pk=post.pk).update(share_count=4)
+            note = notes.create_note(author=users[author], post=post, claim_summary=claim, context=context,
+                                     citation_urls=[source])
+            for rater in raters:
+                if rater in users:
+                    notes.rate(note, users[rater], "helpful", ["clear_sources", "important_context"])
 
     def _ensure_demo_engagement(self):
         """Replies, likes and share counts on the demo posts, so the post actions show real numbers."""

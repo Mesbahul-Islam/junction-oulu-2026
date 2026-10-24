@@ -46,6 +46,7 @@ src/
     StorySlide        one full-screen For You story + right-hand action rail
     PostSlide         one full-screen community post (labelled): Like, Comments, Share (with counts), Report
     CommentsSheet     a post's replies (translated, likeable) and a box to add one
+    NotesSheet        Community Notes on a post: read, rate (helpful? + reasons) and write one
     CommunityCard     a community with why it's suggested and a Join / Leave button
     BottomNav         TikTok-style bar: Home, Discover, +, Saved, Profile
     NewsCard          list card (Discover, Saved); ListenPlayer (read-aloud); Spinner

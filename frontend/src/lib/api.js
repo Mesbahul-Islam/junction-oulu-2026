@@ -82,6 +82,12 @@ export const sharePost = (slug, id) => api(`/communities/groups/${slug}/posts/${
 export const getReplies = (slug, id) => api(`/communities/groups/${slug}/posts/?parent=${id}`);
 export const replyToPost = (slug, id, body) =>
   api(`/communities/groups/${slug}/posts/`, { method: "POST", body: { body, parent: id } });
+// Community Notes on posts (like X): read, write, rate. A note shows once members in different
+// situations rate it helpful.
+export const getPostNotes = (postId) => api(`/notes/notes/?post=${postId}`);
+export const writeNote = (postId, note) => api("/notes/notes/", { method: "POST", body: { post: postId, ...note } });
+export const rateNote = (id, value, tags) => api(`/notes/notes/${id}/rate/`, { method: "POST", body: { value, tags } });
+export const getPost = (slug, id) => api(`/communities/groups/${slug}/posts/${id}/`);
 export const flagPost = (slug, id, reason, note = "") =>
   api(`/communities/groups/${slug}/posts/${id}/flag/`, { method: "POST", body: { reason, note } });
 // Tips, questions and topic ideas go to the newsroom (never published automatically).

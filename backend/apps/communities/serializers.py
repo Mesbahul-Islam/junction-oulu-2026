@@ -49,12 +49,17 @@ class PostSerializer(serializers.ModelSerializer):
     flag_count = serializers.IntegerField(source="flags.count", read_only=True)
     answered_by = serializers.SerializerMethodField()
     translation = serializers.SerializerMethodField()
+    hot = serializers.SerializerMethodField()
+    misleading_reports = serializers.SerializerMethodField()
+    community_note = serializers.SerializerMethodField()
+    notes_to_rate = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
         fields = ["id", "community", "community_name", "community_slug", "author", "author_name", "is_mine", "kind",
                   "body", "language", "translation", "answered_by", "image", "parent", "reply_count", "like_count", "liked",
-                  "share_count", "status", "flag_count", "moderation_note",
+                  "share_count", "status", "flag_count", "moderation_note", "hot", "misleading_reports",
+                  "community_note", "notes_to_rate",
                   "created_at", "updated_at"]
         read_only_fields = ["community", "author", "status", "language", "share_count", "moderation_note",
                             "created_at", "updated_at"]
@@ -98,6 +103,35 @@ class PostSerializer(serializers.ModelSerializer):
             return obj.is_liked
         request = self.context.get("request")
         return bool(request and request.user.is_authenticated and obj.likes.filter(user=request.user).exists())
+
+    # --- Community Notes ---------------------------------------------------------------
+
+    def get_hot(self, obj) -> bool:
+        from . import services
+
+        return services.is_hot(obj, self.get_like_count(obj), self.get_reply_count(obj))
+
+    def get_misleading_reports(self, obj) -> int:
+        from . import services
+
+        return sum(1 for f in obj.flags.all() if f.reason in services.CONTEXT_REASONS)
+
+    def _notes(self, obj):
+        return list(obj.community_notes.all())
+
+    def get_community_note(self, obj):
+        """The note readers rated helpful, shown under the post ("Readers added context")."""
+        from apps.notes.serializers import CommunityNoteSerializer
+
+        shown = [n for n in self._notes(obj) if n.status == "helpful"]
+        return CommunityNoteSerializer(shown[0], context=self.context).data if shown else None
+
+    def get_notes_to_rate(self, obj) -> int:
+        """Proposed notes this reader could rate (not theirs, not rated yet)."""
+        request = self.context.get("request")
+        uid = request.user.pk if request and request.user.is_authenticated else None
+        return sum(1 for n in self._notes(obj) if n.status == "needs_more_ratings" and n.author_id != uid
+                   and not any(r.rater_id == uid for r in n.ratings.all()))
 
     def get_is_mine(self, obj) -> bool:
         request = self.context.get("request")

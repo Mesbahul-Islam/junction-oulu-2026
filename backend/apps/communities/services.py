@@ -219,9 +219,29 @@ def record_share(post) -> int:
     return post.share_count
 
 
+# "False or misleading" is answered with context, not removal: the post stays up and members
+# are asked to add a Community Note (like X). Hate, privacy, spam... hide it for a moderator.
+CONTEXT_REASONS = {"false"}
+# A post is "hot" when likes + 2 x replies + 2 x shares reach this within its first 3 days.
+HOT_SCORE = 15
+HOT_DAYS = 3
+
+
+def is_hot(post, likes: int, replies: int) -> bool:
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    fresh = post.created_at and timezone.now() - post.created_at < timedelta(days=HOT_DAYS)
+    return bool(fresh and likes + 2 * replies + 2 * post.share_count >= HOT_SCORE)
+
+
 def flag_post(post, user, reason="other", note="") -> bool:
-    """Record a flag; the post is hidden until a moderator decides. Returns True if newly flagged."""
+    """Record a flag. A misleading report asks for context; other reasons hide the post until a
+    moderator decides. Returns True if newly flagged."""
     _, created = PostFlag.objects.get_or_create(post=post, user=user, defaults={"reason": reason, "note": note})
+    if reason in CONTEXT_REASONS:
+        return created
     if post.status == Post.Status.VISIBLE:
         post.status = Post.Status.HIDDEN
         post.save(update_fields=["status", "updated_at"])
