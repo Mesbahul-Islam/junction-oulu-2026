@@ -37,4 +37,5 @@ urlpatterns = [
     path("api/markets/", include("apps.markets.urls")),
     path("api/fantasy/", include("apps.fantasy.urls")),
     path("api/trust/", include("apps.trust.urls")),
+    path("api/rewards/", include("apps.rewards.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

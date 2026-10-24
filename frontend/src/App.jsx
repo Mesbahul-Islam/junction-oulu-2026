@@ -12,6 +12,8 @@ import Fantasy from "@/features/fantasy/pages/Fantasy";
 import Feed from "@/features/feed/pages/Feed";
 import Onboarding from "@/features/account/pages/Onboarding";
 import Profile from "@/features/account/pages/Profile";
+import Rewards from "@/features/rewards/pages/Rewards";
+import Help from "@/features/help/pages/Help";
 import Saved from "@/features/feed/pages/Saved";
 import Story from "@/features/feed/pages/Story";
 import Vote from "@/features/shortlist/pages/Vote";
@@ -42,6 +44,8 @@ export default function App() {
         <Route path="/vote" element={<Reader><Vote /></Reader>} />
         <Route path="/profile" element={<Reader><Profile /></Reader>} />
         <Route path="/create" element={<Reader><Create /></Reader>} />
+        <Route path="/rewards" element={<Reader><Rewards /></Reader>} />
+        <Route path="/help" element={<Reader><Help /></Reader>} />
         <Route path="/saved" element={<Reader><Saved /></Reader>} />
         <Route path="/story/:id" element={<Reader><Story /></Reader>} />
         <Route path="/fantasy" element={<Reader><Fantasy /></Reader>} />

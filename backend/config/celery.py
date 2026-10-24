@@ -22,17 +22,7 @@ app.conf.beat_schedule = {
         "task": "apps.agents.tasks.expire_snippets",
         "schedule": crontab(minute="*/15"),
     },
-    "settle-finished-events": {
-        "task": "apps.markets.tasks.settle_finished_events",
-        "schedule": crontab(minute="*/5"),
-    },
-    "fantasy-sync-schedule": {
-        "task": "apps.fantasy.tasks.sync_schedule",
-        "schedule": crontab(hour=6, minute=0),
-    },
-    # Lämäri sports desk (apps.fantasy.tasks.sports_desk) is off for now; run it by hand if needed.
-    "fantasy-sync-live": {
-        "task": "apps.fantasy.tasks.sync_live",
-        "schedule": crontab(minute="*/10"),
-    },
+    # Prediction markets (apps.markets.tasks.settle_finished_events) are off: no screen uses them.
+    # Lämäri (apps.fantasy.tasks) runs nothing in the background: sync_schedule, sync_live and
+    # sports_desk are off. Run them by hand if needed, e.g. manage.py sync_liiga.
 }

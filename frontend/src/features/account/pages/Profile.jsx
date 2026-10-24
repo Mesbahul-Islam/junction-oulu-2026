@@ -1,4 +1,4 @@
-import { AtSign, ChevronRight, Languages, LogOut, Sparkles, Trophy, Users } from "lucide-react";
+import { AtSign, ChevronRight, CircleHelp, Gift, Languages, LogOut, Sparkles, Trophy, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -69,6 +69,12 @@ export default function Profile() {
         </div>
         <Link to="/communities" className="row-link" style={{ color: "inherit" }}>
           <span><Users size={16} style={{ verticalAlign: -3 }} /> Communities</span><ChevronRight size={18} />
+        </Link>
+        <Link to="/rewards" className="row-link" style={{ color: "inherit" }}>
+          <span><Gift size={16} style={{ verticalAlign: -3 }} /> Rewards</span><ChevronRight size={18} />
+        </Link>
+        <Link to="/help" className="row-link" style={{ color: "inherit" }}>
+          <span><CircleHelp size={16} style={{ verticalAlign: -3 }} /> Help</span><ChevronRight size={18} />
         </Link>
         <label className="row-link" style={{ cursor: "pointer" }}>
           <span><Trophy size={16} style={{ verticalAlign: -3 }} /> Fantasy mode</span>

@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.markets",
     "apps.fantasy",
     "apps.trust",
+    "apps.rewards",
 ]
 
 MIDDLEWARE = [
@@ -203,6 +204,10 @@ JEV_WEIGHT = env.float("JEV_WEIGHT", default=0.6)  # share of Jev in the blended
 JEV_TIMEOUT = env.float("JEV_TIMEOUT", default=2.0)  # seconds per call
 JEV_CONCURRENCY = env.int("JEV_CONCURRENCY", default=16)
 JEV_CACHE_SECONDS = env.int("JEV_CACHE_SECONDS", default=6 * 3600)
+
+# Contributor rewards: the service that sends contribution statistics shows this key
+# (X-Rewards-Key). Empty: only a DEBUG server accepts statistics.
+REWARDS_INGEST_KEY = env("REWARDS_INGEST_KEY", default="")
 
 # Prediction markets: virtual points only (FR-5.2)
 MARKETS_SIGNUP_GRANT = env.int("MARKETS_SIGNUP_GRANT", default=1000)

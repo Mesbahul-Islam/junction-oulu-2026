@@ -13,8 +13,13 @@ from ..models import Fixture, Report, Squad
 from . import analysis
 
 
+# Lämäri runs nothing in the background for now: no AI polish jobs are queued, so pages show the
+# plain data-built version (or an AI version stored earlier). Set to True to queue them again.
+QUEUE_POLISH = False
+
+
 def _queue_once(key: str, task, *args) -> None:
-    if cache.add(f"fx-queued:{key}", 1, 600):  # one job per report per 10 minutes
+    if QUEUE_POLISH and cache.add(f"fx-queued:{key}", 1, 600):  # one job per report per 10 minutes
         task.delay(*args)
 
 
