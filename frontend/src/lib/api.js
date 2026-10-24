@@ -124,3 +124,5 @@ export const getSquadNews = (offset = 0, limit = 5) => api(`/fantasy/squad/news/
 export const getAnalysis = (fixtureId, detail = "short", reader = "fan") =>
   api(`/fantasy/fixtures/${fixtureId}/analysis/?detail=${detail}&reader=${reader}`);
 export const askLamari = (message) => api("/fantasy/chat/", { method: "POST", body: { message } });
+export const makeTransfers = (outIds, inIds) => api("/fantasy/squad/transfers/", { method: "POST", body: { out: outIds, in: inIds } });
+export const shakeUp = (maxPoints) => api("/fantasy/squad/transfers/shake-up/", { method: "POST", body: { max_points: maxPoints } });

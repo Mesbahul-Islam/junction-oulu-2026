@@ -18,6 +18,7 @@ urlpatterns = [
     path("squad/", views.SquadView.as_view(), name="squad"),
     path("squad/lineup/", views.LineupView.as_view(), name="lineup"),
     path("squad/transfers/", views.TransferView.as_view(), name="transfers"),
+    path("squad/transfers/shake-up/", views.ShakeUpView.as_view(), name="shake-up"),
     path("squad/history/", views.HistoryView.as_view(), name="history"),
     path("leaderboard/", views.LeaderboardView.as_view(), name="leaderboard"),
     path("managers/", views.ManagerSearchView.as_view(), name="managers"),

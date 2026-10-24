@@ -31,13 +31,17 @@ export function prizeFor(rank, rewards, period, scope) {
 
 export const placeText = (r, t) => (r.rank_from === r.rank_to ? t("placeOne", { n: r.rank_from }) : t("placeRange", { a: r.rank_from, b: r.rank_to }));
 
-export const TIER_EMOJI = { diamond: "💎", gold: "🥇", silver: "🥈", bronze: "🥉" };
 export const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
+
+/** 💎 for Diamond; Gold, Silver and Bronze get a drawn metal coin (no numbers on it). */
+export const TierIcon = ({ tier }) => (tier === "diamond"
+  ? <i className="fx-gem" aria-hidden="true">💎</i>
+  : <i className={`fx-coin ${tier}`} aria-hidden="true" />);
 
 export function TierBadge({ tier, size = "sm" }) {
   const t = useT();
   if (!tier) return null;
-  return <span className={`fx-tier ${tier} ${size}`}><i aria-hidden="true">{TIER_EMOJI[tier]}</i>{t(tier)}</span>;
+  return <span className={`fx-tier ${tier} ${size}`}><TierIcon tier={tier} />{t(tier)}</span>;
 }
 
 /** Previous / next pagination. */

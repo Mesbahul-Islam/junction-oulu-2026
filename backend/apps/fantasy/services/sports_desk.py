@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 from email.utils import parsedate_to_datetime
 
-from django.db.models import Count, F
+from django.db.models import Count, F, Q
 from django.utils import timezone
 
 from ..models import Fixture, Player, PlayerNote
@@ -84,9 +84,23 @@ def mentions(entry: dict, player: Player) -> bool:
     return f"{player.first_name} {player.last_name}".casefold() in text
 
 
+STATUS_RECHECK = timedelta(hours=24)
+
+
 def followed_players(limit: int = PLAYERS_PER_CYCLE):
-    """Players in at least one squad, least recently checked first."""
-    return (Player.objects.filter(squad_picks__isnull=False, active=True).annotate(owners=Count("squad_picks"))
+    """Players in at least one squad who have something new to check, least recently checked first:
+    never checked, his team finished a game since his last check, or a day has passed (suspensions).
+    Between gameweeks this is usually nobody, so a cycle costs only the two feed requests."""
+    from django.db.models import Exists, OuterRef
+
+    since_game = Fixture.objects.filter(
+        Q(home_id=OuterRef("team_id")) | Q(away_id=OuterRef("team_id")),
+        status=Fixture.Status.FINISHED, starts_at__gt=OuterRef("desk_checked_at"),
+    )
+    due = Q(desk_checked_at__isnull=True) | Q(desk_checked_at__lt=timezone.now() - STATUS_RECHECK) | Q(new_game=True)
+    return (Player.objects.filter(squad_picks__isnull=False, active=True).distinct()
+            .annotate(new_game=Exists(since_game), owners=Count("squad_picks"))
+            .filter(due)
             .order_by(F("desk_checked_at").asc(nulls_first=True), "-owners")[:limit])
 
 

@@ -258,6 +258,27 @@ class TransferView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class ShakeUpView(APIView):
+    """POST {"max_points": N}: replace up to 3 of your weakest-form starters with better-form players,
+    spending at most N points (and staying within your money)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = AUTHENTICATION
+
+    def post(self, request):
+        from .services.squads import shake_up
+
+        try:
+            max_points = max(0, min(int(request.data.get("max_points", 8)), 40))
+            squad = _my_squad(request)
+            transfers = shake_up(squad, max_points)
+        except (FantasyError, ValueError) as exc:
+            return _error(exc)
+        squad.refresh_from_db()
+        return Response({"transfers": TransferSerializer(transfers, many=True).data,
+                         "squad": SquadSerializer(squad, context={"request": request}).data}, status=status.HTTP_201_CREATED)
+
+
 class HistoryView(APIView):
     """Your points per gameweek, with per-player detail."""
 

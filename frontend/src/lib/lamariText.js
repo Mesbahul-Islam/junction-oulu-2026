@@ -46,6 +46,12 @@ const EN = {
   forwardsTab: "Forwards", search: "Search player or team", full_: "{pos} full", threeFrom: "3 from {team} already",
   overBudget: "Over budget", injured: "injured", ptsShort: "pts", price: "price", showMore: "Show more ({n} left)",
   teamName: "Team name, e.g. Raksila Rockets", saving: "Saving…", createTeam: "Create team",
+  winBanner: "Win gameweek {n}: {prize}", changeTeam: "Change team", replacePlayer: "Replace {name}", back: "Back",
+  freeChanges: "Changes are free until your first deadline.",
+  costRule: "Each new player costs points this gameweek. Top-ranked players cost more.",
+  spentSoFar: "Spent so far: {n} points.", shakeUp: "Shake up", shakeUpHelp: "Swap your weakest starters for players in better form.",
+  shakeUpGo: "Shake up", pickToReplace: "Or pick a player to replace", allTeams: "All teams", free: "free",
+  noOptions: "No player fits your budget here.", swapLine: "{a} out, {b} in.", costsPoints: "Costs {n} points.", confirm: "Confirm",
 };
 
 const FI = {
@@ -83,6 +89,12 @@ const FI = {
   forwardsTab: "Hyökkääjät", search: "Hae pelaajaa tai joukkuetta", full_: "{pos}: täynnä", threeFrom: "Jo 3 pelaajaa joukkueesta {team}",
   overBudget: "Budjetti ylittyy", injured: "loukkaantunut", ptsShort: "p", price: "hinta", showMore: "Näytä lisää ({n} jäljellä)",
   teamName: "Joukkueen nimi, esim. Raksilan Raketit", saving: "Tallennetaan…", createTeam: "Luo joukkue",
+  winBanner: "Voita kierros {n}: {prize}", changeTeam: "Muuta joukkuetta", replacePlayer: "Vaihda {name}", back: "Takaisin",
+  freeChanges: "Muutokset ovat ilmaisia ensimmäiseen takarajaan asti.",
+  costRule: "Jokainen uusi pelaaja maksaa pisteitä tällä kierroksella. Kärkipelaajat maksavat enemmän.",
+  spentSoFar: "Käytetty: {n} pistettä.", shakeUp: "Sekoita", shakeUpHelp: "Vaihda heikoimmat aloittajasi paremmassa vireessä oleviin.",
+  shakeUpGo: "Sekoita", pickToReplace: "Tai valitse vaihdettava pelaaja", allTeams: "Kaikki joukkueet", free: "ilmainen",
+  noOptions: "Kukaan ei mahdu budjettiisi tästä joukkueesta.", swapLine: "Ulos {a}, sisään {b}.", costsPoints: "Maksaa {n} pistettä.", confirm: "Vahvista",
 };
 
 export function useT() {

@@ -42,11 +42,18 @@ class PlayerSerializer(serializers.ModelSerializer):
     team_id = serializers.IntegerField(read_only=True)
     # Small cached thumbnail for the app (picture_url is Liiga's ~450 KB original).
     photo_url = serializers.SerializerMethodField()
+    # Points it costs to bring him into your team after your first deadline (by his rank).
+    transfer_cost = serializers.SerializerMethodField()
+
+    def get_transfer_cost(self, obj):
+        from .services.squads import transfer_costs
+
+        return transfer_costs().get(obj.pk)
 
     class Meta:
         model = Player
         fields = ["id", "first_name", "last_name", "team", "team_id", "position", "jersey", "nationality",
-                  "picture_url", "photo_url", "price", "total_points", "injured", "suspended", "active"]
+                  "picture_url", "photo_url", "price", "total_points", "injured", "suspended", "active", "transfer_cost"]
 
     def get_photo_url(self, obj):
         if not obj.picture_url:
@@ -83,6 +90,25 @@ class LineupSerializer(serializers.ModelSerializer):
 class SquadSerializer(serializers.ModelSerializer):
     manager = serializers.CharField(source="user.username", read_only=True)
     standing = serializers.SerializerMethodField()
+    free_changes = serializers.SerializerMethodField()
+    points_spent = serializers.SerializerMethodField()
+
+    def get_free_changes(self, obj):
+        from .services.squads import changes_are_free
+
+        return changes_are_free(obj)
+
+    def get_points_spent(self, obj):
+        """Points spent on changes for the next gameweek so far."""
+        from django.db.models import Sum
+
+        from .services.squads import next_open_gameweek
+
+        try:
+            gw = next_open_gameweek(obj.season)
+        except Exception:
+            return 0
+        return obj.transfers.filter(gameweek=gw).aggregate(s=Sum("point_cost"))["s"] or 0
     players = serializers.SerializerMethodField()
     first_gameweek = serializers.IntegerField(source="first_gameweek.number", read_only=True)
     value = serializers.SerializerMethodField()
@@ -90,7 +116,7 @@ class SquadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Squad
         fields = ["id", "name", "manager", "season", "bank", "value", "free_transfers", "first_gameweek", "total_points",
-                  "standing", "players"]
+                  "standing", "free_changes", "points_spent", "players"]
 
     def get_standing(self, obj):
         from .services.leaderboards import season_standing
@@ -131,10 +157,13 @@ class TransferRequestSerializer(serializers.Serializer):
 
 class TransferSerializer(serializers.ModelSerializer):
     gameweek = serializers.IntegerField(source="gameweek.number", read_only=True)
+    player_out_name = serializers.CharField(source="player_out.name", read_only=True)
+    player_in_name = serializers.CharField(source="player_in.name", read_only=True)
 
     class Meta:
         model = Transfer
-        fields = ["id", "gameweek", "player_out", "player_in", "price_out", "price_in", "point_cost", "created_at"]
+        fields = ["id", "gameweek", "player_out", "player_in", "player_out_name", "player_in_name", "price_out", "price_in",
+                  "point_cost", "created_at"]
 
 
 class GameweekScoreSerializer(serializers.ModelSerializer):

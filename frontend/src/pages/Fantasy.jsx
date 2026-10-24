@@ -1,4 +1,4 @@
-import { ChevronLeft, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -9,10 +9,11 @@ import Matches from "../components/fantasy/Matches";
 import Prizes from "../components/fantasy/Prizes";
 import Rink, { PlayerToken } from "../components/fantasy/Rink";
 import Splash from "../components/fantasy/Splash";
+import Transfers from "../components/fantasy/Transfers";
 import SquadBuilder from "../components/fantasy/SquadBuilder";
 import { countdown, finnishTime, TierBadge, useNow } from "../components/fantasy/util";
 import { Spinner } from "../components/Spinner";
-import { getFixtures, getLineup, getSquadHistory, setLineup } from "../lib/api";
+import { getFantasyTeams, getFixtures, getLineup, getSquadHistory, setLineup } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useT } from "../lib/lamariText";
 import { cached, forget, loadFantasy, photoOf, warmPhotos } from "../lib/fantasyPreload";
@@ -70,8 +71,9 @@ function MatchSheet({ fixture, players, mine, onClose }) {
 
 // ------------------------------------------------------------------ my team
 
-function MyTeam({ squad, byId, sponsor }) {
+function MyTeam({ squad, setSquad, byId, players, teams, prize, gw, onPrizes }) {
   const t = useT();
+  const [changing, setChanging] = useState(false);
   const [lineup, setLineupState] = useState(null);
   const [history, setHistory] = useState([]);
   const [msg, setMsg] = useState("");
@@ -79,7 +81,7 @@ function MyTeam({ squad, byId, sponsor }) {
   useEffect(() => {
     getLineup().then(setLineupState);
     getSquadHistory().then(setHistory);
-  }, [squad.id]);
+  }, [squad.id, squad.players.map((p) => p.id).join()]); // reload after a change
 
   const last = [...history].reverse().find((h) => h.detail?.length);
   const lastPts = Object.fromEntries((last?.detail || []).map((d) => [d.player, d.points * d.multiplier]));
@@ -104,18 +106,23 @@ function MyTeam({ squad, byId, sponsor }) {
         <div><b>{last ? Math.round(last.total) : "-"}</b><span>{t("statLastGw")}</span></div>
         <div><b>{squad.bank}</b><span>{t("statBank")}</span></div>
       </div>
-      {sponsor && (
-        <div className="fx-presented">
-          <span>{t("prizesBy")}</span><img src={sponsor.sponsor.logo_url} alt={sponsor.sponsor.name} />
-        </div>
+      {prize && (
+        <button type="button" className="fx-prize-banner" onClick={onPrizes}>
+          <img src={prize.sponsor.logo_url} alt={prize.sponsor.name} />
+          <span>{t("winBanner", { n: gw, prize: prize.title })}</span>
+          <ChevronRight size={18} />
+        </button>
       )}
       {!lineup ? <Spinner /> : (
         <section className="fx-section flush">
-          <div className="fx-section-head"><h3>{t("lineup", { n: lineup.gameweek })}</h3><span>{t("tapCaptain")}</span></div>
+          <div className="fx-section-head"><h3>{t("lineup", { n: lineup.gameweek })}</h3></div>
+          <p className="fx-hint">{t("tapCaptain")}</p>
           <Rink lineup={lineup} byId={byId} pointsFor={pointsFor} onPick={makeCaptain} />
+          <button type="button" className="fx-change wide" onClick={() => setChanging(true)}>{t("changeTeam")}</button>
           {msg && <p className="fx-toast" onAnimationEnd={() => setMsg("")}>{msg}</p>}
         </section>
       )}
+      {changing && <Transfers squad={squad} players={players} teams={teams} onDone={setSquad} onClose={() => setChanging(false)} />}
       {history.length > 0 && (
         <section className="fx-section">
           <div className="fx-section-head"><h3>{t("pointsPerGw")}</h3></div>
@@ -148,6 +155,7 @@ export default function Fantasy() {
   const [rewards, setRewards] = useState([]);
   const [squad, setSquad] = useState(undefined); // undefined = loading, null = no team yet
   const [leagues, setLeagues] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [match, setMatch] = useState(null);
   const [error, setError] = useState("");
   // The Lämäri screen shows on the first visit of a session, for at least SPLASH_MS.
@@ -175,6 +183,7 @@ export default function Fantasy() {
     use(c.rewards, (r) => r && setRewards(r));
     use(c.squad, setSquad, () => setSquad(null));
     use(c.leagues, (l) => l && setLeagues(l));
+    use(cached("teams", getFantasyTeams, 24 * 3600e3), (x) => x && setTeams(x));
   }, []);
 
   const ready = season && squad !== undefined && players.length > 0;
@@ -219,7 +228,8 @@ export default function Fantasy() {
                 <nav className="fx-tabs" aria-label="Lämäri">
                   {TABS.map(([id, label]) => <button key={id} type="button" className={tab === id ? "on" : ""} onClick={() => setTab(id)}>{t(label)}</button>)}
                 </nav>
-                {tab === "team" && <MyTeam squad={squad} byId={byId} sponsor={gwSponsor} />}
+                {tab === "team" && <MyTeam squad={squad} setSquad={setSquad} byId={byId} players={players} teams={teams}
+                  prize={gwSponsor} gw={season.next_deadline_gameweek} onPrizes={() => setTab("prizes")} />}
                 {tab === "coach" && <Coach />}
                 {tab === "matches" && <Matches season={season} sponsor={adSponsor} />}
                 {tab === "prizes" && <Prizes rewards={rewards} squad={squad} nextGw={nextGw} />}
