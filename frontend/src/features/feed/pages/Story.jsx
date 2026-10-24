@@ -101,31 +101,31 @@ export default function Story() {
       <p className="story-summary">{card.summary}</p>
 
       {!card.in_your_language && card.requested_language && (
-        <div className="block highlight">
+        <div className="story-block highlight">
           <p>Not yet available in {languageName(card.requested_language)}. Showing {languageName(card.language)} until a reviewer approves the translation.</p>
         </div>
       )}
 
       {card.for_you && (
-        <div className="block highlight">
+        <div className="story-block highlight">
           <h4>What this means for you</h4>
           <p>{card.for_you}</p>
         </div>
       )}
 
       {card.key_facts?.length > 0 && (
-        <div className="block">
+        <div className="story-block">
           <h4>Key facts</h4>
           <ul>{card.key_facts.map((f) => <li key={f}>{f}</li>)}</ul>
         </div>
       )}
 
       {card.background && (
-        <div className="block"><h4>Background</h4><p>{card.background}</p></div>
+        <div className="story-block"><h4>Background</h4><p>{card.background}</p></div>
       )}
 
       {card.original && (
-        <div className="block">
+        <div className="story-block">
           <h4>Original ({languageName(card.original.language)})</h4>
           {showOriginal ? (
             <div lang={card.original.language}>
@@ -142,7 +142,7 @@ export default function Story() {
       )}
 
       {ranking?.ranker === "jev" && (
-        <div className="block">
+        <div className="story-block">
           <h4>Why you're seeing this</h4>
           <Meter label="Affects you" value={ranking.jev.affects_reader} />
           <Meter label="Your interests" value={ranking.jev.matches_interests} />
@@ -152,9 +152,9 @@ export default function Story() {
       )}
 
       {card.community_notes?.map((n) => (
-        <div key={n.id} className="block"><h4>Community note</h4><p>{n.claim_summary}: {n.context}</p></div>
+        <div key={n.id} className="story-block"><h4>Community note</h4><p>{n.claim_summary}: {n.context}</p></div>
       ))}
-      {card.correction_note && <div className="block"><h4>Correction</h4><p>{card.correction_note}</p></div>}
+      {card.correction_note && <div className="story-block"><h4>Correction</h4><p>{card.correction_note}</p></div>}
 
       <div className="meta-row" style={{ color: "rgba(255,255,255,0.8)" }}>
         {(card.tags || []).map((t) => <span key={t} className="tag-chip">{topicLabel(t)}</span>)}

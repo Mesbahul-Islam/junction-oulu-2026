@@ -5,15 +5,15 @@ export function Field({ label, hint, error, htmlFor, children, className }) {
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label && (
-        <label htmlFor={htmlFor} className="text-sm font-semibold text-ink">
+        <label htmlFor={htmlFor} className="text-meta font-medium text-ink">
           {label}
         </label>
       )}
       {children}
       {error ? (
-        <p className="text-xs font-medium text-danger">{error}</p>
+        <p role="alert" className="text-meta text-danger">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-muted">{hint}</p>
+        <p className="text-meta text-muted">{hint}</p>
       ) : null}
     </div>
   );

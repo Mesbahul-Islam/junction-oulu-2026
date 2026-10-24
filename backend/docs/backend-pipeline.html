@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Oulu News · Backend workflow</title>
+<style>
+:root{--paper:#f5f3ed;--ink:#20211f;--muted:#646660;--line:#c9cbc2;--blue:#1856a2;--green:#23624b;--red:#ab3434;--soft:#e7e8df;font-family:"IBM Plex Sans",Arial,sans-serif;color:var(--ink);background:var(--paper);font-synthesis:none}
+*{box-sizing:border-box}body{margin:0}button,a{touch-action:manipulation}button{font:inherit;color:inherit;background:transparent;border:1px solid var(--line);padding:9px 15px;cursor:pointer;border-radius:3px;min-height:44px}button:hover{background:var(--soft)}button:disabled{opacity:.35;cursor:default}:focus-visible{outline:3px solid var(--ink);outline-offset:4px}a{color:inherit;text-underline-offset:3px}header{position:fixed;z-index:5;top:0;left:0;right:0;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 4vw;background:var(--paper);border-bottom:1px solid var(--line);font-size:14px;letter-spacing:.03em}header strong{font-weight:600}header span{color:var(--muted)}main{padding-top:64px;padding-bottom:76px}.slide{display:none;min-height:calc(100svh - 140px);padding:clamp(30px,5.2vh,64px) 7vw 30px;position:relative;max-width:1720px;margin:auto}.slide.active{display:flex;flex-direction:column}.eyebrow{text-transform:uppercase;font-size:13px;letter-spacing:.16em;color:var(--muted);margin:0 0 22px}h1,h2,h3,p{margin-top:0}h1{font-size:clamp(52px,7.3vw,112px);font-weight:500;line-height:1.02;letter-spacing:-.055em;max-width:1100px;margin-bottom:28px}h2{font-size:clamp(34px,4.1vw,62px);font-weight:500;line-height:1.08;letter-spacing:-.035em;margin-bottom:32px;max-width:1100px}h3{font-size:clamp(21px,2.1vw,30px);font-weight:500;line-height:1.2;margin-bottom:16px}p,li,td,th{font-size:clamp(18px,1.65vw,25px);line-height:1.48}p{margin-bottom:20px}.lead{font-size:clamp(23px,2.6vw,38px);line-height:1.32;max-width:1000px}.muted{color:var(--muted)}.split{display:grid;grid-template-columns:1fr 1fr;gap:6vw;align-items:start}.split>div+div{border-left:1px solid var(--line);padding-left:4vw}.rows{list-style:none;padding:0;margin:0}.rows li{padding:14px 0;border-top:1px solid var(--line)}.rows li:first-child{border-top:2px solid var(--ink)}.rows b{font-weight:600}.note{border-left:3px solid var(--ink);padding-left:20px;margin-top:24px;font-size:clamp(17px,1.5vw,22px);max-width:1050px}.warn{border-color:var(--red)}.source{margin-top:auto;padding-top:30px;font-size:12px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}.source a{margin-right:16px}code{font-family:ui-monospace,monospace;font-size:.82em;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse;text-align:left}td,th{padding:12px 10px 12px 0;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:14px;text-transform:uppercase;letter-spacing:.08em;font-weight:500;color:var(--muted)}.metric{font-size:clamp(64px,8vw,120px);line-height:1;font-weight:500;letter-spacing:-.06em;margin:0 0 12px}.cover{justify-content:center}.cover .source{margin-top:36px}.section{background:var(--ink);color:var(--paper);max-width:none;justify-content:center}.section .eyebrow,.section .source{color:#babdb5}.section h2{font-size:clamp(50px,6.6vw,96px);max-width:1000px}.section .lead{max-width:850px}.index{list-style:none;padding:0;margin:0;counter-reset:phase}.index li{border-top:1px solid var(--line);padding:16px 0;display:flex;gap:20px}.index li:before{counter-increment:phase;content:"0" counter(phase);color:var(--muted);font-size:.8em;padding-top:4px}footer{position:fixed;z-index:5;bottom:0;left:0;right:0;min-height:76px;background:var(--paper);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 4vw}.controls{display:flex;gap:8px;align-items:center}#count{font-variant-numeric:tabular-nums;font-size:14px;min-width:66px;text-align:center}#progress{position:absolute;left:0;top:-3px;height:3px;background:var(--ink);width:0;transition:width .15s}.keys{font-size:12px;color:var(--muted)}body.all main{padding-bottom:76px}body.all .slide{display:flex;min-height:800px;border-bottom:1px solid var(--line)}
+@media(prefers-color-scheme:dark){:root{--paper:#191b19;--ink:#eff0e9;--muted:#afb3a8;--line:#42473e;--soft:#2b3029;--blue:#8bb8f1;--green:#89c9ad;--red:#ef9696}.section{background:#10120f;color:#eff0e9}}
+@media(max-width:760px){header{padding:0 20px}header span{display:none}.slide{padding:30px 22px;min-height:calc(100svh - 140px)}.split{grid-template-columns:1fr;gap:22px}.split>div+div{border-left:0;border-top:1px solid var(--line);padding:22px 0 0}h2{margin-bottom:25px}.eyebrow{margin-bottom:18px}p,li,td{font-size:18px}.lead{font-size:25px}.rows li{padding:10px 0}.source{padding-top:24px}.keys{display:none}footer{padding:10px 16px;gap:8px}button{padding:8px 11px}#count{min-width:54px}body.all .slide{min-height:0;padding-bottom:48px}th{font-size:12px}td{font-size:17px}}
+@media print{@page{size:landscape;margin:10mm}:root{--paper:white;--ink:#20211f;--muted:#646660;--line:#c9cbc2}header,footer{display:none}main{padding:0}.slide,body.all .slide{display:flex!important;min-height:0;height:180mm;padding:10mm 14mm;break-after:page;break-inside:avoid;max-width:none;border:0}.slide:last-child{break-after:auto}h1{font-size:64pt}h2{font-size:36pt}h3{font-size:23pt}p,li,td{font-size:17pt}.lead{font-size:25pt}.source{font-size:9pt}.eyebrow{font-size:10pt}.section{background:white;color:#20211f}.section .eyebrow,.section .source{color:#646660}.section h2{font-size:55pt}.rows li{padding:8px 0}table td{padding:8px 0}.note{font-size:16pt}.metric{font-size:72pt}}
+</style>
+</head>
+<body>
+<header><strong>Oulu News / Backend</strong><span>RSS processing and the story lifecycle</span></header>
+<main id="deck">
+
+<section class="slide cover active" aria-labelledby="s1">
+<p class="eyebrow">Technical briefing / October 2026</p>
+<h1 id="s1">The news<br>processing cycle</h1>
+<p class="lead">RSS intake, human approval,<br>and what happens after publication.</p>
+<p class="source">Based on the backend source code. Text follows ASD-STE100 style.<br>Run = one processing cycle. Desk = one processing stage. Snippet = a short news story.</p>
+</section>
+
+<section class="slide" aria-labelledby="s2">
+<p class="eyebrow">01 / The complete process</p><h2 id="s2">Three parts of the story lifecycle</h2>
+<ol class="index"><li><div><h3>Prepare the story</h3><p>Fetch RSS entries. Select articles. Write and translate drafts. Run checks.</p></div></li><li><div><h3>Approve and publish</h3><p>Save the draft for editors. Complete the required approvals. Release approved text.</p></div></li><li><div><h3>Maintain the story</h3><p>Deliver a reader’s feed. Collect feedback. Correct, review, or expire the story.</p></div></li></ol>
+<p class="source"><a href="../apps/agents/newsroom/runner.py">newsroom/runner.py</a><a href="../apps/editorial/services.py">editorial/services.py</a><a href="../apps/feed/services.py">feed/services.py</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s3">
+<p class="eyebrow">02 / Start a run</p><h2 id="s3">A scheduled task starts the newsroom</h2>
+<div class="split"><div><p class="metric">30 min</p><p>Default interval between scheduled runs.</p><p class="muted">An editor can also start a run manually.</p></div><div><ul class="rows"><li>The scheduled task skips a new run if another run is active.</li><li>The default limit is <b>four stories</b> per run.</li><li>The system selects Oulu, or the first active geographic community.</li><li>Runs left active for more than two hours can be marked as failed.</li></ul></div></div>
+<p class="source">Defaults can change through settings. <a href="../apps/agents/tasks.py">agents/tasks.py</a><a href="../apps/agents/services.py">agents/services.py</a><a href="../config/settings.py">config/settings.py</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s4">
+<p class="eyebrow">03 / Wire desk</p><h2 id="s4">The system reads Kaleva’s RSS feed</h2>
+<div class="split"><div><h3>Input</h3><p>One fixed feed contains Kaleva’s free articles.</p><p>The system processes up to <b>25 entries</b> per run.</p><p>Each entry supplies a title, text, article address, and sometimes an image address.</p></div><div><h3>Processing</h3><p>The system removes HTML from the title and text.</p><p>If the entry has no image, the system checks the article page for an image address.</p><p class="note">The draft uses the RSS text. This stage does not extract the full article text from the web page.</p></div></div>
+<p class="source"><a href="../apps/agents/newsroom/wire.py">newsroom/wire.py: fetch_entries(), page_image()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s5">
+<p class="eyebrow">04 / Store and filter</p><h2 id="s5">Only eligible articles reach selection</h2>
+<div class="split"><div><h3>Store source records</h3><ul class="rows"><li>A content hash identifies the title and text.</li><li>Unchanged content does not create another record.</li><li>Changed content at the same address creates a new source version.</li></ul></div><div><h3>Select candidates</h3><ul class="rows"><li>Check up to 120 records fetched within the last 48 hours.</li><li>Keep records that have no linked snippet.</li><li>Exclude opinion and commercial content with text rules.</li></ul></div></div>
+<p class="note">If the RSS request fails, recent stored articles can still enter the run.</p>
+<p class="source"><a href="../apps/agents/newsroom/wire.py">newsroom/wire.py: store(), content_type(), run_wire_desk()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s6">
+<p class="eyebrow">05 / News editor</p><h2 id="s6">Relevance and member votes select articles</h2>
+<div class="split"><div><table><thead><tr><th>Jev criterion</th><th>Weight</th></tr></thead><tbody><tr><td>Connection to the local area</td><td>30%</td></tr><tr><td>Effect on readers</td><td>30%</td></tr><tr><td>Information readers can act on</td><td>15%</td></tr><tr><td>Importance as news</td><td>25%</td></tr></tbody></table></div><div><p>Jev receives the article and a summary of the community’s readers.</p><p>The system adds member vote strength to the relevance score. It adjusts vote strength by reader group.</p><p>If Jev fails or has no key, fixed rules score local relevance, age, and interests.</p></div></div>
+<p class="source"><a href="../apps/agents/newsroom/news_editor.py">newsroom/news_editor.py: audience(), combine(), community_votes(), rank()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s7">
+<p class="eyebrow">06 / Reporter and explainer</p><h2 id="s7">AI writes a Finnish draft and reader context</h2>
+<div class="split"><div><h3>Reporter</h3><p>The model writes a headline, a short summary, and key facts.</p><p>The instructions permit only facts from the supplied source.</p><p>If the model fails, the system uses the source title and first sentences. This fallback requires review.</p></div><div><h3>Explainer</h3><p>The model explains the effect on newcomers, seasonal workers, students, and residents.</p><p>If this step fails, the draft continues without these explanations.</p><p class="muted">The system passes each selected story through these desks in sequence.</p></div></div>
+<p class="source"><a href="../apps/agents/newsroom/desks.py">newsroom/desks.py: reporter(), explainer()</a><a href="../apps/agents/newsroom/runner.py">newsroom/runner.py: story_graph()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s8">
+<p class="eyebrow">07 / Translator</p><h2 id="s8">Each community supplies its language targets</h2>
+<ul class="rows"><li>The system combines community languages with members’ preferred languages.</li><li>The model translates the headline, summary, key facts, and reader explanations.</li><li>The system rejects text that fails its language checks or remains too similar to Finnish.</li><li>Missing translations create a note. Readers can later receive an approved fallback version.</li></ul>
+<p class="note">Sámi text requires a human translator. The AI translator skips Sámi languages.</p>
+<p class="source"><a href="../apps/agents/newsroom/runner.py">newsroom/runner.py: target_languages(), _translate()</a><a href="../apps/agents/newsroom/desks.py">newsroom/desks.py: translate_one()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s9">
+<p class="eyebrow">08 / Fact checker and standards editor</p><h2 id="s9">Rules identify numbers and editorial risks</h2>
+<div class="split"><div><h3>Number checks</h3><p>The system compares numbers in the Finnish draft with the source text.</p><p>Unsupported numbers can require review. Missing numbers in translations create warnings.</p><p class="note warn">These checks do not verify every claim against independent sources.</p></div><div><h3>Editorial checks</h3><p>The system checks for high-risk and sensitive topics.</p><p>Examples include health, legal matters, crime, and minors.</p><p>Detected issues can require an editor’s checklist confirmation. Sensational headlines can receive a warning.</p></div></div>
+<p class="source"><a href="../apps/agents/newsroom/desks.py">newsroom/desks.py: fact_checker(), standards()</a><a href="../apps/editorial/checklist.py">editorial/checklist.py</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s10">
+<p class="eyebrow">09 / Copy desk</p><h2 id="s10">The system saves a draft for editors</h2>
+<div class="split"><div><h3>Ready to send</h3><p>No collected issue blocks the story.</p><p>An editor can use the ready-story send action.</p><h3>Needs review</h3><p>At least one issue requires review. The queue shows the reasons.</p></div><div><h3>Stored output</h3><ul class="rows"><li>Snippet and language versions</li><li>Source link, topics, and risk tier</li><li>Check results and review tasks</li><li>Expiry date and any review date</li></ul></div></div>
+<p class="note">Both results start in pending review. The automatic desks do not publish the story.</p>
+<p class="source"><a href="../apps/agents/newsroom/copy_desk.py">newsroom/copy_desk.py: verdict(), file_story()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s11">
+<p class="eyebrow">10 / Human approval</p><h2 id="s11">Two approval paths reach publication</h2>
+<div class="split"><div><h3>Regular review queue</h3><p>An editor approves the story.</p><p>Language reviewers approve translated versions separately.</p><p>The Finnish version and whole-story checks must pass before publication.</p></div><div><h3>Ready-story send action</h3><p>A person chooses to send a ready story.</p><p>The action approves open review tasks and all available non-Sámi versions in one step.</p><p>The system records that person as the approver.</p></div></div>
+<p class="note">The ready-story path uses batch approval. It does not require a separate reviewer action for each non-Sámi translation.</p>
+<p class="source"><a href="../apps/agents/services.py">agents/services.py: send_story()</a><a href="../apps/editorial/services.py">editorial/services.py: approve(), can_publish(), publish()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s12">
+<p class="eyebrow">11 / Community vote desk</p><h2 id="s12">Unused articles become future coverage choices</h2>
+<div class="split"><div><p class="metric">10</p><p>Top unselected articles form the normal new shortlist.</p><p class="muted">Existing articles with votes can stay longer while they remain eligible.</p></div><div><ul class="rows"><li>The system updates the shortlist after story processing.</li><li>Members vote for articles they want the newsroom to cover.</li><li>The next run adds these votes to article scores.</li><li>The system marks selected candidates as covered and drops stale candidates.</li></ul></div></div>
+<p class="source">“Covered” records selection for processing. It does not prove that an editor published the story. <a href="../apps/agents/newsroom/shortlist.py">newsroom/shortlist.py: publish()</a></p>
+</section>
+
+<section class="slide section" aria-labelledby="s13">
+<p class="eyebrow">After publication</p><h2 id="s13">The story enters<br>a continuing cycle</h2><p class="lead">The API selects an approved language version. Readers receive ranked stories. Their feedback can change future coverage or return a story to review.</p>
+<p class="source">Publication releases a story to the feed. It does not end the editorial process.</p>
+</section>
+
+<section class="slide" aria-labelledby="s14">
+<p class="eyebrow">12 / Feed delivery</p><h2 id="s14">The API selects visible text for each reader</h2>
+<div class="split"><div><h3>Story eligibility</h3><ul class="rows"><li>The story must have published status.</li><li>Its expiry date must not have passed.</li><li>It must have an approved version in the reader’s language chain.</li></ul></div><div><h3>Language order</h3><ol class="index"><li>Reader’s preferred language</li><li>English, if available and approved</li><li>Finnish, if available and approved</li></ol></div></div>
+<p class="source">GET /api/feed/snippets/ returns the feed. An explicit language parameter can override the profile language. <a href="../apps/feed/services.py">feed/services.py: language_chain(), published_snippets()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s15">
+<p class="eyebrow">13 / Reader ranking</p><h2 id="s15">Feed ranking orders published stories</h2>
+<div class="split"><div><table><thead><tr><th>Base ranking signal</th><th>Weight</th></tr></thead><tbody><tr><td>Reader interests</td><td>40%</td></tr><tr><td>Location and community</td><td>25%</td></tr><tr><td>Recent reader activity</td><td>20%</td></tr><tr><td>Time since publication</td><td>15%</td></tr></tbody></table></div><div><p>The API normally ranks a window of up to 200 recent eligible stories.</p><p>Activity uses views, completed reads, expansions, and likes from the last seven days.</p><p>If enabled, Jev adjusts the top selection for a signed-in reader.</p><p class="muted">Article selection happens before drafting. Feed ranking happens when the reader requests published stories.</p></div></div>
+<p class="source"><a href="../apps/feed/recommend.py">feed/recommend.py: score(), rank()</a><a href="../apps/feed/views.py">feed/views.py: SnippetViewSet.list()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s16">
+<p class="eyebrow">14 / Reader feedback</p><h2 id="s16">Reader actions have different effects</h2>
+<table><thead><tr><th>Action</th><th>Backend effect</th></tr></thead><tbody><tr><td>View, complete a read, expand, like</td><td>Record activity. These signals affect the engagement score.</td></tr><tr><td>Bookmark</td><td>Save the story for that reader.</td></tr><tr><td>Share</td><td>Record the action. The base engagement formula does not use shares.</td></tr><tr><td>Comment</td><td>Store a comment or a reply in the story thread.</td></tr><tr><td>Vote for coverage</td><td>Increase an article’s selection score in a later run.</td></tr></tbody></table>
+<p class="source"><a href="../apps/feed/services.py">feed/services.py: interact()</a><a href="../apps/feed/recommend.py">feed/recommend.py: engagement_stats()</a><a href="../apps/agents/newsroom/news_editor.py">newsroom/news_editor.py: community_votes()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s17">
+<p class="eyebrow">15 / Community notes</p><h2 id="s17">Reader agreement can add public context</h2>
+<div class="split"><div><h3>A helpful note requires</h3><ul class="rows"><li>At least <b>three ratings</b></li><li>A mean helpfulness score of at least <b>0.70</b></li><li>Positive ratings from at least <b>two reader situation groups</b></li></ul></div><div><p>Members can propose context on a post or a news story.</p><p>Authors cannot rate their own note. Helpful notes can appear with the story.</p><p>The background translation task currently handles helpful notes on community posts.</p><p class="muted">A helpful note does not itself approve or rewrite a news story.</p></div></div>
+<p class="source"><a href="../apps/notes/services.py">notes/services.py: status_from_ratings(), rate()</a><a href="../apps/notes/tasks.py">notes/tasks.py: translate_note()</a><a href="../apps/feed/services.py">feed/services.py: published_snippets()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s18">
+<p class="eyebrow">16 / Reports and corrections</p><h2 id="s18">A report returns a story to review</h2>
+<ol class="index"><li><div><h3>The reader reports a problem</h3><p>The system stores the report and changes the story status to reopened. The normal feed excludes it.</p></div></li><li><div><h3>An editor reviews the story</h3><p>The system creates review tasks at top priority. Edits to a previously published story create a correction record.</p></div></li><li><div><h3>The editor completes approval</h3><p>Publication checks must pass again. Publication releases pending correction records.</p></div></li></ol>
+<p class="source">The current report path reopens a story immediately. It has no report-count threshold. <a href="../apps/feed/services.py">feed/services.py: report()</a><a href="../apps/editorial/services.py">editorial/services.py: reopen(), _apply_edits(), publish()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s19">
+<p class="eyebrow">17 / Review dates and expiry</p><h2 id="s19">Time limits control story availability</h2>
+<div class="split"><div><table><thead><tr><th>Risk tier</th><th>Expiry after draft creation</th></tr></thead><tbody><tr><td>Low</td><td>3 days</td></tr><tr><td>Medium</td><td>7 days</td></tr><tr><td>High</td><td>14 days</td></tr></tbody></table><p class="note">High-risk drafts also receive a review date three days after creation.</p></div><div><p>A scheduled task runs every 15 minutes.</p><p>It marks published stories as expired after their expiry date.</p><p>It creates a refresh review task when the review date passes.</p><p class="muted">A refresh task alone leaves the story published. The feed separately excludes stories past their expiry date.</p></div></div>
+<p class="source"><a href="../apps/agents/newsroom/copy_desk.py">newsroom/copy_desk.py: EXPIRES_AFTER, file_story()</a><a href="../apps/agents/services.py">agents/services.py: expire_snippets()</a><a href="../config/celery.py">config/celery.py</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s20">
+<p class="eyebrow">18 / The next cycle</p><h2 id="s20">Feedback returns through specific paths</h2>
+<div class="split"><div><h3>Active connections</h3><ul class="rows"><li>Coverage votes affect the next article selection.</li><li>Reader activity affects later feed ranking.</li><li>A changed RSS article can create a new source version and enter selection again.</li><li>Editors can link reader questions to an answering story.</li></ul></div><div><h3>Current limits</h3><p>Three repeated matching questions can flag a story candidate.</p><p>The automatic notification or agent trigger for that candidate remains a TODO.</p><p>A new source version follows the candidate path. It does not automatically replace the old published snippet.</p></div></div>
+<p class="source"><a href="../apps/communities/services.py">communities/services.py: record_question(), answer_post()</a><a href="../apps/agents/newsroom/wire.py">newsroom/wire.py: store(), run_wire_desk()</a></p>
+</section>
+
+<section class="slide" aria-labelledby="s21">
+<p class="eyebrow">19 / Operations and failure handling</p><h2 id="s21">The backend records progress at each desk</h2>
+<div class="split"><div><h3>Recorded evidence</h3><p><code>AgentRun</code> stores run status and the current desk.</p><p><code>RunStory</code> stores each selected article’s stage and any error.</p><p><code>AgentStep</code> stores desk output and processing time.</p><p>Editorial logs record approvals, edits, and publication events.</p></div><div><h3>Failure behaviour</h3><p>An invalid AI JSON response gets one retry. Failed calls return a reason to the desk.</p><p>A failed story does not stop the remaining selected stories.</p><p>A run can finish successfully while its result reports failed stories.</p><p class="note">Check story counts and review reasons as well as the run status.</p></div></div>
+<p class="source"><a href="../apps/agents/newsroom/runner.py">newsroom/runner.py: _log(), run_newsroom()</a><a href="../apps/agents/newsroom/ai.py">newsroom/ai.py: ask_json()</a><a href="../apps/editorial/services.py">editorial/services.py: log()</a></p>
+</section>
+
+<section class="slide cover" aria-labelledby="s22">
+<p class="eyebrow">Backend source map</p><h2 id="s22">The main entry points</h2>
+<table><thead><tr><th>Responsibility</th><th>Source file</th></tr></thead><tbody><tr><td>Run order and per-story graph</td><td><a href="../apps/agents/newsroom/runner.py"><code>apps/agents/newsroom/runner.py</code></a></td></tr><tr><td>RSS intake and source records</td><td><a href="../apps/agents/newsroom/wire.py"><code>apps/agents/newsroom/wire.py</code></a></td></tr><tr><td>Writing, translation, and checks</td><td><a href="../apps/agents/newsroom/desks.py"><code>apps/agents/newsroom/desks.py</code></a></td></tr><tr><td>Approval and corrections</td><td><a href="../apps/editorial/services.py"><code>apps/editorial/services.py</code></a></td></tr><tr><td>Feed eligibility and ranking</td><td><a href="../apps/feed/services.py"><code>apps/feed/services.py</code></a> / <a href="../apps/feed/recommend.py"><code>recommend.py</code></a></td></tr><tr><td>Expiry and ready-story publication</td><td><a href="../apps/agents/services.py"><code>apps/agents/services.py</code></a></td></tr></tbody></table>
+<p class="source">Source links work when this HTML file stays in the backend/docs directory. The presentation itself works as a standalone offline file.</p>
+</section>
+
+</main>
+<footer aria-label="Slide controls"><div id="progress" aria-hidden="true"></div><div class="controls"><button id="prev" aria-label="Previous slide">Previous</button><span id="count" aria-live="polite" aria-atomic="true"></span><button id="next" aria-label="Next slide">Next</button></div><span class="keys">Arrow keys to move / Home and End to jump</span><div class="controls"><button id="overview" aria-pressed="false">All slides</button><button id="print">Print</button></div></footer>
+<script>
+const slides = [...document.querySelectorAll('.slide')];
+const count = document.querySelector('#count');
+const prev = document.querySelector('#prev');
+const next = document.querySelector('#next');
+const overview = document.querySelector('#overview');
+let current = 0;
+function show(index, updateHash = true) {
+  current = Math.max(0, Math.min(slides.length - 1, index));
+  const all = document.body.classList.contains('all');
+  slides.forEach((slide, i) => {
+    slide.classList.toggle('active', i === current);
+    slide.setAttribute('aria-hidden', String(!all && i !== current));
+    slide.inert = !all && i !== current;
+  });
+  count.textContent = `${current + 1} / ${slides.length}`;
+  prev.disabled = current === 0;
+  next.disabled = current === slides.length - 1;
+  document.querySelector('#progress').style.width = `${(current + 1) / slides.length * 100}%`;
+  document.title = `${current + 1}. ${slides[current].querySelector('h1,h2').textContent} · Oulu News`;
+  if (updateHash) history.replaceState(null, '', `#${current + 1}`);
+  if (all) slides[current].scrollIntoView({block:'start'});
+  else window.scrollTo(0, 0);
+}
+function fromHash() {
+  const number = Number(location.hash.slice(1));
+  show(Number.isInteger(number) && number > 0 ? number - 1 : 0, false);
+}
+prev.addEventListener('click', () => show(current - 1));
+next.addEventListener('click', () => show(current + 1));
+overview.addEventListener('click', () => {
+  const all = document.body.classList.toggle('all');
+  overview.setAttribute('aria-pressed', String(all));
+  overview.textContent = all ? 'Slide view' : 'All slides';
+  show(current);
+});
+document.querySelector('#print').addEventListener('click', () => window.print());
+document.addEventListener('keydown', event => {
+  if (event.altKey || event.ctrlKey || event.metaKey || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
+  const action = {ArrowRight:current+1, PageDown:current+1, ArrowLeft:current-1, PageUp:current-1, Home:0, End:slides.length-1};
+  if (event.key in action) { event.preventDefault(); show(action[event.key]); }
+});
+window.addEventListener('hashchange', fromHash);
+// Print must include every slide, including slides that are inert in presentation mode.
+window.addEventListener('beforeprint', () => slides.forEach(slide => { slide.inert = false; slide.setAttribute('aria-hidden','false'); }));
+window.addEventListener('afterprint', () => show(current, false));
+fromHash();
+</script>
+</body>
+</html>

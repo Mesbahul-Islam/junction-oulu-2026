@@ -16,8 +16,12 @@ export const LANGUAGES = [
   { code: "so", name: "Soomaali", english: "Somali" },
   { code: "et", name: "Eesti", english: "Estonian" },
   { code: "se", name: "Davvisámegiella", english: "Northern Sámi" },
+  { code: "smn", name: "Anarâškielâ", english: "Inari Sámi" },
+  { code: "sms", name: "Sääʹmǩiõll", english: "Skolt Sámi" },
 ];
 export const RTL = new Set(["ar"]);
+// Never machine-translated: a person translates every story (mirrors backend SAMI_LANGUAGES).
+export const SAMI = new Set(["se", "smn", "sms"]);
 export const languageName = (code) => LANGUAGES.find((l) => l.code === code)?.name || code;
 
 export const SITUATIONS = [

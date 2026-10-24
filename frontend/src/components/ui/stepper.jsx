@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 export function Stepper({ total, current, className }) {
   return (
     <div
-      className={cn("flex gap-1.5", className)}
+      className={cn("flex gap-1", className)}
       role="progressbar"
       aria-valuemin={1}
       aria-valuemax={total}
@@ -12,10 +12,7 @@ export function Stepper({ total, current, className }) {
       aria-label={`Step ${current + 1} of ${total}`}
     >
       {Array.from({ length: total }).map((_, i) => (
-        <span
-          key={i}
-          className={cn("h-1 flex-1 rounded-full transition-colors", i <= current ? "bg-accent" : "bg-line")}
-        />
+        <span key={i} className={cn("h-[3px] flex-1 rounded-pill transition-colors duration-300 ease-kajo", i <= current ? "bg-ink" : "bg-line")} />
       ))}
     </div>
   );

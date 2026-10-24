@@ -2,65 +2,107 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Nordic Paper — single source of truth. Channels (--*-hsl) feed Tailwind (opacity-aware);
-   color vars derive from them for plain CSS; legacy aliases retire with styles.css. */
+/* Kajo — the design system's single source of truth.
+   Principle: the interface is monochrome; colour only ever says WHO stands behind content.
+     newsroom  = editor-reviewed, "in your language"      (blue)
+     community = a member's words, not reviewed            (cloudberry)
+     confirmed = people confirmed it (note shown, covered) (spruce)
+     danger    = correction, error, high risk              (red)
+   Channels (--*-hsl) feed Tailwind so opacity utilities work. Light is primary; every token is
+   mirrored in BOTH dark blocks (system preference, and the explicit data-theme toggle). */
 @layer base {
   :root {
-    --paper-hsl: 200 13% 95%;
-    --surface-hsl: 0 0% 100%;
-    --ink-hsl: 212 36% 10%;
-    --muted-hsl: 205 10% 39%;
-    --line-hsl: 200 11% 90%;
-    --accent-hsl: 224 77% 46%;
-    --accent-weak-hsl: 223 72% 94%;
-    --accent-ink-hsl: 0 0% 100%;
-    --danger-hsl: 8 72% 44%;
+    --paper-hsl: 200 14% 96%;      /* snow: page ground */
+    --surface-hsl: 0 0% 100%;      /* cards, sheets */
+    --sunk-hsl: 204 14% 93%;       /* wells, inactive tracks, skeletons */
+    --ink-hsl: 205 36% 12%;        /* polar night: text + primary actions */
+    --muted-hsl: 206 11% 38%;      /* secondary text (AA on paper and surface) */
+    --line-hsl: 204 14% 88%;       /* hairlines */
 
-    --paper: hsl(var(--paper-hsl));
-    --surface: hsl(var(--surface-hsl));
-    --ink: hsl(var(--ink-hsl));
-    --muted: hsl(var(--muted-hsl));
-    --line: hsl(var(--line-hsl));
-    --accent: hsl(var(--accent-hsl));
-    --accent-weak: hsl(var(--accent-weak-hsl));
-    --accent-ink: hsl(var(--accent-ink-hsl));
-    --red: hsl(var(--danger-hsl));
+    --newsroom-hsl: 224 77% 46%;
+    --newsroom-weak-hsl: 223 80% 95%;
+    --community-hsl: 30 95% 33%;
+    --community-weak-hsl: 36 90% 93%;
+    --confirmed-hsl: 155 68% 27%;
+    --confirmed-weak-hsl: 150 45% 93%;
+    --danger-hsl: 8 70% 44%;
+    --danger-weak-hsl: 8 80% 95%;
 
-    --radius: 16px;
-    --radius-lg: 20px;
-    --radius-sm: 12px;
-    --shadow: 0 8px 24px hsl(var(--ink-hsl) / 0.10);
-    --shadow-float: 0 12px 34px hsl(var(--ink-hsl) / 0.16);
-    --sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --on-ink-hsl: 0 0% 100%;       /* text on ink / on solid tones */
+
     color-scheme: light;
   }
 
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --paper-hsl: 210 30% 8%;
-      --surface-hsl: 212 27% 12%;
-      --ink-hsl: 200 25% 93%;
-      --muted-hsl: 205 9% 58%;
-      --line-hsl: 205 22% 19%;
-      --accent-hsl: 223 89% 70%;
-      --accent-weak-hsl: 222 35% 22%;
-      --accent-ink-hsl: 213 33% 6%;
-      --danger-hsl: 8 70% 60%;
+      --paper-hsl: 210 30% 7%;
+      --surface-hsl: 211 26% 11%;
+      --sunk-hsl: 210 22% 15%;
+      --ink-hsl: 204 25% 92%;
+      --muted-hsl: 205 10% 62%;
+      --line-hsl: 208 20% 19%;
+      --newsroom-hsl: 224 90% 74%;
+      --newsroom-weak-hsl: 224 40% 19%;
+      --community-hsl: 36 88% 62%;
+      --community-weak-hsl: 32 45% 16%;
+      --confirmed-hsl: 152 50% 58%;
+      --confirmed-weak-hsl: 155 35% 14%;
+      --danger-hsl: 8 82% 68%;
+      --danger-weak-hsl: 8 45% 17%;
+      --on-ink-hsl: 210 30% 7%;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --paper-hsl: 210 30% 8%;
-    --surface-hsl: 212 27% 12%;
-    --ink-hsl: 200 25% 93%;
-    --muted-hsl: 205 9% 58%;
-    --line-hsl: 205 22% 19%;
-    --accent-hsl: 223 89% 70%;
-    --accent-weak-hsl: 222 35% 22%;
-    --accent-ink-hsl: 213 33% 6%;
-    --danger-hsl: 8 70% 60%;
+    --paper-hsl: 210 30% 7%;
+    --surface-hsl: 211 26% 11%;
+    --sunk-hsl: 210 22% 15%;
+    --ink-hsl: 204 25% 92%;
+    --muted-hsl: 205 10% 62%;
+    --line-hsl: 208 20% 19%;
+    --newsroom-hsl: 224 90% 74%;
+    --newsroom-weak-hsl: 224 40% 19%;
+    --community-hsl: 36 88% 62%;
+    --community-weak-hsl: 32 45% 16%;
+    --confirmed-hsl: 152 50% 58%;
+    --confirmed-weak-hsl: 155 35% 14%;
+    --danger-hsl: 8 82% 68%;
+    --danger-weak-hsl: 8 45% 17%;
+    --on-ink-hsl: 210 30% 7%;
     color-scheme: dark;
   }
 
-  body { background: var(--paper); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  /* Plain-CSS aliases for styles.css (legacy screens). Retire with styles.css. */
+  :root {
+    --paper: hsl(var(--paper-hsl));
+    --surface: hsl(var(--surface-hsl));
+    --ink: hsl(var(--ink-hsl));
+    --muted: hsl(var(--muted-hsl));
+    --line: hsl(var(--line-hsl));
+    --accent: hsl(var(--newsroom-hsl));
+    --accent-weak: hsl(var(--newsroom-weak-hsl));
+    --red: hsl(var(--danger-hsl));
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: hsl(var(--paper-hsl));
+    color: hsl(var(--ink-hsl));
+    font-family: theme("fontFamily.sans");
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* Arabic gets its matched Plex cut via the font stack; give it a touch more leading. */
+  :lang(ar) { line-height: 1.7; }
+  ::selection { background: hsl(var(--newsroom-hsl) / 0.22); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+@layer utilities {
+  /* Visible keyboard focus everywhere, in ink (focus is UI, not provenance). */
+  .focus-ring { @apply outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper; }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 }

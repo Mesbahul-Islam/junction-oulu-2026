@@ -2,11 +2,13 @@ import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
-const cardVariants = cva("rounded-lg bg-surface", {
+// Structure comes from hairlines; only floating things get a shadow.
+const cardVariants = cva("rounded-card", {
   variants: {
     variant: {
-      flat: "border border-line",
-      float: "shadow-float",
+      flat: "border border-line bg-surface",
+      sunk: "bg-sunk",
+      float: "bg-surface shadow-float",
       ghost: "",
     },
   },
