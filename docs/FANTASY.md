@@ -55,14 +55,16 @@ After every game, each player's box score from the Liiga API is turned into poin
 
 ## 3. Changing your team
 
+Choosing your team is free. After that, every change costs points, and you need enough points to make it.
+
 Tap **Change team** under your lineup.
 
-- **Swap a player:** tap one of your players, pick a Liiga team (or all teams), pick a player. You see his price, his points and what the change costs. Then confirm.
-- **Shake up:** choose how many points you are willing to spend. Lämäri replaces up to 3 of your weakest-form starters with better-form players in the same position. It picks at random from the strongest options and stays within your money and that points limit.
+- **Swap a player:** tap one of your players, pick a Liiga team (or all teams), pick a player. Each option shows his price, his points and what he costs. Players you can't afford in points are greyed out. Tap **Save changes** to make the swap.
+- **Shake up:** choose how many points you are willing to spend (up to what you have). Lämäri **suggests** replacing up to 3 of your weakest-form starters with better-form players in the same position, picked at random from the strongest options and within your money. Nothing changes until you tap **Save changes**. **Try again** gives a new suggestion.
 
-**Cost of a change** (`rules.transfer_cost`): every incoming player costs points in that gameweek, by his season rank within his position. The lowest-ranked costs 1 point and the top-ranked costs 8. The cost is shown on every option.
+**Cost of a change** (`rules.transfer_cost`): every incoming player costs points by his season rank within his position. The lowest-ranked costs 1 point and the top-ranked costs 8.
 
-**Free changes:** before your first deadline, building and changing your team costs nothing.
+**Points you can spend** (`squads.points_available`): your season points minus what you've already spent on changes for the coming gameweek. A change that costs more than that is refused. The cost comes off your total when that gameweek is scored.
 
 **Money:** you sell a player for what you paid and buy at his current price. The difference goes to or from your bank.
 

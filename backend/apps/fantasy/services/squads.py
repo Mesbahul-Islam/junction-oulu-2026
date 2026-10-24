@@ -178,16 +178,26 @@ def transfer_costs() -> dict[int, int]:
 
 
 def changes_are_free(squad: Squad) -> bool:
-    """Before your first deadline, building and changing your team costs nothing."""
+    """Choosing your team is free; every change after that costs points."""
+    return False
+
+
+def points_available(squad: Squad) -> Decimal:
+    """Points you can spend on changes: your season points minus what you've already spent on
+    changes for the coming gameweek (those come off when it's scored)."""
+    from django.db.models import Sum
+
     try:
-        return next_open_gameweek(squad.season).pk == squad.first_gameweek_id
+        gameweek = next_open_gameweek(squad.season)
     except FantasyError:
-        return False
+        return Decimal(0)
+    spent = squad.transfers.filter(gameweek=gameweek).aggregate(s=Sum("point_cost"))["s"] or 0
+    return max(Decimal(0), Decimal(squad.total_points) - spent)
 
 
 def make_transfers(squad: Squad, out_ids, in_ids) -> list[Transfer]:
-    """Swap players for the next gameweek. Free before your first deadline; after that each
-    incoming player costs points by his rank (see transfer_costs)."""
+    """Swap players for the next gameweek. Each incoming player costs points by his rank
+    (see transfer_costs), and you need enough points (points_available) to make the change."""
     if len(out_ids) != len(in_ids) or not out_ids:
         raise FantasyError("Send the same number of players out and in")
     gameweek = next_open_gameweek(squad.season)
@@ -212,15 +222,18 @@ def make_transfers(squad: Squad, out_ids, in_ids) -> list[Transfer]:
         if purchase > squad.bank + sale_value:
             raise FantasyError(f"Not enough money: incoming players cost {purchase}, you have {squad.bank + sale_value}")
 
-        free_window = gameweek.pk == squad.first_gameweek_id
-        costs = {} if free_window else transfer_costs()
+        costs = transfer_costs()
+        total_cost = sum(costs.get(p.pk, rules.MAX_TRANSFER_COST) for p in incoming)
+        available = points_available(squad)
+        if total_cost > available:
+            raise FantasyError(f"Not enough points: this change costs {total_cost} and you have {available.normalize():f}")
         transfers = []
         # Pair same-position players so the history reads "A out, B in".
         incoming_left = list(incoming)
         for out in outgoing:
             inn = next(p for p in incoming_left if p.position == out.position)
             incoming_left.remove(inn)
-            cost = costs.get(inn.pk, rules.MAX_TRANSFER_COST) if not free_window else 0
+            cost = costs.get(inn.pk, rules.MAX_TRANSFER_COST)
             transfers.append(
                 Transfer.objects.create(
                     squad=squad, gameweek=gameweek, player_out=out, player_in=inn,
@@ -242,9 +255,11 @@ def make_transfers(squad: Squad, out_ids, in_ids) -> list[Transfer]:
     return transfers
 
 
-def shake_up(squad: Squad, max_points: int, max_changes: int = 3, rng=None) -> list[Transfer]:
-    """Replace your weakest-form starters with better-form players of the same position, picked at
-    random from the strongest options, spending at most `max_points` and staying within budget."""
+def shake_up(squad: Squad, max_points: int, max_changes: int = 3, rng=None) -> list[dict]:
+    """Suggest replacing your weakest-form starters with better-form players of the same position,
+    picked at random from the strongest options, spending at most `max_points` (and no more than
+    you have) and staying within budget. Nothing is changed: the reader saves the suggestion with
+    make_transfers. Returns [{"out": Player, "in": Player, "cost": int}]."""
     import random
 
     from .analysis import games_in, player_form
@@ -259,8 +274,9 @@ def shake_up(squad: Squad, max_points: int, max_changes: int = 3, rng=None) -> l
     pool = list(Player.objects.filter(active=True, injured=False, suspended=False, team__isnull=False).exclude(pk__in=owned))
     form = player_form([p.pk for p in starters] + [p.pk for p in pool])
     value = lambda p: form.get(p.pk, {}).get("avg", 0) * counts.get(p.team_id, 0)
-    costs = {} if changes_are_free(squad) else transfer_costs()
+    costs = transfer_costs()
     picks = {pick.player_id: pick for pick in squad.picks.all()}
+    max_points = min(max_points, int(points_available(squad)))
 
     per_team = defaultdict(int)
     for p in current:
@@ -286,4 +302,4 @@ def shake_up(squad: Squad, max_points: int, max_changes: int = 3, rng=None) -> l
         per_team[pick.team_id] += 1
     if not outs:
         raise FantasyError("No change fits those points and your budget right now")
-    return make_transfers(squad, [p.pk for p in outs], [p.pk for p in ins])
+    return [{"out": o, "in": i, "cost": costs.get(i.pk, rules.MAX_TRANSFER_COST)} for o, i in zip(outs, ins)]

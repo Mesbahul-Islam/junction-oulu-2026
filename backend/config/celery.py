@@ -30,10 +30,7 @@ app.conf.beat_schedule = {
         "task": "apps.fantasy.tasks.sync_schedule",
         "schedule": crontab(hour=6, minute=0),
     },
-    "fantasy-sports-desk": {
-        "task": "apps.fantasy.tasks.sports_desk",
-        "schedule": crontab(minute="*/30"),
-    },
+    # Lämäri sports desk (apps.fantasy.tasks.sports_desk) is off for now; run it by hand if needed.
     "fantasy-sync-live": {
         "task": "apps.fantasy.tasks.sync_live",
         "schedule": crontab(minute="*/10"),

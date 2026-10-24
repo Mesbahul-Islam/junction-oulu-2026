@@ -259,8 +259,9 @@ class TransferView(APIView):
 
 
 class ShakeUpView(APIView):
-    """POST {"max_points": N}: replace up to 3 of your weakest-form starters with better-form players,
-    spending at most N points (and staying within your money)."""
+    """POST {"max_points": N}: suggest replacing up to 3 of your weakest-form starters with better-form
+    players, spending at most N points and staying within your money. Nothing is saved: the app shows
+    the suggestion and saves it with POST squad/transfers/."""
 
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = AUTHENTICATION
@@ -271,12 +272,13 @@ class ShakeUpView(APIView):
         try:
             max_points = max(0, min(int(request.data.get("max_points", 8)), 40))
             squad = _my_squad(request)
-            transfers = shake_up(squad, max_points)
+            plan = shake_up(squad, max_points)
         except (FantasyError, ValueError) as exc:
             return _error(exc)
-        squad.refresh_from_db()
-        return Response({"transfers": TransferSerializer(transfers, many=True).data,
-                         "squad": SquadSerializer(squad, context={"request": request}).data}, status=status.HTTP_201_CREATED)
+        ctx = {"request": request}
+        return Response({"swaps": [{"out": PlayerSerializer(s["out"], context=ctx).data, "in": PlayerSerializer(s["in"], context=ctx).data,
+                                    "cost": s["cost"]} for s in plan],
+                         "total_cost": sum(s["cost"] for s in plan)})
 
 
 class HistoryView(APIView):
