@@ -320,7 +320,12 @@ docker compose exec worker python manage.py llm_check --ping    # confirm it ans
 - **Pick a model that fits your hardware.**
   - On a laptop CPU with 8 GB RAM, use a small model like `qwen3:4b` or `qwen3:1.7b`. It works but is slow: minutes per story.
   - `qwen3.8:27b` needs a GPU or about 20 GB of free RAM. For a GPU, uncomment the `deploy:` block of the `ollama` service in `docker-compose.yml` (needs the NVIDIA Container Toolkit).
-- **Ollama already running on your computer?** Leave `COMPOSE_PROFILES` empty and set `LLM_BASE_URL=http://host.docker.internal:11434`. Start Ollama with `OLLAMA_HOST=0.0.0.0 ollama serve`, so the containers can reach it.
+- **Ollama on another computer** (e.g. a GPU box on your network): leave `COMPOSE_PROFILES` empty and set `LLM_BASE_URL=http://<its-ip>:11434`. On that computer:
+  - Make Ollama listen on the network, not just localhost. Its default is localhost only. For the systemd service, run `sudo systemctl edit ollama`, add `Environment="OLLAMA_HOST=0.0.0.0:11434"` under `[Service]`, then `sudo systemctl restart ollama`. When starting it by hand: `OLLAMA_HOST=0.0.0.0:11434 ollama serve`.
+  - Open port 11434 in its firewall (`sudo ufw allow 11434/tcp`, or the cloud provider's security group).
+  - Check with `curl http://<its-ip>:11434/api/tags`. It should list your models.
+  - Anyone who can reach that port can use the server, so keep it on a trusted network.
+- **Ollama on this same computer:** set `LLM_BASE_URL=http://host.docker.internal:11434`, and start Ollama with `OLLAMA_HOST=0.0.0.0` so the containers can reach it.
 - **Without Docker** (`manage.py runserver`), Ollama is expected at `localhost:11434`.
 - **`llm_check` warns** if the configured model hasn't been pulled yet, or if Ollama can't be reached.
 
