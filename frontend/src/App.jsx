@@ -1,19 +1,19 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
-import BottomNav from "./components/BottomNav";
-import { Spinner } from "./components/Spinner";
-import { useAuth } from "./lib/auth";
+import BottomNav from "@/shared/components/BottomNav";
+import { Spinner } from "@/shared/components/Spinner";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { RTL } from "./lib/i18n";
-import Communities from "./pages/Communities";
-import Create from "./pages/Create";
-import Explore from "./pages/Explore";
-import Feed from "./pages/Feed";
-import Onboarding from "./pages/Onboarding";
-import Profile from "./pages/Profile";
-import Saved from "./pages/Saved";
-import Story from "./pages/Story";
-import Vote from "./pages/Vote";
-import Welcome from "./pages/Welcome";
+import Communities from "@/features/communities/pages/Communities";
+import Create from "@/features/communities/pages/Create";
+import Explore from "@/features/feed/pages/Explore";
+import Feed from "@/features/feed/pages/Feed";
+import Onboarding from "@/features/account/pages/Onboarding";
+import Profile from "@/features/account/pages/Profile";
+import Saved from "@/features/feed/pages/Saved";
+import Story from "@/features/feed/pages/Story";
+import Vote from "@/features/shortlist/pages/Vote";
+import Welcome from "@/features/auth/pages/Welcome";
 
 /** Signed-in, onboarded readers only; everyone else goes to welcome / onboarding first. */
 function Reader({ children }) {

@@ -1,10 +1,12 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ExternalLink, Languages, Newspaper, ThumbsUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { Spinner } from "../components/Spinner";
-import { getShortlist, voteStory } from "../lib/api";
-import { languageName } from "../lib/i18n";
+import { voteStory } from "../api";
+import { useShortlist } from "../hooks/useShortlist";
+import { Spinner } from "@/shared/components/Spinner";
+import { languageName } from "@/lib/i18n";
 
 /** One shortlisted story: its title in the reader's language (original a tap away) and a vote button. */
 function Candidate({ item, onVote }) {
@@ -32,15 +34,15 @@ function Candidate({ item, onVote }) {
 /** "What should we cover next?": members vote on the newsroom's shortlist. Votes count in the next run. */
 export default function Vote() {
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const queryClient = useQueryClient();
+  const { data, isLoading, error: loadError } = useShortlist();
   const [error, setError] = useState("");
-
-  useEffect(() => { getShortlist().then(setData).catch((e) => setError(e.message)); }, []);
 
   const vote = async (item) => {
     try {
       const res = await voteStory(item.id, !item.voted);
-      setData((d) => ({ ...d, open: d.open.map((x) => (x.id === item.id ? { ...x, votes: res.votes, voted: res.voted } : x)) }));
+      queryClient.setQueryData(["shortlist"], (d) =>
+        ({ ...d, open: d.open.map((x) => (x.id === item.id ? { ...x, votes: res.votes, voted: res.voted } : x)) }));
     } catch (e) {
       setError(Object.values(e.data || {}).flat()[0] || e.message);
     }
@@ -57,8 +59,8 @@ export default function Vote() {
         These stories are waiting. Vote for the ones that matter to you: the newsroom writes up the most-wanted ones
         in its next run, explained and translated for you. Every group's votes count, however small the group.
       </p>
-      {error && <div className="error">{error}</div>}
-      {!data ? <Spinner /> : (
+      {(error || loadError) && <div className="error">{error || loadError.message}</div>}
+      {isLoading ? <Spinner /> : !data ? null : (
         <>
           {!data.member && <div className="error">Join a community to vote. <Link to="/communities" className="btn-link">Find communities</Link></div>}
           {data.open.length ? (

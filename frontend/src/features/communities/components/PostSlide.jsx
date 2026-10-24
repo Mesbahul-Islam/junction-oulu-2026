@@ -2,12 +2,12 @@ import { ArrowRight, ExternalLink, Flag, Flame, Heart, Languages, MessageCircle,
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { flagPost, getPost, likePost, sharePost } from "../lib/api";
-import { useAuth } from "../lib/auth";
-import { languageName, timeAgo } from "../lib/i18n";
+import { flagPost, getPost, likePost, sharePost } from "../api";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { languageName, timeAgo } from "@/lib/i18n";
 import CommentsSheet from "./CommentsSheet";
-import NotesSheet from "./NotesSheet";
-import { RailButton } from "./StorySlide";
+import NotesSheet from "@/features/notes/components/NotesSheet";
+import { RailButton } from "@/features/feed/components/StorySlide";
 
 const REASONS = [
   { value: "hate", label: "Hate or harassment" },

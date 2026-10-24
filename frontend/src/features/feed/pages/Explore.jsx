@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import NewsCard from "../components/NewsCard";
-import { Spinner } from "../components/Spinner";
-import { getArrival, getFeed, getInterests } from "../lib/api";
-import { useAuth } from "../lib/auth";
-import { topicIcon } from "../lib/i18n";
+import { Spinner } from "@/shared/components/Spinner";
+import { getArrival } from "../api";
+import { useFeed } from "../hooks/useFeed";
+import { getInterests } from "@/features/account/api";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { topicIcon } from "@/lib/i18n";
 
 const BUCKET_TITLE = { first_48h: "Your first 48 hours", first_week: "Your first week", first_month: "Your first month" };
 
@@ -15,19 +17,13 @@ export default function Explore() {
   const { me } = useAuth();
   const [topics, setTopics] = useState([]);
   const [topic, setTopic] = useState(null);
-  const [cards, setCards] = useState([]);
   const [arrival, setArrival] = useState(null);
+  const { data: cards, isLoading } = useFeed({ tag: topic?.slug, enabled: !!topic });
 
   useEffect(() => {
     getInterests().then((d) => setTopics(Array.isArray(d) ? d : d.results || []));
     if (me.arrival_date) getArrival().then(setArrival).catch(() => {});
   }, [me.arrival_date]);
-
-  useEffect(() => {
-    if (!topic) return;
-    setCards(null);
-    getFeed({ tag: topic.slug }).then((d) => setCards(d.results));
-  }, [topic]);
 
   return (
     <main className="screen">
@@ -65,7 +61,7 @@ export default function Explore() {
       {topic && (
         <>
           <div className="section-head" style={{ marginTop: 22 }}><h2>{topic.name}</h2></div>
-          {!cards ? <Spinner /> : cards.length ? (
+          {isLoading ? <Spinner /> : cards?.length ? (
             <div className="card-list">{cards.map((c, i) => <NewsCard key={c.id} card={c} index={i} />)}</div>
           ) : <div className="empty">No {topic.name.toLowerCase()} stories right now.</div>}
         </>

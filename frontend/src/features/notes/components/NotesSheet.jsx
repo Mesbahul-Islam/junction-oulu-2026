@@ -1,8 +1,8 @@
 import { BadgeCheck, ExternalLink, Languages, NotebookPen, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { getPostNotes, rateNote, writeNote } from "../lib/api";
-import { languageName } from "../lib/i18n";
+import { getPostNotes, rateNote, writeNote } from "../api";
+import { languageName } from "@/lib/i18n";
 
 const GOOD_TAGS = [
   ["clear_sources", "Cites good sources"],

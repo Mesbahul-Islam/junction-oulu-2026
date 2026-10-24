@@ -1,9 +1,9 @@
 import { Heart, Languages, Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { getReplies, likePost, replyToPost } from "../lib/api";
-import { useAuth } from "../lib/auth";
-import { languageName, timeAgo } from "../lib/i18n";
+import { getReplies, likePost, replyToPost } from "../api";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { languageName, timeAgo } from "@/lib/i18n";
 
 /** One reply, in the reader's language when a machine translation exists (labelled, original a tap away). */
 function Reply({ reply, slug }) {

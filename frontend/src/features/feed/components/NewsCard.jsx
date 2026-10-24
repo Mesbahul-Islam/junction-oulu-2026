@@ -1,8 +1,8 @@
 import { Ellipsis } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { useAuth } from "../lib/auth";
-import { languageName, timeAgo, topicIcon, topicLabel } from "../lib/i18n";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { languageName, timeAgo, topicIcon, topicLabel } from "@/lib/i18n";
 
 /** One story in the feed. Shown in the reader's language; says so when it's a fallback.
  *  With `onOpen`, tapping calls it (Home opens the swipe view) instead of linking to the story page. */

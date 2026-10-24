@@ -2,9 +2,9 @@ import { AtSign, ChevronRight, Languages, LogOut, Sparkles, Users } from "lucide
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { updateMe } from "../lib/api";
-import { useAuth } from "../lib/auth";
-import { languageName, SITUATIONS, topicLabel } from "../lib/i18n";
+import { updateMe } from "../api";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { languageName, SITUATIONS, topicLabel } from "@/lib/i18n";
 
 export default function Profile() {
   const { me, logout, refresh } = useAuth();

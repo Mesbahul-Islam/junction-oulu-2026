@@ -3,9 +3,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import NewsCard from "../components/NewsCard";
-import PostSlide from "../components/PostSlide";
-import { Spinner } from "../components/Spinner";
-import { getCommunityNews, getFeed } from "../lib/api";
+import PostSlide from "@/features/communities/components/PostSlide";
+import { Spinner } from "@/shared/components/Spinner";
+import { getCommunityNews } from "@/features/communities/api";
+
+import { getFeed } from "../api";
 
 const TABS = [
   { id: "community", label: "Community News" },

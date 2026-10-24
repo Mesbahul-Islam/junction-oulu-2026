@@ -2,8 +2,9 @@ import { ArrowRight, Newspaper } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { API_URL, token } from "../lib/api";
-import { useAuth } from "../lib/auth";
+import { API_URL, token } from "@/lib/api";
+
+import { useAuth } from "../AuthProvider";
 
 // Local demo accounts created by `manage.py bootstrap` (see docs/GUIDE.md).
 const DEMO = [

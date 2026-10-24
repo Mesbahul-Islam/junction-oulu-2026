@@ -2,9 +2,9 @@ import { Bookmark, Heart, Info, Languages, Share2, Volume2, VolumeX } from "luci
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { interact } from "../lib/api";
-import { useAuth } from "../lib/auth";
-import { languageName, timeAgo, topicIcon, topicLabel } from "../lib/i18n";
+import { interact } from "../api";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { languageName, timeAgo, topicIcon, topicLabel } from "@/lib/i18n";
 import { useListen } from "./ListenPlayer";
 
 // Background gradients per slide, cycling: dark teal into the brand orange.

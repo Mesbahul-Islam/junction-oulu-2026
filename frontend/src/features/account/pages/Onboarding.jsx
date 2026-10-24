@@ -2,11 +2,12 @@ import { ArrowRight, Check, ChevronLeft, CircleCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
-import CommunityCard from "../components/CommunityCard";
-import { Spinner } from "../components/Spinner";
-import { getInterests, getRecommendedCommunities, joinCommunity, resolveCode, saveOnboarding } from "../lib/api";
-import { useAuth } from "../lib/auth";
-import { LANGUAGES, SITUATIONS, TOPICS, topicIcon } from "../lib/i18n";
+import CommunityCard from "@/features/communities/components/CommunityCard";
+import { Spinner } from "@/shared/components/Spinner";
+import { getInterests, resolveCode, saveOnboarding } from "@/features/account/api";
+import { getRecommendedCommunities, joinCommunity } from "@/features/communities/api";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { LANGUAGES, SITUATIONS, TOPICS, topicIcon } from "@/lib/i18n";
 
 const STEPS = ["language", "categories", "about", "communities"];
 // Suggestions scoring at least this are pre-selected (e.g. "New in Oulu" for a newcomer).

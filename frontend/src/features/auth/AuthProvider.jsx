@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
-import { getMe, login as apiLogin, register as apiRegister, token } from "./api";
+import { token } from "@/lib/api";
+
+import { getMe, login as apiLogin, register as apiRegister } from "./api";
 
 const AuthContext = createContext(null);
 

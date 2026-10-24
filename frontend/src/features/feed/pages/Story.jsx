@@ -3,10 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { PlayButton, useListen, Waveform } from "../components/ListenPlayer";
-import { Spinner } from "../components/Spinner";
-import { getStory, interact, reportStory } from "../lib/api";
-import { useAuth } from "../lib/auth";
-import { languageName, timeAgo, topicIcon, topicLabel } from "../lib/i18n";
+import { Spinner } from "@/shared/components/Spinner";
+import { getStory, interact, reportStory } from "../api";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { languageName, timeAgo, topicIcon, topicLabel } from "@/lib/i18n";
 
 function Meter({ label, value, max = 1 }) {
   return (

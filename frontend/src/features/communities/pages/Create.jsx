@@ -2,7 +2,7 @@ import { ChevronLeft, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { createPost, getMyCommunities, sendContribution } from "../lib/api";
+import { createPost, getMyCommunities, sendContribution } from "../api";
 
 const MODES = [
   { id: "post", label: "Community post", hint: "Shown in Community News to members of your community, translated for neighbours who read other languages. Written by you, not reviewed by editors; others can report it. Questions also reach the newsroom: if a story answers yours, your post links to it." },
