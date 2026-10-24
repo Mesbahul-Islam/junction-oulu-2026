@@ -149,10 +149,42 @@ def heuristic(doc, readers: dict) -> tuple[float, list[str]]:
     return round(score, 3), why
 
 
+# Members' votes on the shortlist ("What should we cover next?") count on top of Jev's score.
+# Votes are measured per reader group, so a small group backing a story weighs as much as a big one.
+VOTE_WEIGHT = 1.0  # a story a whole reader group backs outranks anything Jev alone would pick
+MIN_GROUP = 3  # a group counts as at least this big, so one vote in a group of one isn't 100 %
+GROUP_LABELS = {"newcomer": "newcomers", "seasonal_worker": "seasonal workers", "student": "students", "resident": "residents"}
+
+
+def community_votes(community) -> dict[int, dict]:
+    """{doc pk: {"votes": n, "strength": 0-1, "reason": str}} for shortlisted stories with votes."""
+    User = apps.get_model("accounts", "User")
+    CoverageVote = apps.get_model("agents", "CoverageVote")
+    sizes = Counter(User.objects.filter(memberships__isnull=False).distinct().values_list("reader_situation", flat=True))
+    per_doc: dict[int, Counter] = {}
+    for doc_id, situation in CoverageVote.objects.filter(
+        candidate__community=community, candidate__status="open",
+    ).values_list("candidate__source_document_id", "user__reader_situation"):
+        per_doc.setdefault(doc_id, Counter())[situation] += 1
+    out = {}
+    for doc_id, groups in per_doc.items():
+        shares = {g: n / max(sizes.get(g, 0), MIN_GROUP) for g, n in groups.items()}
+        top = max(shares, key=shares.get)
+        total = sum(groups.values())
+        reason = f"{total} member{'s' if total != 1 else ''} voted for it"
+        if top in GROUP_LABELS and shares[top] >= 0.2:
+            reason += f" ({round(min(shares[top], 1) * 100)} % of {GROUP_LABELS[top]})"
+        out[doc_id] = {"votes": total, "strength": round(min(shares[top], 1.0), 3), "reason": reason}
+    return out
+
+
 def rank(docs, community) -> list[dict]:
-    """Every candidate scored, best first: [{doc, score, ranked_by, reasons}]."""
+    """Every candidate scored, best first: [{doc, score, jev, votes, ranked_by, reasons}].
+
+    score = Jev's relevance (or the heuristic) + VOTE_WEIGHT x the community's vote strength."""
     readers = audience(community)
     answers = jev_scores(docs, readers) if jev_enabled() else {}
+    votes = community_votes(community)
     ranked = []
     for doc in docs:
         a = answers.get(doc.pk)
@@ -160,9 +192,14 @@ def rank(docs, community) -> list[dict]:
             why = [w for w, yes in (("local", a["local"] >= 0.5), ("affects readers", a["affects_readers"] >= 0.5),
                                     ("readers can act on it", a["useful"] >= 0.5)) if yes]
             why.append(f"newsworthiness {a['newsworthy']:.1f} of {len(NEWSWORTHINESS) - 1}")
-            ranked.append({"doc": doc, "score": combine(a), "ranked_by": "jev", "reasons": why})
+            base, ranked_by = combine(a), "jev"
         else:
-            score, why = heuristic(doc, readers)
-            ranked.append({"doc": doc, "score": score, "ranked_by": "heuristic", "reasons": why})
+            base, why = heuristic(doc, readers)
+            ranked_by = "heuristic"
+        v = votes.get(doc.pk)
+        if v:
+            why.insert(0, v["reason"])
+        ranked.append({"doc": doc, "score": round(base + VOTE_WEIGHT * (v["strength"] if v else 0), 3), "jev": base,
+                       "votes": v["votes"] if v else 0, "ranked_by": ranked_by, "reasons": why})
     ranked.sort(key=lambda r: (r["score"], r["doc"].fetched_at or timezone.now()), reverse=True)
     return ranked

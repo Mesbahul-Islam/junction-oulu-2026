@@ -40,8 +40,9 @@ export async function api(path, { method = "GET", body, auth = true } = {}) {
 
 export const login = (email, password) =>
   api("/auth/token/", { method: "POST", body: { email, password }, auth: false });
-export const register = (email, password) =>
-  api("/accounts/register/", { method: "POST", body: { email, password }, auth: false });
+export const register = (email, username, password) =>
+  api("/accounts/register/", { method: "POST", body: { email, username, password }, auth: false });
+export const updateMe = (data) => api("/accounts/me/", { method: "PATCH", body: data });
 export const getMe = () => api("/accounts/me/");
 export const getInterests = () => api("/accounts/interests/");
 export const saveOnboarding = (data) => api("/accounts/onboarding/", { method: "POST", body: data });
@@ -56,6 +57,9 @@ export const reportStory = (id, body) =>
   api(`/feed/snippets/${id}/report/`, { method: "POST", body: { reason: "wrong", body } });
 // Newcomer sequence: reviewed stories for the reader's first 48 h / week / month in Finland.
 export const getArrival = () => api("/feed/arrival/");
+// "What should we cover next?": stories members vote on; votes count in the newsroom's next pick.
+export const getShortlist = () => api("/agents/shortlist/");
+export const voteStory = (id, on) => api(`/agents/shortlist/${id}/vote/`, { method: on ? "POST" : "DELETE" });
 // QR onboarding: /onboarding?code=OULU-WELCOME presets community, language and arrival date.
 export const resolveCode = (code) => api(`/accounts/onboarding-link/${encodeURIComponent(code)}/`, { auth: false });
 

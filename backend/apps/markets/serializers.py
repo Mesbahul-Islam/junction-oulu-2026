@@ -117,7 +117,7 @@ class FantasyEntrySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_user_display(self, obj):
-        return getattr(obj.user, "display_name", "") or f"user-{obj.user_id}"
+        return obj.user.username
 
 
 class PlayerStatSerializer(serializers.ModelSerializer):

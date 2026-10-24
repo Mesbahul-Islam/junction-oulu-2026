@@ -224,7 +224,7 @@
       </div>
       <div class="grid two">
         <div class="card"><h2>Wire desk</h2><div id="nrWire" class="muted">–</div></div>
-        <div class="card"><h2>News editor: what Jev ranked highest</h2><div id="nrJev" class="muted">–</div></div>
+        <div class="card"><h2>News editor: Jev + members' votes</h2><div id="nrJev" class="muted">–</div></div>
       </div>
     </section>
 
@@ -367,7 +367,7 @@ function renderRun(r) {
     + (r.started_at ? ` <span class="small muted">${live ? "started" : "ran"} ${ago(r.started_at)}${r.finished_at ? `, took ${Math.round((new Date(r.finished_at) - new Date(r.started_at)) / 1000)} s` : ""}</span>` : "");
   const st = { done: "Done", active: "Working now", waiting: "Waiting", failed: "Failed" };
   const desk = (d) => `<div class="desk ${d.status}" title="${esc(d.does)}"><div class="st">${st[d.status]}</div><div class="nm">${esc(d.label)}</div><div class="who">${esc(d.who)}</div>
-      <div class="pr">${d.total > 1 || !["wire", "news_editor"].includes(d.key) ? `${d.done} of ${d.total} stories` : ""}${d.seconds ? ` <span class="muted">· ${d.seconds} s</span>` : ""}</div>
+      <div class="pr">${d.total > 1 || !["wire", "news_editor", "community_vote"].includes(d.key) ? `${d.done} of ${d.total} stories` : ""}${d.seconds ? ` <span class="muted">· ${d.seconds} s</span>` : ""}</div>
       ${d.working_on ? `<div class="pr"><b>#${d.working_on.rank}</b> ${esc(d.working_on.title.slice(0, 50))}…${d.working_on.detail ? `<div class="muted">${esc(d.working_on.detail)}</div>` : ""}</div>` : ""}</div>`;
   const c = r.counts;
   const human = `<div class="desk human"><div class="st">${c.ready + c.needs_review ? `${c.ready + c.needs_review} waiting` : "Nothing waiting"}</div><div class="nm">Editors (people)</div>
@@ -412,8 +412,12 @@ function renderRun(r) {
     ${w.errors.length ? `<div class="flag bad">Could not fetch: ${esc(w.errors.join(", "))}</div>` : ""}
     ${w.excluded_count ? `<div class="flag warn"><b>Not news, left out (JSN 11/16): ${w.excluded_count}</b><ul>${w.excluded.slice(0, 6).map((e) => `<li>${esc(e.type)}: ${esc(e.title)}</li>`).join("")}</ul></div>` : ""}` : "–";
   $("nrJev").classList.toggle("muted", !ne);
-  $("nrJev").innerHTML = ne ? `<p class="small muted" style="margin:0 0 6px">${ne.considered} articles ranked by ${ne.ranked_by === "jev" ? "Jev" : "the heuristic (no Jev key)"}; the top ${ne.picked} were covered.</p>
-    <table>${ne.top.map((t, i) => `<tr><td class="small">${i + 1}</td><td class="small" style="width:70px"><b>${t.score.toFixed(2)}</b></td><td class="small">${esc(t.title)}${i < ne.picked ? ' <span class="pill ok">covered</span>' : ""}</td></tr>`).join("")}</table>` : "–";
+  const cv = r.state?.community_vote;
+  $("nrJev").innerHTML = ne ? `<p class="small muted" style="margin:0 0 6px">${ne.considered} articles ranked by ${ne.ranked_by === "jev" ? "Jev" : "the heuristic (no Jev key)"}, plus members' votes from the app's "What should we cover next?"; the top ${ne.picked} were covered.</p>
+    <table><tr><th></th><th>Total</th><th>Jev</th><th>Votes</th><th>Article</th></tr>${ne.top.map((t, i) => `<tr><td class="small">${i + 1}</td><td class="small"><b>${t.score.toFixed(2)}</b></td>
+      <td class="small">${t.jev != null ? t.jev.toFixed(2) : "–"}</td><td class="small">${t.votes ? `<b>${t.votes}</b>` : "–"}</td>
+      <td class="small">${esc(t.title)}${i < ne.picked ? ' <span class="pill ok">covered</span>' : ""}</td></tr>`).join("")}</table>
+    ${cv ? `<p class="small muted" style="margin:10px 0 0">Next shortlist posted for members: <b>${cv.open}</b> stories open for votes (${cv.added} new, titles in ${cv.title_languages.map(lang).join(", ") || "Finnish"}).</p>` : ""}` : "–";
 }
 
 async function sendStories(runId, body) {

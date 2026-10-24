@@ -45,19 +45,19 @@ def leaderboard(season: Season, period: str = "season", scope: str = "global", *
     squads = _scoped_squads(season, scope, community, league)
     if period == "season":
         rows = squads.order_by("-total_points", "created_at").values_list(
-            "pk", "name", "user__display_name", "user__email", "total_points"
+            "pk", "name", "user__username", "user__email", "total_points"
         )
     elif period == "week":
         if gameweek is None:
             raise FantasyError("week period needs ?gameweek=<number>")
         rows = GameweekScore.objects.filter(gameweek=gameweek, squad__in=squads).order_by("-total", "squad__created_at").values_list(
-            "squad_id", "squad__name", "squad__user__display_name", "squad__user__email", "total"
+            "squad_id", "squad__name", "squad__user__username", "squad__user__email", "total"
         )
     elif period == "day":
         if day is None:
             raise FantasyError("day period needs ?date=YYYY-MM-DD")
         rows = DailyScore.objects.filter(date=day, squad__in=squads).order_by("-points", "squad__created_at").values_list(
-            "squad_id", "squad__name", "squad__user__display_name", "squad__user__email", "points"
+            "squad_id", "squad__name", "squad__user__username", "squad__user__email", "points"
         )
     else:
         raise FantasyError(f"period must be one of {', '.join(PERIODS)}")
@@ -66,10 +66,10 @@ def leaderboard(season: Season, period: str = "season", scope: str = "global", *
     my_squad_id = None
     if user is not None and user.is_authenticated:
         my_squad_id = squads.filter(user=user).values_list("pk", flat=True).first()
-    for i, (squad_id, name, display_name, email, points) in enumerate(rows, start=1):
+    for i, (squad_id, name, username, email, points) in enumerate(rows, start=1):
         if points != prev_points:
             rank, prev_points = i, points
-        row = Row(rank, squad_id, name, display_name or email.split("@")[0], float(points))
+        row = Row(rank, squad_id, name, username, float(points))
         if i <= limit:
             ranked.append(row)
         if squad_id == my_squad_id:

@@ -173,13 +173,16 @@ hand the work on, and people decide what goes out.
 ```mermaid
 flowchart TD
     K["Kaleva RSS feeds"] --> W["1. Wire desk<br/>fetch, store, drop opinion and ads"]
-    W --> N["2. News editor (Jev)<br/>rank every article, pick the top N"]
+    V["Members vote in the app:<br/>'What should we cover next?'"] --> N
+    W --> N["2. News editor (Jev + members' votes)<br/>rank every article, pick the top N"]
     N --> R["3. Reporter<br/>Finnish headline, summary, key facts"]
     R --> E["4. Explainer<br/>what it means for newcomers, students…"]
     E --> T["5. Translator<br/>every reader language (never Sámi)"]
     T --> F["6. Fact-checker<br/>draft numbers vs the article"]
     F --> S["7. Standards editor<br/>risk, JSN sensitive topics"]
     S --> C["8. Copy desk<br/>file the story with a verdict"]
+    C --> CV["9. Community vote<br/>post the next shortlist"]
+    CV -.->|"members vote until the next run"| V
     C -->|"no blocking issue"| RD["Ready to send<br/>one click publishes it"]
     C -->|"blocking issue"| NR["Needs review<br/>an editor reads it in the queue"]
     RD -->|"a person clicks Send"| PUB["published: in readers' feeds"]
@@ -190,12 +193,13 @@ Step by step, with the code location (`backend/apps/agents/newsroom/`):
 
 1. **Start.** Every `AGENT_SCHEDULE_MINUTES` (30) `beat` starts a run with `AGENT_MAX_ITEMS` stories; or press **Run now** on the dashboard's AI newsroom page and choose how many; or `manage.py run_pipeline --stories 3`. Only one run goes at a time. Each run is an `AgentRun` (`tasks.run_newsroom` → `runner.run_newsroom`).
 2. **Wire desk** (`wire.py`) fetches one fixed feed, Kaleva's free articles (`KALEVA_FEED_URL` in `wire.py`: `https://www.kaleva.fi/feedit/rss/managed-listing/rss-maksuttomat/`). It is not read from the database. New or changed articles become `SourceDocument`s (duplicates skipped by content hash). Each gets a lead picture, `SourceDocument.image_url`: the RSS entry's own image (enclosure, `media:` tags or an `<img>` in its HTML), else the article page's `og:image`/`twitter:image`. Pictures are hotlinked, not copied. The reader app shows them on the For You feed, story page and cards (a picture an editor uploads to `Snippet.image` wins). For stories made before this, run `manage.py backfill_images`. Candidates are the last 48 h of stored articles nothing was written from yet, minus opinion pieces and paid content (JSN 11/16).
-3. **News editor** (`news_editor.py`) asks **Jev** about every candidate (see below) and keeps the top N. Each pick becomes a `RunStory` with its Jev score and reasons.
+3. **News editor** (`news_editor.py`) asks **Jev** about every candidate, adds **members' votes** (see below) and keeps the top N. Each pick becomes a `RunStory` with its score and reasons, e.g. "3 members voted for it (67 % of residents)".
 4. **Each story goes desk by desk** through a small LangGraph (`runner.story_graph`): reporter → explainer → translator → fact-checker → standards editor → copy desk (`desks.py`, `copy_desk.py`). Every desk records where it is (`RunStory.stage`, e.g. "translator: Ukrainian (3 of 7)") and what it did (`AgentStep`). That is what the dashboard shows live. A story that breaks is marked failed; the others go on.
 5. **Copy desk** saves the `Snippet` and one `SnippetVersion` per language, the check results the editor queue shows, any JSN checklist items, and opens the `ReviewTask`s. It sets the **verdict** (`Snippet.review_level`, with `review_reasons`):
    - **Ready to send:** no blocking issue. A person publishes it with one click (`POST /api/agents/runs/<id>/send/`), alone or with "Send all ready". Their name goes on every approval and in the audit log (`sent_without_review`).
    - **Needs review:** at least one blocking issue, listed on the story. An editor reads it in the Editor queue and approves it there (§6).
-6. **Feed.** `GET /api/feed/snippets/` shows only published, unexpired stories, each reader in their own language. After that, reports reopen a story, `review_by` brings it back to an editor, and `expires_at` retires it.
+6. **Community vote** (`shortlist.py`): after the stories, the best articles the newsroom did *not* cover go on the shortlist (`CoverageCandidate`, 10 at a time; stories members already voted for stay on). Titles are machine-translated, one model call per language. Members vote in the reader app (Discover → "What should we cover next?"), and the next run counts the votes. Stories that get covered move to "You voted, we covered it", with a link once published.
+7. **Feed.** `GET /api/feed/snippets/` shows only published, unexpired stories, each reader in their own language. After that, reports reopen a story, `review_by` brings it back to an editor, and `expires_at` retires it.
 
 **What makes a story "Needs review"** (blocking issues):
 - The AI reporter failed, so the draft is just the article's first sentences.
@@ -212,13 +216,14 @@ Notes that don't block: a translation that came back in the wrong language (it's
 | # | Desk | Who does it | What it does | Human counterpart |
 |---|---|---|---|---|
 | 1 | Wire desk | Kaleva RSS | Fetches every active feed, stores new and changed articles, sets aside opinion and paid content. | Editors choosing the feeds |
-| 2 | News editor | **Jev** | Ranks every candidate for this community's readers and picks the top N. | News editor |
+| 2 | News editor | **Jev** + members' votes | Ranks every candidate for this community's readers, adds the community's votes and picks the top N. | News editor |
 | 3 | Reporter | AI model | Finnish headline (under 100 characters), 2–3 sentence summary, 2–5 key facts, only from the article. | Editor |
 | 4 | Explainer | AI model | One or two sentences per reader situation (newcomer, seasonal worker, student, resident). | Editor |
 | 5 | Translator | AI model | Every language of the community and of its members, one call per language. A translation in the wrong language (checked by script, Ukrainian vs Russian letters and common words) or still in Finnish is left out. Never Sámi. | Language reviewer |
 | 6 | Fact-checker | rules | Every number in the draft must be in the article; translations should keep them. | Editor |
 | 7 | Standards editor | rules | Risk tier and JSN sensitive topics. | Standards editor |
 | 8 | Copy desk | rules | Files the story: Ready to send or Needs review, with reasons. | Editors |
+| 9 | Community vote | members, in the app | Posts the next shortlist with translated titles; members vote on what the newsroom covers next. | The community |
 
 **Jev picks the news.** `news_editor.py` sends Jev the community's readership (town, share of each reader situation, top interests, languages: never anything about a person) and one article, with four questions:
 
@@ -230,6 +235,15 @@ score = 0.30 × is it about the town or its region?          (yes/no)
 ```
 
 Answers are cached per article. Without `TYPESAFE_API_KEY`, or when Jev fails for an article, a heuristic scores it (local, fresh, a topic readers follow). Jev also still ranks each reader's For You feed (§7).
+
+**The community decides with Jev** (`community_votes()` in `news_editor.py`). Each story's final score is
+
+```
+score = Jev's score (0–1) + VOTE_WEIGHT (1.0) × vote strength (0–1)
+vote strength = the largest share of any one reader group (newcomers, students, seasonal workers, residents) that voted for it
+```
+
+Measuring by group means a small group that strongly backs a story counts as much as a large one, so the biggest group can't decide everything. A group counts as at least 3 people (`MIN_GROUP`), so one vote isn't "100 %". With weight 1.0, a story a whole group backs outranks anything Jev alone would pick. Votes come from members of any community; one vote per member and story (`POST`/`DELETE /api/agents/shortlist/<id>/vote/`). Votes set what gets covered; editors still decide what is published.
 
 **Small models.** Every model call asks for a small JSON object as plain text and parses it leniently (code fences, text around it, trailing commas), with one retry (`newsroom/ai.py`). For Ollama, the model's separate "thinking" output is switched off, so reasoning models like qwen3 answer directly.
 
@@ -474,7 +488,7 @@ Each request sends Jev a **state**: the reader's profile and the snippet. It ask
 
 | Endpoint | What |
 |---|---|
-| `POST /api/accounts/register/` | `{email, password}` |
+| `POST /api/accounts/register/` | `{email, username, password}`. The username (3–30 letters, digits, `_` or `.`, unique regardless of case) is the member's public handle, shown as @username on posts, comments and leaderboards; sign-in stays by email. Accounts made without one (Google sign-in, admin, demo data) get one from their email, changeable via `PATCH /api/accounts/me/ {username}` (Profile → Username). |
 | `POST /api/auth/token/` | `{email, password}` → `{access, refresh}` JWT. Send `Authorization: Bearer <access>`. |
 | `POST /api/accounts/onboarding/` | Interests (slugs), location, `preferred_language`, `reader_situation`, optional `arrival_date`, optional `onboarding_code` |
 | `GET /api/accounts/onboarding-link/<code>/` | Resolve a QR code (e.g. `OULU-WELCOME`), which presets the community, language and arrival date |

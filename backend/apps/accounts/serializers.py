@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from apps.common.choices import Language, ReaderSituation
 
-from .models import Interest, Location, OnboardingLink, Profile, User, UserRole
+from .models import Interest, Location, OnboardingLink, Profile, User, UserRole, username_validator
 
 
 class InterestSerializer(serializers.ModelSerializer):
@@ -34,8 +34,15 @@ class UserRoleSerializer(serializers.ModelSerializer):
         fields = ["role", "language", "community"]
 
 
+def validate_username_free(value: str, exclude_pk=None) -> str:
+    value = value.strip()
+    if User.objects.filter(username__iexact=value).exclude(pk=exclude_pk).exists():
+        raise serializers.ValidationError("That username is taken. Try another.")
+    return value
+
+
 class UserSerializer(serializers.ModelSerializer):
-    """GET/PATCH /me (FR-1.1)."""
+    """GET/PATCH /me (FR-1.1). The username can be changed here (e.g. after Google sign-in)."""
 
     profile = ProfileSerializer(read_only=True)
     roles = UserRoleSerializer(many=True, read_only=True)
@@ -43,14 +50,18 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "email", "display_name", "preferred_language", "reader_situation",
+            "id", "email", "username", "display_name", "preferred_language", "reader_situation",
             "arrival_date", "onboarded", "profile", "roles", "is_staff",
         ]
         read_only_fields = ["id", "email", "onboarded", "profile", "roles", "is_staff"]
 
+    def validate_username(self, value):
+        return validate_username_free(value, exclude_pk=self.instance.pk if self.instance else None)
+
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
+    username = serializers.CharField(max_length=30, validators=[username_validator])
     password = serializers.CharField(write_only=True)
     display_name = serializers.CharField(required=False, allow_blank=True)
 
@@ -58,6 +69,9 @@ class RegisterSerializer(serializers.Serializer):
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("Email already registered.")
         return value
+
+    def validate_username(self, value):
+        return validate_username_free(value)
 
     def validate(self, attrs):
         validate_password(attrs["password"], User(email=attrs["email"]))

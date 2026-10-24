@@ -1,4 +1,6 @@
+import { ChevronRight, ThumbsUp } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import NewsCard from "../components/NewsCard";
 import { Spinner } from "../components/Spinner";
@@ -31,6 +33,12 @@ export default function Explore() {
     <main className="screen">
       <h1 className="title-serif">Explore</h1>
       <p className="lead">Browse local news by topic.</p>
+
+      <Link to="/vote" className="vote-cta">
+        <span className="icon-circle"><ThumbsUp size={20} /></span>
+        <div style={{ flex: 1 }}><b>What should we cover next?</b><span>Vote on the stories the newsroom writes up next.</span></div>
+        <ChevronRight size={20} />
+      </Link>
 
       {arrival?.results?.length > 0 && !topic && (
         <>

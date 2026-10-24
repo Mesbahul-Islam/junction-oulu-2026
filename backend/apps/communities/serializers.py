@@ -104,7 +104,7 @@ class PostSerializer(serializers.ModelSerializer):
         return bool(request and obj.author_id == request.user.id)
 
     def get_author_name(self, obj) -> str:
-        return obj.author.display_name or obj.author.email.split("@")[0]
+        return obj.author.username
 
     def validate(self, attrs):
         parent = attrs.get("parent")

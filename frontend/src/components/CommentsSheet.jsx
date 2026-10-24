@@ -19,7 +19,7 @@ function Reply({ reply, slug }) {
     <li className="comment">
       <span className="comment-avatar">{(r.author_name || "?").slice(0, 2).toUpperCase()}</span>
       <div className="comment-main">
-        <div className="comment-meta"><b>{r.author_name}</b> · {timeAgo(r.created_at, me?.preferred_language)}</div>
+        <div className="comment-meta"><b>@{r.author_name}</b> · {timeAgo(r.created_at, me?.preferred_language)}</div>
         <p dir="auto">{t && !original ? t.text : r.body}</p>
         {t && (
           <button className="comment-translated" onClick={() => setOriginal(!original)}>

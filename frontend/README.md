@@ -57,6 +57,7 @@ src/
     Create            "+": post to your community, or send a tip / question to the newsroom
     Story             full story: for-you text, key facts, Finnish original, why ranked, report
     Explore           "Discover": topics + the newcomer "first week" sequence
+    Vote              "What should we cover next?": members vote on the newsroom's shortlist (votes count in its next run)
     Saved, Profile
 ```
 
@@ -64,7 +65,7 @@ src/
 
 | Screen | Endpoint |
 |---|---|
-| Log in / sign up | `POST /api/auth/token/`, `POST /api/accounts/register/` |
+| Log in / sign up | `POST /api/auth/token/`, `POST /api/accounts/register/` (`{email, username, password}`); Profile changes the username with `PATCH /api/accounts/me/` |
 | Onboarding | `GET /api/accounts/interests/`, `POST /api/accounts/onboarding/`, `GET /api/accounts/onboarding-link/<code>/` (QR), `GET /api/communities/groups/recommended/`, `POST …/groups/<slug>/join/` |
 | Communities | `GET /api/communities/groups/`, `…/groups/recommended/`, `POST …/groups/<slug>/join/` and `…/leave/` |
 | For You, Discover | `GET /api/feed/snippets/?tag=…`, `GET /api/feed/arrival/` |
@@ -72,6 +73,7 @@ src/
 | Create (+) | `POST /api/communities/groups/<slug>/posts/`, `POST /api/communities/contributions/` (tip/question) |
 | Story | `GET /api/feed/snippets/<id>/`, `POST …/interact/` (like, bookmark, view, read_through, expand, share), `POST …/report/` |
 | Saved | `GET /api/feed/snippets/bookmarks/` |
+| Vote | `GET /api/agents/shortlist/`, `POST`/`DELETE /api/agents/shortlist/<id>/vote/` |
 
 Every card already arrives in the reader's profile language (`language`), with
 `original` (the Finnish text), `for_you` (what it means for their situation),

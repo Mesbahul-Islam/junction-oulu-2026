@@ -1,13 +1,29 @@
-import { ChevronRight, Languages, LogOut, Sparkles, Users } from "lucide-react";
+import { AtSign, ChevronRight, Languages, LogOut, Sparkles, Users } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { updateMe } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { languageName, SITUATIONS, topicLabel } from "../lib/i18n";
 
 export default function Profile() {
-  const { me, logout } = useAuth();
+  const { me, logout, refresh } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [username, setUsername] = useState(me.username || "");
+  const [error, setError] = useState("");
+
+  const saveUsername = async () => {
+    setError("");
+    try {
+      await updateMe({ username: username.trim() });
+      await refresh();
+      setEditing(false);
+    } catch (err) {
+      setError(err.data?.username?.[0] || err.message);
+    }
+  };
   const navigate = useNavigate();
-  const initials = (me.display_name || me.email).slice(0, 2).toUpperCase();
+  const initials = (me.display_name || me.username || me.email).slice(0, 2).toUpperCase();
   const situation = SITUATIONS.find((s) => s.value === me.reader_situation)?.label;
 
   return (
@@ -15,12 +31,27 @@ export default function Profile() {
       <div className="profile-head">
         <span className="avatar">{initials}</span>
         <div>
-          <div style={{ fontWeight: 600, fontSize: 18 }}>{me.display_name || me.email}</div>
-          <div style={{ opacity: 0.8, fontSize: 14 }}>{me.email}</div>
+          <div style={{ fontWeight: 600, fontSize: 18 }}>{me.display_name || `@${me.username}`}</div>
+          <div style={{ opacity: 0.8, fontSize: 14 }}>@{me.username} · {me.email}</div>
         </div>
       </div>
 
       <section className="panel">
+        <div className="row-link" style={editing ? { display: "block" } : undefined}>
+          <span><AtSign size={16} style={{ verticalAlign: -3 }} /> Username</span>
+          {editing ? (
+            <div className="field" style={{ margin: "8px 0 0" }}>
+              <input value={username} maxLength={30} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))} />
+              {error && <div className="error" style={{ marginTop: 6 }}>{error}</div>}
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <button className="btn-link" onClick={saveUsername}>Save</button>
+                <button className="btn-link" style={{ color: "var(--muted)" }} onClick={() => { setEditing(false); setUsername(me.username); setError(""); }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn-link" onClick={() => setEditing(true)}>@{me.username} · Change</button>
+          )}
+        </div>
         <div className="row-link"><span><Languages size={16} style={{ verticalAlign: -3 }} /> Language</span><b>{languageName(me.preferred_language)}</b></div>
         <div className="row-link"><span><Sparkles size={16} style={{ verticalAlign: -3 }} /> Situation</span><b>{situation || "—"}</b></div>
         <div className="row-link"><span>Arrived in Finland</span><b>{me.arrival_date || "—"}</b></div>

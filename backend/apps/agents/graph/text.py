@@ -191,6 +191,7 @@ _SCRIPTS = {
 }
 EXPECTED_SCRIPT = {"ar": "arabic", "uk": "cyrillic", "ru": "cyrillic"}  # everything else: latin
 _UK_ONLY, _RU_ONLY = set("іїєґІЇЄҐ"), set("ыэъёЫЭЪЁ")
+_FA_ONLY = set("پچژگ\u200c")  # Persian letters (and its zero-width joiner) that Arabic doesn't use
 STOPWORDS = {
     "en": {"the", "and", "of", "to", "in", "for", "is", "are", "was", "with", "on", "that", "this", "by", "from", "has", "have", "will", "at"},
     "sv": {"och", "att", "det", "som", "ett", "för", "är", "på", "med", "av", "till", "den", "har", "inte", "om", "var", "från", "efter", "vid"},
@@ -212,6 +213,8 @@ def language_problem(text: str, lang: str) -> str | None:
     name = LANGUAGE_LABELS.get(lang, lang)
     if script != expected:
         return f"text is mostly in {script} script, not {expected} as {name} should be"
+    if lang == "ar" and sum(c in _FA_ONLY for c in text) >= 2:
+        return "text looks Persian (پ, چ, ژ, گ), not Arabic"
     if lang in ("uk", "ru"):
         uk, ru = sum(c in _UK_ONLY for c in text), sum(c in _RU_ONLY for c in text)
         if lang == "uk" and ru > uk:

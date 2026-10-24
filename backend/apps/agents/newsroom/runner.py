@@ -1,8 +1,8 @@
 """Runs one newsroom shift.
 
-    wire desk -> news editor (Jev) -> for each picked story:
+    wire desk -> news editor (Jev + members' votes) -> for each picked story:
         reporter -> explainer -> translator -> fact-checker -> standards editor -> copy desk
-    -> human editors (Ready to send / Needs review)
+    -> community vote (next shortlist) -> human editors (Ready to send / Needs review)
 
 The run-level desks work on all articles at once; each picked story then goes through
 its own small LangGraph. Every desk records where it is (``AgentRun.desk``,
@@ -22,7 +22,7 @@ from langgraph.graph import END, START, StateGraph
 
 from ..graph.text import LANGUAGE_LABELS
 from ..models import AgentRun, AgentStep, RunStory
-from . import ai, copy_desk, desks, news_editor, wire
+from . import ai, copy_desk, desks, news_editor, shortlist, wire
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +156,8 @@ def run_newsroom(run: AgentRun) -> AgentRun:
         summary["news_editor"] = {
             "considered": len(ranked), "picked": len(picked),
             "ranked_by": "jev" if any(p["ranked_by"] == "jev" for p in ranked) else "heuristic",
-            "top": [{"title": p["doc"].title[:120], "score": p["score"], "by": p["ranked_by"]} for p in ranked[:10]],
+            "top": [{"title": p["doc"].title[:120], "score": p["score"], "jev": p["jev"], "votes": p["votes"],
+                     "by": p["ranked_by"]} for p in ranked[:10]],
         }
         _log(run, "news_editor", summary["news_editor"], started)
 
@@ -175,6 +176,12 @@ def run_newsroom(run: AgentRun) -> AgentRun:
                 logger.exception("Story %s failed", story.pk)
                 story.stage, story.error = RunStory.Stage.FAILED, f"{type(exc).__name__}: {exc}"[:2000]
             story.save(update_fields=["stage", "detail", "error", "updated_at"])
+
+        # Community vote: post the next shortlist for members to vote on.
+        _at(run, "community_vote")
+        started = time.perf_counter()
+        summary["community_vote"] = shortlist.publish(run, ranked, list(run.stories.all()), languages)
+        _log(run, "community_vote", summary["community_vote"], started)
 
         stories = list(run.stories.select_related("snippet"))
         summary["result"] = {

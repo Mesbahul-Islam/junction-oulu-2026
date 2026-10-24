@@ -36,8 +36,8 @@ export function AuthProvider({ children }) {
     return refresh();
   };
 
-  const register = async (email, password) => {
-    await apiRegister(email, password);
+  const register = async (email, username, password) => {
+    await apiRegister(email, username, password);
     return login(email, password);
   };
 

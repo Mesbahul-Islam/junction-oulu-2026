@@ -17,6 +17,7 @@ export default function Welcome() {
   const location = useLocation();
   const [mode, setMode] = useState("signup");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,10 +45,10 @@ export default function Welcome() {
     setBusy(true);
     setError("");
     try {
-      go(mode === "signup" ? await register(email, password) : await login(email, password));
+      go(mode === "signup" ? await register(email, username.trim(), password) : await login(email, password));
     } catch (err) {
       const data = err.data || {};
-      setError(data.email?.[0] || data.password?.[0] || data.non_field_errors?.[0] || err.message);
+      setError(data.username?.[0] || data.email?.[0] || data.password?.[0] || data.non_field_errors?.[0] || err.message);
     } finally {
       setBusy(false);
     }
@@ -79,6 +80,15 @@ export default function Welcome() {
           <label htmlFor="email">Email</label>
           <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
+        {mode === "signup" && (
+          <div className="field">
+            <label htmlFor="username">Username</label>
+            <input id="username" autoComplete="username" required minLength={3} maxLength={30} pattern="[A-Za-z0-9_.]{3,30}"
+              title="3–30 letters, digits, _ or ." placeholder="e.g. aino_oulu" value={username}
+              onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))} />
+            <span className="hint">Shown as @{username || "username"} on your posts and comments. Letters, digits, _ and . only.</span>
+          </div>
+        )}
         <div className="field">
           <label htmlFor="password">Password</label>
           <input id="password" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"}

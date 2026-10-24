@@ -1,10 +1,30 @@
 """Accounts: users, profiles, interests, roles, QR onboarding links (FR-1.1, FR-3.11)."""
 
+import re
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.core.validators import RegexValidator
 from django.db import models
+from django.db.models.functions import Lower
 
 from apps.common.choices import Language, ReaderSituation
 from apps.common.models import TimeStampedModel
+
+
+USERNAME_RE = r"^[A-Za-z0-9_.]{3,30}$"
+username_validator = RegexValidator(USERNAME_RE, "3–30 letters, digits, _ or . (no spaces).")
+
+
+def suggest_username(base: str, exclude_pk=None) -> str:
+    """A free username made from ``base`` (e.g. the email's first part): "aino", "aino2", ..."""
+    stem = re.sub(r"[^A-Za-z0-9_.]", "", (base or "").split("@")[0])[:26] or "reader"
+    stem = stem if len(stem) >= 3 else f"{stem}_reader"[:26]
+    taken = User.objects.exclude(pk=exclude_pk)
+    name, n = stem, 1
+    while taken.filter(username__iexact=name).exists():
+        n += 1
+        name = f"{stem}{n}"
+    return name
 
 
 class UserManager(BaseUserManager):
@@ -36,8 +56,9 @@ class UserManager(BaseUserManager):
 class User(AbstractUser, TimeStampedModel):
     """FR-1.1: account identified by email (password or Google OAuth via allauth)."""
 
-    username = None
     email = models.EmailField(unique=True)
+    # Public handle (@username) shown on posts, comments and leaderboards; sign-in stays by email.
+    username = models.CharField(max_length=30, validators=[username_validator])
     display_name = models.CharField(max_length=120, blank=True)
     preferred_language = models.CharField(max_length=5, choices=Language.choices, default=Language.FINNISH)
     reader_situation = models.CharField(
@@ -50,6 +71,14 @@ class User(AbstractUser, TimeStampedModel):
     REQUIRED_FIELDS: list[str] = []
 
     objects = UserManager()
+
+    class Meta(AbstractUser.Meta):
+        constraints = [models.UniqueConstraint(Lower("username"), name="uniq_username_ci")]
+
+    def save(self, *args, **kwargs):
+        if not self.username:  # Google sign-in, admin, demo data: made from the email, changeable later
+            self.username = suggest_username(self.email, exclude_pk=self.pk)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email

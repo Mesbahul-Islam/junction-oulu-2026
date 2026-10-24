@@ -186,7 +186,7 @@ def build_comment_tree(comments) -> list[dict]:
     nodes = {
         c.pk: {
             "id": c.pk,
-            "user": getattr(c.user, "display_name", "") or str(c.user),
+            "user": c.user.username,
             "body": c.body,
             "created_at": c.created_at,
             "replies": [],

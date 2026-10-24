@@ -12,6 +12,7 @@ import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
 import Saved from "./pages/Saved";
 import Story from "./pages/Story";
+import Vote from "./pages/Vote";
 import Welcome from "./pages/Welcome";
 
 /** Signed-in, onboarded readers only; everyone else goes to welcome / onboarding first. */
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/profile" element={<Reader><Profile /></Reader>} />
         <Route path="/communities" element={<Reader><Communities /></Reader>} />
         <Route path="/story/:id" element={<Reader><Story /></Reader>} />
+        <Route path="/vote" element={<Reader><Vote /></Reader>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {showNav && <BottomNav />}

@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -74,6 +74,71 @@ class AgentRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
             except ValidationError:
                 refused.append(snippet.pk)
         return Response({"sent": sent, "refused": refused})
+
+
+class ShortlistViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """Members decide what the newsroom covers next.
+
+    * ``GET /api/agents/shortlist/``: open stories, in the reader's language, most-voted first,
+      plus the voted stories the newsroom recently covered.
+    * ``POST`` / ``DELETE /api/agents/shortlist/<id>/vote/``: vote, or take the vote back.
+    """
+
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        from django.db.models import Count, Exists, OuterRef
+
+        from .models import CoverageCandidate, CoverageVote
+
+        return (CoverageCandidate.objects.filter(community=services.newsroom_community())
+                .select_related("source_document", "covered_by__snippet")
+                .annotate(n_votes=Count("votes"),
+                          voted=Exists(CoverageVote.objects.filter(candidate=OuterRef("pk"), user=self.request.user))))
+
+    def list(self, request, *args, **kwargs):
+        from apps.feed.services import language_chain, requester_language
+
+        from .models import CoverageCandidate
+
+        chain = language_chain(requester_language(request))
+        qs = self.get_queryset()
+        open_ = qs.filter(status=CoverageCandidate.Status.OPEN).order_by("-n_votes", "-jev_score")
+        covered = qs.filter(status=CoverageCandidate.Status.COVERED, n_votes__gt=0).order_by("-updated_at")[:5]
+        return Response({
+            "open": [self._card(c, chain) for c in open_],
+            "covered": [self._card(c, chain) for c in covered],
+            "member": request.user.memberships.exists(),
+        })
+
+    @staticmethod
+    def _card(c, chain) -> dict:
+        titles = c.titles or {}
+        lang = next((code for code in chain if titles.get(code)), "fi")
+        doc = c.source_document
+        snippet = c.covered_by.snippet if c.covered_by_id and c.covered_by.snippet_id else None
+        return {
+            "id": c.pk, "title": titles.get(lang) or doc.title, "language": lang, "original_title": doc.title,
+            "translated": lang != "fi", "url": doc.url, "image_url": doc.image_url or None,
+            "votes": c.n_votes, "voted": c.voted, "status": c.status, "reasons": c.reasons,
+            "story": snippet.pk if snippet and snippet.published_at else None,
+        }
+
+    @action(detail=True, methods=["post", "delete"])
+    def vote(self, request, pk=None):
+        from .models import CoverageCandidate, CoverageVote
+
+        cand = self.get_object()
+        if cand.status != CoverageCandidate.Status.OPEN:
+            return Response({"detail": "Voting on this story has closed."}, status=400)
+        if not request.user.memberships.exists():
+            return Response({"detail": "Join a community to vote on what the newsroom covers."}, status=403)
+        if request.method == "POST":
+            CoverageVote.objects.get_or_create(candidate=cand, user=request.user)
+        else:
+            CoverageVote.objects.filter(candidate=cand, user=request.user).delete()
+        return Response({"votes": cand.votes.count(), "voted": request.method == "POST"})
 
 
 class DashboardView(APIView):

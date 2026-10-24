@@ -20,6 +20,7 @@ DESKS = [
     ("fact_checker", "Fact-checker"),
     ("standards", "Standards editor"),
     ("copy_desk", "Copy desk"),
+    ("community_vote", "Community vote"),
 ]
 
 
@@ -86,6 +87,45 @@ class RunStory(TimeStampedModel):
 
     def __str__(self):
         return f"#{self.rank} {self.title[:60]}"
+
+
+class CoverageCandidate(TimeStampedModel):
+    """An article on the shortlist members vote on ("What should we cover next?").
+
+    Each run's news editor posts the best stories it didn't cover yet; members' votes then
+    count in the next run's pick. Titles are machine-translated so everyone can vote.
+    """
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open for votes"
+        COVERED = "covered", "Covered"
+        DROPPED = "dropped", "Dropped"
+
+    community = models.ForeignKey("communities.CommunityGroup", on_delete=models.CASCADE, related_name="coverage_candidates")
+    source_document = models.ForeignKey("feed.SourceDocument", on_delete=models.CASCADE, related_name="+")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN, db_index=True)
+    jev_score = models.FloatField(default=0.0)
+    ranked_by = models.CharField(max_length=20, blank=True)
+    reasons = models.JSONField(default=list, blank=True)
+    titles = models.JSONField(default=dict, blank=True)  # {language: title}; Finnish is the source title
+    covered_by = models.ForeignKey(RunStory, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        ordering = ["-jev_score"]
+        constraints = [models.UniqueConstraint(fields=["community", "source_document"], name="uniq_candidate_doc")]
+
+    def __str__(self):
+        return self.source_document.title[:80]
+
+
+class CoverageVote(TimeStampedModel):
+    """A member's vote for a shortlisted story (one per member and story)."""
+
+    candidate = models.ForeignKey(CoverageCandidate, on_delete=models.CASCADE, related_name="votes")
+    user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="coverage_votes")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["candidate", "user"], name="uniq_coverage_vote")]
 
 
 class AgentStep(TimeStampedModel):
