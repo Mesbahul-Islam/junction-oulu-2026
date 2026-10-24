@@ -56,8 +56,13 @@ _IMG_SRC = re.compile(r"<img\b[^>]*?\bsrc\s*=\s*[\"']([^\"']+)[\"']", re.I)
 PAGE_IMAGE_TIMEOUT = 8
 
 
+_ENTITY = re.compile(r"&(#\d+|#x[0-9a-fA-F]+|[A-Za-z]+);")
+
+
 def _http_url(value, base: str = "") -> str:
-    value = html.unescape(str(value or "")).strip()
+    # Only decode entities that end in ";" (&amp; -> &). html.unescape alone also decodes
+    # legacy ones without it, turning Kaleva's "&center-x=" image parameter into "¢er-x=".
+    value = _ENTITY.sub(lambda m: html.unescape(m.group(0)), str(value or "")).strip()
     value = urljoin(base, value) if value else ""
     return value if value.startswith(("http://", "https://")) and len(value) <= 1500 else ""
 

@@ -4,12 +4,15 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { languageName, timeAgo, topicIcon, topicLabel } from "../lib/i18n";
 
-/** One story in the feed. Shown in the reader's language; says so when it's a fallback. */
-export default function NewsCard({ card, index = 0 }) {
+/** One story in the feed. Shown in the reader's language; says so when it's a fallback.
+ *  With `onOpen`, tapping calls it (Home opens the swipe view) instead of linking to the story page. */
+export default function NewsCard({ card, index = 0, onOpen }) {
   const { me } = useAuth();
   const Icon = topicIcon(card.tags?.[0]);
+  const Wrapper = onOpen ? "button" : Link;
+  const wrapperProps = onOpen ? { type: "button", onClick: onOpen } : { to: `/story/${card.id}`, state: card };
   return (
-    <Link to={`/story/${card.id}`} state={card} className="news-card" dir="auto">
+    <Wrapper {...wrapperProps} className="news-card" dir="auto">
       <div className={`media${index % 2 ? " alt" : ""}`}>
         {card.image_url ? <img src={card.image_url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : <Icon size={54} strokeWidth={1.3} />}
         <span className="chip">{timeAgo(card.published_at, me?.preferred_language)}</span>
@@ -26,6 +29,6 @@ export default function NewsCard({ card, index = 0 }) {
           {card.ranking?.ranker === "jev" && <span>Picked for you</span>}
         </div>
       </div>
-    </Link>
+    </Wrapper>
   );
 }
