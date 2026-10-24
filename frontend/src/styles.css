@@ -1,4 +1,5 @@
-/* Design tokens: teal → orange gradient, white rounded cards, near-black accents. */
+/* LEGACY stylesheet — kept working, pristine, while screens migrate to the ui/ + Tailwind system.
+   The new design system's tokens live in styles/globals.css. Delete this file once every screen has moved. */
 :root {
   --teal-900: #0e2f2f;
   --teal-800: #123b3a;
@@ -38,7 +39,8 @@ a { color: inherit; text-decoration: none; }
 }
 .app-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 @media (min-width: 600px) {
-  body { height: 100dvh; overflow: hidden; }
+  /* Only lock scrolling for the phone-frame shell; rebuilt full-viewport pages scroll normally. */
+  body:has(.app) { height: 100dvh; overflow: hidden; }
   .app {
     position: absolute; top: 50%; left: 50%; width: 390px; height: 844px; margin: 0;
     transform: translate(-50%, -50%) scale(var(--phone-scale, 1));

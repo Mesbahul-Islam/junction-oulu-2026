@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import { Providers } from "@/app/providers";
+import "@/styles/globals.css";
 import "./styles.css";
 
 // On a computer the app is shown as a 390 x 844 phone, scaled down to fit the window (see .app in styles.css).

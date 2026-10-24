@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Nordic Paper — single source of truth. Channels (--*-hsl) feed Tailwind (opacity-aware);
+   color vars derive from them for plain CSS; legacy aliases retire with styles.css. */
+@layer base {
+  :root {
+    --paper-hsl: 200 13% 95%;
+    --surface-hsl: 0 0% 100%;
+    --ink-hsl: 212 36% 10%;
+    --muted-hsl: 205 10% 39%;
+    --line-hsl: 200 11% 90%;
+    --accent-hsl: 224 77% 46%;
+    --accent-weak-hsl: 223 72% 94%;
+    --accent-ink-hsl: 0 0% 100%;
+    --danger-hsl: 8 72% 44%;
+
+    --paper: hsl(var(--paper-hsl));
+    --surface: hsl(var(--surface-hsl));
+    --ink: hsl(var(--ink-hsl));
+    --muted: hsl(var(--muted-hsl));
+    --line: hsl(var(--line-hsl));
+    --accent: hsl(var(--accent-hsl));
+    --accent-weak: hsl(var(--accent-weak-hsl));
+    --accent-ink: hsl(var(--accent-ink-hsl));
+    --red: hsl(var(--danger-hsl));
+
+    --radius: 16px;
+    --radius-lg: 20px;
+    --radius-sm: 12px;
+    --shadow: 0 8px 24px hsl(var(--ink-hsl) / 0.10);
+    --shadow-float: 0 12px 34px hsl(var(--ink-hsl) / 0.16);
+    --sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper-hsl: 210 30% 8%;
+      --surface-hsl: 212 27% 12%;
+      --ink-hsl: 200 25% 93%;
+      --muted-hsl: 205 9% 58%;
+      --line-hsl: 205 22% 19%;
+      --accent-hsl: 223 89% 70%;
+      --accent-weak-hsl: 222 35% 22%;
+      --accent-ink-hsl: 213 33% 6%;
+      --danger-hsl: 8 70% 60%;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper-hsl: 210 30% 8%;
+    --surface-hsl: 212 27% 12%;
+    --ink-hsl: 200 25% 93%;
+    --muted-hsl: 205 9% 58%;
+    --line-hsl: 205 22% 19%;
+    --accent-hsl: 223 89% 70%;
+    --accent-weak-hsl: 222 35% 22%;
+    --accent-ink-hsl: 213 33% 6%;
+    --danger-hsl: 8 70% 60%;
+    color-scheme: dark;
+  }
+
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+}
