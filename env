@@ -1,0 +1,48 @@
+# ===================================================================
+#  AI model for the newsroom: fill in these lines
+# ===================================================================
+# Provider: ollama (local, no key), groq, gemini, openai, anthropic, mistral, openrouter ...
+# Model:    the provider's model name, e.g.
+#             ollama  -> qwen3:4b (small, CPU ok), qwen3.8:27b (needs a GPU / ~20 GB RAM)
+#             groq    -> qwen/qwen3.8-27b, llama-3.3-70b-versatile
+#             gemini  -> gemini-3.1-flash-lite
+# Key:      that provider's API key (not needed for ollama).
+#           (Leave LLM_MODEL empty to run offline, no AI.)
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen3.5:0.8b
+LLM_API_KEY=
+# Previous groq setup, to switch back: LLM_PROVIDER=groq  LLM_MODEL=qwen/qwen3.8-27b  LLM_API_KEY=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
+# Ollama runs as a Docker service when this says "ollama" (download a model once:
+#   docker compose exec ollama ollama pull qwen3:4b). Empty = no Ollama container.
+COMPOSE_PROFILES=
+# Already running Ollama on your computer instead? Set LLM_BASE_URL=http://host.docker.internal:11434
+LLM_BASE_URL=http://10.222.227.190:11434
+
+# ===================================================================
+#  Feed personalisation with Jev (optional): key from console.typesafe.ai
+# ===================================================================
+TYPESAFE_API_KEY=apikey_2243214e6917e7445e59b3ab365e77d57b1_900c466d3bf0e3adead47d16d204b7fcc0482b98140f024abd6efc8dbdd45348
+
+# ===================================================================
+#  Usually fine as they are
+# ===================================================================
+SECRET_KEY=dev-insecure-change-me-to-a-long-random-string
+DEBUG=True
+
+# Stories per run, and minutes between automatic runs.
+AGENT_SCHEDULE_MINUTES=120
+AGENT_MAX_ITEMS=4
+
+# Dev admin created on startup (local only).
+DJANGO_SUPERUSER_EMAIL=admin@example.com
+DJANGO_SUPERUSER_PASSWORD=admin
+
+# Only for running without Docker (Docker sets these itself).
+REDIS_URL=redis://localhost:6380/0
+CELERY_TASK_ALWAYS_EAGER=True
+
+# Optional: "Log in with Google" (OAuth app, not the Gemini key).
+GOOGLE_CLIENT_ID=291245188799-ls7f6i30gm4i0pjbrfjlic9qihakind5.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+
+# More options (per-agent models, OpenAI-compatible servers, Jev tuning ...): docs/GUIDE.md §12

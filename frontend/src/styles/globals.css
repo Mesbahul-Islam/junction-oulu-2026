@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Kajo — the design system's single source of truth.
+   Principle: the interface is monochrome; colour only ever says WHO stands behind content.
+     newsroom  = editor-reviewed, "in your language"      (blue)
+     community = a member's words, not reviewed            (cloudberry)
+     confirmed = people confirmed it (note shown, covered) (spruce)
+     danger    = correction, error, high risk              (red)
+   Channels (--*-hsl) feed Tailwind so opacity utilities work. Light is primary; every token is
+   mirrored in BOTH dark blocks (system preference, and the explicit data-theme toggle). */
+@layer base {
+  :root {
+    --paper-hsl: 200 14% 96%;      /* snow: page ground */
+    --surface-hsl: 0 0% 100%;      /* cards, sheets */
+    --sunk-hsl: 204 14% 93%;       /* wells, inactive tracks, skeletons */
+    --ink-hsl: 205 36% 12%;        /* polar night: text + primary actions */
+    --muted-hsl: 206 11% 38%;      /* secondary text (AA on paper and surface) */
+    --line-hsl: 204 14% 88%;       /* hairlines */
+
+    --newsroom-hsl: 224 77% 46%;
+    --newsroom-weak-hsl: 223 80% 95%;
+    --community-hsl: 30 95% 33%;
+    --community-weak-hsl: 36 90% 93%;
+    --confirmed-hsl: 155 68% 27%;
+    --confirmed-weak-hsl: 150 45% 93%;
+    --danger-hsl: 8 70% 44%;
+    --danger-weak-hsl: 8 80% 95%;
+
+    --on-ink-hsl: 0 0% 100%;       /* text on ink / on solid tones */
+
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper-hsl: 210 30% 7%;
+      --surface-hsl: 211 26% 11%;
+      --sunk-hsl: 210 22% 15%;
+      --ink-hsl: 204 25% 92%;
+      --muted-hsl: 205 10% 62%;
+      --line-hsl: 208 20% 19%;
+      --newsroom-hsl: 224 90% 74%;
+      --newsroom-weak-hsl: 224 40% 19%;
+      --community-hsl: 36 88% 62%;
+      --community-weak-hsl: 32 45% 16%;
+      --confirmed-hsl: 152 50% 58%;
+      --confirmed-weak-hsl: 155 35% 14%;
+      --danger-hsl: 8 82% 68%;
+      --danger-weak-hsl: 8 45% 17%;
+      --on-ink-hsl: 210 30% 7%;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper-hsl: 210 30% 7%;
+    --surface-hsl: 211 26% 11%;
+    --sunk-hsl: 210 22% 15%;
+    --ink-hsl: 204 25% 92%;
+    --muted-hsl: 205 10% 62%;
+    --line-hsl: 208 20% 19%;
+    --newsroom-hsl: 224 90% 74%;
+    --newsroom-weak-hsl: 224 40% 19%;
+    --community-hsl: 36 88% 62%;
+    --community-weak-hsl: 32 45% 16%;
+    --confirmed-hsl: 152 50% 58%;
+    --confirmed-weak-hsl: 155 35% 14%;
+    --danger-hsl: 8 82% 68%;
+    --danger-weak-hsl: 8 45% 17%;
+    --on-ink-hsl: 210 30% 7%;
+    color-scheme: dark;
+  }
+
+  /* Plain-CSS aliases for styles.css (legacy screens). Retire with styles.css. */
+  :root {
+    --paper: hsl(var(--paper-hsl));
+    --surface: hsl(var(--surface-hsl));
+    --ink: hsl(var(--ink-hsl));
+    --muted: hsl(var(--muted-hsl));
+    --line: hsl(var(--line-hsl));
+    --accent: hsl(var(--newsroom-hsl));
+    --accent-weak: hsl(var(--newsroom-weak-hsl));
+    --red: hsl(var(--danger-hsl));
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: hsl(var(--paper-hsl));
+    color: hsl(var(--ink-hsl));
+    font-family: theme("fontFamily.sans");
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* Arabic gets its matched Plex cut via the font stack; give it a touch more leading. */
+  :lang(ar) { line-height: 1.7; }
+  ::selection { background: hsl(var(--newsroom-hsl) / 0.22); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+@layer utilities {
+  /* Visible keyboard focus everywhere, in ink (focus is UI, not provenance). */
+  .focus-ring { @apply outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper; }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+}

@@ -1,30 +1,45 @@
-import { ArrowRight, Check, ChevronLeft, CircleCheck } from "lucide-react";
+import { ChevronLeft, Languages, Sparkles, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
-import CommunityCard from "@/features/communities/components/CommunityCard";
-import { Spinner } from "@/shared/components/Spinner";
+import { Badge, Button, Field, Input, RadioCards, Skeleton, Spinner, Stepper, ToggleChips } from "@/components/ui";
+import { OnboardingShell } from "@/components/patterns";
 import { getInterests, resolveCode, saveOnboarding } from "@/features/account/api";
 import { getRecommendedCommunities, joinCommunity } from "@/features/communities/api";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { LANGUAGES, SITUATIONS, TOPICS, topicIcon } from "@/lib/i18n";
+import { LANGUAGES, SAMI, SITUATIONS } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
-const STEPS = ["language", "categories", "about", "communities"];
-// Suggestions scoring at least this are pre-selected (e.g. "New in Oulu" for a newcomer).
+const STEPS = ["language", "topics", "situation", "communities"];
 const PRESELECT_SCORE = 3;
 
-/**
- * Four steps: language (every story is then translated into it), categories
- * (the design's "Choose Categories" grid), situation + arrival date, and communities
- * to join, recommended from the answers so far. Also used to edit preferences later,
- * pre-filled from the profile.
- */
+const COPY = {
+  language: {
+    title: "Choose your reading language",
+    subtitle: "Every story is translated into this language. You'll always see the Finnish original with one tap.",
+  },
+  topics: {
+    title: "What matters to you in Oulu?",
+    subtitle: "Pick what affects your life. We'll put them first in Today.",
+  },
+  situation: {
+    title: "Tell us your situation",
+    subtitle: "This helps explain why each story matters for you — not just what happened.",
+  },
+  communities: {
+    title: "Find your people",
+    subtitle: "Communities are where readers help each other in their own language. Pick what feels right.",
+  },
+};
+
+const STEP_ICONS = [Languages, Sparkles, UsersRound, UsersRound];
+
 export default function Onboarding() {
   const { me, loading, refresh } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [step, setStep] = useState(0);
-  const [interests, setInterests] = useState([]);
+  const [interests, setInterests] = useState(null);
   const [form, setForm] = useState(null);
   const [code, setCode] = useState(params.get("code") || "");
   const [error, setError] = useState("");
@@ -39,14 +54,13 @@ export default function Onboarding() {
   useEffect(() => {
     if (!me || form) return;
     setForm({
-      preferred_language: me.preferred_language || "en",
+      preferred_language: me.preferred_language || "uk",
       interests: me.profile?.interests || [],
       reader_situation: me.reader_situation || "newcomer",
       arrival_date: me.arrival_date || "",
     });
   }, [me, form]);
 
-  // A QR code (e.g. at the service point) presets the language and arrival date.
   useEffect(() => {
     if (!code || !form) return;
     resolveCode(code)
@@ -55,16 +69,12 @@ export default function Onboarding() {
         setForm((f) => ({ ...f, preferred_language: link.language || f.preferred_language, arrival_date: f.arrival_date || arrival }));
       })
       .catch(() => setCode(""));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, Boolean(form)]);
+  }, [code, form]);
 
-  if (loading) return <Spinner />;
+  if (loading || (me && !form)) return <div className="grid min-h-dvh place-items-center bg-paper"><Spinner /></div>;
   if (!me) return <Navigate to={`/welcome?code=${encodeURIComponent(code)}`} replace />;
-  if (!form) return <Spinner />;
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
-  const toggle = (slug) =>
-    set({ interests: form.interests.includes(slug) ? form.interests.filter((s) => s !== slug) : [...form.interests, slug] });
 
   const run = async (work) => {
     setBusy(true);
@@ -78,128 +88,178 @@ export default function Onboarding() {
     }
   };
 
-  // Save the profile first: the community suggestions are computed from it.
-  const savePreferences = () => run(async () => {
-    await saveOnboarding({ ...form, arrival_date: form.arrival_date || null, ...(code ? { onboarding_code: code } : {}) });
-    await refresh();
-    const list = await getRecommendedCommunities();
-    setSuggestions(list);
-    setPicked(list.filter((c) => c.score >= PRESELECT_SCORE).map((c) => c.slug));
-    setStep(STEPS.indexOf("communities"));
-  });
+  const savePreferences = () =>
+    run(async () => {
+      await saveOnboarding({ ...form, arrival_date: form.arrival_date || null, ...(code ? { onboarding_code: code } : {}) });
+      await refresh();
+      const list = await getRecommendedCommunities();
+      setSuggestions(list);
+      setPicked(list.filter((c) => c.score >= PRESELECT_SCORE).map((c) => c.slug));
+      setStep(STEPS.indexOf("communities"));
+    });
 
-  const finish = () => run(async () => {
-    for (const slug of picked) await joinCommunity(slug);
-    await refresh();
-    navigate("/", { replace: true });
-  });
-
-  const togglePick = (slug) => setPicked((p) => (p.includes(slug) ? p.filter((s) => s !== slug) : [...p, slug]));
+  const finish = () =>
+    run(async () => {
+      for (const slug of picked) await joinCommunity(slug);
+      await refresh();
+      navigate("/", { replace: true });
+    });
 
   const name = STEPS[step];
+  const copy = COPY[name];
+  const StepIcon = STEP_ICONS[step];
+
+  const cta = {
+    language: { label: "Continue", onClick: () => setStep(1) },
+    topics: { label: "Continue", onClick: () => setStep(2), disabled: !(form.interests && form.interests.length) },
+    situation: { label: busy ? "Saving…" : "Continue", onClick: savePreferences, disabled: busy },
+    communities: {
+      label: busy ? "Joining…" : picked.length ? `Join ${picked.length} ${picked.length === 1 ? "community" : "communities"} & start reading` : "Skip and start reading",
+      onClick: finish,
+      disabled: busy,
+    },
+  }[name];
+
+  const goBack = () => {
+    if (step === 0) {
+      navigate("/welcome", { replace: true });
+      return;
+    }
+    setStep(step - 1);
+  };
+
   return (
-    <main className="screen">
-      <div className="steps">{STEPS.map((s, i) => <span key={s} className={i <= step ? "on" : ""} />)}</div>
-      <div className="back-row">
-        <button className="avatar" onClick={() => (step ? setStep(step - 1) : navigate(-1))} aria-label="Back">
-          <ChevronLeft size={22} />
-        </button>
-        <h1>The News</h1>
+    <OnboardingShell
+      step={step}
+      total={STEPS.length}
+      title={copy.title}
+      subtitle={copy.subtitle}
+      onBack={goBack}
+      cta={cta}
+    >
+      <div className="flex items-center gap-2 text-caption text-muted">
+        <StepIcon size={16} />
+        <span className="uppercase tracking-[0.16em]">Step {step + 1} of {STEPS.length}</span>
       </div>
-      {error && <div className="error">{error}</div>}
+
+      {error && <p role="alert" className="rounded-control border border-danger/40 bg-danger-weak px-3.5 py-2.5 text-meta text-danger">{error}</p>}
 
       {name === "language" && (
-        <>
-          <h2 className="title-serif">Your language</h2>
-          <p className="lead">Every story is translated into it for you, with the Finnish original alongside.</p>
-          <div className="lang-list">
-            {LANGUAGES.map((l) => (
-              <button key={l.code} className={`lang-option${form.preferred_language === l.code ? " selected" : ""}`}
-                onClick={() => set({ preferred_language: l.code })}>
-                <span>
-                  <span className="native" dir="auto">{l.name}</span><br />
-                  <span className="english">{l.english}</span>
-                </span>
-                {form.preferred_language === l.code && <Check size={20} color="var(--orange-500)" />}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {name === "categories" && (
-        <>
-          <h2 className="title-serif">Choose Categories</h2>
-          <p className="lead">Choose your favorite topics and personalize your news feed</p>
-          <div className="grid2">
-            {interests.map((i) => {
-              const Icon = topicIcon(i.slug);
-              const on = form.interests.includes(i.slug);
-              return (
-                <button key={i.slug} className={`choice-card${on ? " selected" : ""}`} onClick={() => toggle(i.slug)} aria-pressed={on}>
-                  <span className="badge"><CircleCheck size={14} /> {on ? "Following" : "Follow"}</span>
-                  <span className="icon-circle"><Icon size={22} strokeWidth={1.7} /></span>
-                  <div className="name">{i.name}</div>
-                  <div className="sub">{TOPICS[i.slug]?.blurb || "Local news"}</div>
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {name === "about" && (
-        <>
-          <h2 className="title-serif">About you</h2>
-          <p className="lead">We add a short "what this means for you" to every story.</p>
-          <div className="lang-list">
-            {SITUATIONS.map((s) => (
-              <button key={s.value} className={`lang-option${form.reader_situation === s.value ? " selected" : ""}`}
-                onClick={() => set({ reader_situation: s.value })}>
-                <span className="native" style={{ fontSize: 15 }}>{s.label}</span>
-                {form.reader_situation === s.value && <Check size={20} color="var(--orange-500)" />}
-              </button>
-            ))}
-          </div>
-          <div className="panel" style={{ marginTop: 14 }}>
-            <div className="field" style={{ marginBottom: 0 }}>
-              <label htmlFor="arrival">When did you arrive in Finland? (optional)</label>
-              <input id="arrival" type="date" value={form.arrival_date || ""} onChange={(e) => set({ arrival_date: e.target.value })} />
+        <div className="flex flex-col gap-4">
+          <RadioCards
+            aria-label="Language"
+            value={form.preferred_language}
+            onValueChange={(v) => v && set({ preferred_language: v })}
+            options={LANGUAGES.map((l) => ({ value: l.code, l }))}
+            columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+            renderOption={({ l }) => (
+              <span className="flex flex-col gap-1">
+                <span className="text-title" dir="auto" lang={l.code}>{l.name}</span>
+                <span className="text-meta text-muted">{l.english}</span>
+              </span>
+            )}
+          />
+          {SAMI.has(form.preferred_language) && (
+            <div className="flex gap-3 rounded-card border border-line bg-sunk/60 p-4">
+              <Sparkles size={18} className="mt-0.5 shrink-0 text-newsroom" />
+              <p className="text-ui text-muted">
+                Sámi stories are translated by people, not by machine, so there are fewer of them. Until a translation is ready, you'll see the Finnish original.
+              </p>
             </div>
+          )}
+        </div>
+      )}
+
+      {name === "topics" && (
+        interests === null ? (
+          <div className="flex flex-wrap gap-2">
+            {[112, 96, 124, 88, 108, 84, 132].map((w, i) => (
+              <Skeleton key={i} className="h-11 rounded-pill" style={{ width: w }} />
+            ))}
           </div>
-        </>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <ToggleChips
+              aria-label="Topics"
+              value={form.interests}
+              onValueChange={(v) => set({ interests: v })}
+              options={interests.map((i) => ({ value: i.slug, label: i.name }))}
+            />
+            <p className="text-meta text-muted" aria-live="polite">
+              {form.interests && form.interests.length ? `${form.interests.length} selected` : "Pick at least one to continue"}
+            </p>
+          </div>
+        )
+      )}
+
+      {name === "situation" && (
+        <div className="flex flex-col gap-6">
+          <RadioCards
+            aria-label="Your situation"
+            value={form.reader_situation}
+            onValueChange={(v) => v && set({ reader_situation: v })}
+            options={SITUATIONS.map((s) => ({ value: s.value, label: s.label }))}
+            columns="grid-cols-1 sm:grid-cols-2"
+          />
+          <Field label="When did you arrive in Finland?" htmlFor="arrival" hint="Optional. Helps us flag deadlines that matter in your first months.">
+            <Input id="arrival" type="date" value={form.arrival_date || ""} onChange={(e) => set({ arrival_date: e.target.value })} />
+          </Field>
+        </div>
       )}
 
       {name === "communities" && (
-        <>
-          <h2 className="title-serif">Communities for you</h2>
-          <p className="lead">
-            Neighbours post, ask and help each other here. Posts reach you in your language. We picked these from your answers.
-          </p>
+        <div className="flex flex-col gap-4">
           {suggestions.length === 0 ? (
-            <p className="lead">You're already in every community that fits you. You can find more later in Profile → Communities.</p>
-          ) : (
-            <div className="community-list">
-              {suggestions.map((c) => (
-                <CommunityCard key={c.slug} community={c} joined={picked.includes(c.slug)} onToggle={() => togglePick(c.slug)}
-                  actionLabel={picked.includes(c.slug) ? <><Check size={16} /> Added</> : "Add"} />
-              ))}
+            <div className="rounded-card border border-line bg-sunk/40 p-6">
+              <p className="text-ui text-muted">You're already in every community that fits you. You can find more later in Community.</p>
             </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 text-meta text-muted">
+                <Badge tone="confirmed">Recommended for you</Badge>
+                <span>{picked.length} selected</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {suggestions.map((c) => {
+                  const active = picked.includes(c.slug);
+                  return (
+                    <button
+                      key={c.slug}
+                      type="button"
+                      onClick={() => setPicked((prev) => (prev.includes(c.slug) ? prev.filter((s) => s !== c.slug) : [...prev, c.slug]))}
+                      className={cn(
+                        "focus-ring flex flex-col gap-3 rounded-card border p-5 text-left transition-all duration-150 ease-kajo",
+                        active ? "border-ink bg-surface shadow-[inset_0_0_0_1px_hsl(var(--ink-hsl))]" : "border-line bg-surface hover:border-ink/30 hover:bg-ink/[0.01]",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-title">{c.name}</span>
+                          {c.description && <span className="text-ui text-muted">{c.description}</span>}
+                        </div>
+                        <span
+                          className={cn(
+                            "mt-1 h-2.5 w-2.5 rounded-full",
+                            active ? "bg-ink" : "bg-line",
+                          )}
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {c.reasons?.map((r) => (
+                          <Badge key={r} tone="newsroom">{r}</Badge>
+                        ))}
+                        <span className="text-caption text-muted">
+                          {c.member_count} {c.member_count === 1 ? "member" : "members"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
-        </>
+        </div>
       )}
-
-      {name === "about" ? (
-        <button className="btn-primary" disabled={busy} onClick={savePreferences}>Continue <ArrowRight size={18} /></button>
-      ) : name === "communities" ? (
-        <button className="btn-primary" disabled={busy} onClick={finish}>
-          {picked.length ? `Join ${picked.length} and start reading` : "Start reading"} <ArrowRight size={18} />
-        </button>
-      ) : (
-        <button className="btn-primary" disabled={name === "categories" && !form.interests.length} onClick={() => setStep(step + 1)}>
-          Continue <ArrowRight size={18} />
-        </button>
-      )}
-    </main>
+    </OnboardingShell>
   );
 }
