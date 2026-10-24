@@ -116,6 +116,7 @@ class Command(BaseCommand):
         if not no_seed:
             self._ensure_demo_readers()
             self._ensure_demo_posts()
+            self._ensure_rewards()
             if not no_fantasy and os.environ.get("SEED_FANTASY", "true").lower() not in ("0", "false", "no"):
                 self._ensure_fantasy()
         self.stdout.write(self.style.SUCCESS("Bootstrap complete."))
@@ -143,6 +144,13 @@ class Command(BaseCommand):
                 f"Fantasy seed skipped: {type(exc).__name__}: {exc}\n"
                 "Run later: docker compose exec web python manage.py sync_liiga && "
                 "docker compose exec web python manage.py seed_fantasy_demo"))
+
+    def _ensure_rewards(self):
+        """Reward partners, perks and sample contribution statistics, first start only."""
+        from apps.rewards.models import Partner
+
+        if not Partner.objects.exists():
+            call_command("seed_rewards")
 
     def _ensure_demo_readers(self):
         """Two readers with opposite profiles, to compare personalised feeds, plus the neighbours

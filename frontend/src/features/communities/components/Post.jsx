@@ -5,6 +5,8 @@ import { Link } from "react-router-dom";
 
 import { Avatar, Badge, Button, Dialog, DialogClose, DialogContent, DialogTrigger, RadioCards, toast } from "@/components/ui";
 import { TrustBlock } from "@/components/patterns";
+import TrustBadge from "@/features/trust/components/TrustBadge";
+import { useTrustedVoices } from "@/features/trust/hooks";
 import { languageName, timeAgo } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { deletePost, flagPost, likePost, sharePost } from "../api";
@@ -23,6 +25,7 @@ const REASONS = [
 /** Who wrote it, where and when; the text in the reader's language (original a tap away);
  *  and what the newsroom and other readers added. Shared by the timeline row and the thread. */
 export function PostBody({ post, lang, size = "row", onAddContext, link }) {
+  const isTrusted = useTrustedVoices();
   const [original, setOriginal] = useState(false);
   const t = post.translation && !original ? post.translation : null;
   const note = post.community_note;
@@ -38,6 +41,7 @@ export function PostBody({ post, lang, size = "row", onAddContext, link }) {
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta">
           <span className="font-medium text-ink">{post.author_name}</span>
+          {isTrusted(post.author, post.community_slug) && <TrustBadge />}
           <span className="text-muted">in {post.community_name}</span>
           <span className="text-muted" aria-hidden="true">·</span>
           <time dateTime={post.created_at} className="text-muted">{timeAgo(post.created_at, lang)}</time>
@@ -48,6 +52,17 @@ export function PostBody({ post, lang, size = "row", onAddContext, link }) {
           <p className="text-caption text-danger">Hidden from others while a moderator reviews a report.</p>
         )}
         {link ? <Link {...link} className="focus-ring block rounded-control hover:opacity-80">{text}</Link> : text}
+        {post.image && (
+          <figure className="flex flex-col gap-1.5">
+            <img src={post.image} alt="" loading="lazy" className={cn("w-full rounded-card border border-line bg-sunk object-cover", size === "row" ? "max-h-72" : "max-h-[28rem]")} />
+            {(post.image_status === "pending" || post.faces_blurred > 0) && (
+              <figcaption className="flex flex-wrap gap-x-3 text-caption text-muted">
+                {post.image_status === "pending" && <span className="text-community">Only you can see this photo until a moderator checks it</span>}
+                {post.faces_blurred > 0 && <span>Faces blurred automatically</span>}
+              </figcaption>
+            )}
+          </figure>
+        )}
         {post.translation && (
           <button type="button" onClick={() => setOriginal(!original)} className="focus-ring inline-flex w-fit items-center gap-1 rounded-control text-caption text-muted hover:text-ink">
             <Languages size={12} />

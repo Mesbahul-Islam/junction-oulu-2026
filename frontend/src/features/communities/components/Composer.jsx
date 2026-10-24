@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Send } from "lucide-react";
-import { useState } from "react";
+import { ImagePlus, Send, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Avatar, Button, Textarea, toast } from "@/components/ui";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -13,6 +13,9 @@ export function Composer({ communities, slug }) {
   const [body, setBody] = useState("");
   const [picked, setPicked] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [photo, setPhoto] = useState(null);
+  const preview = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
+  useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
   const target = slug || picked || (communities.find((c) => c.kind === "geo") || communities[0])?.slug;
   const name = communities.find((c) => c.slug === target)?.name;
 
@@ -20,8 +23,9 @@ export function Composer({ communities, slug }) {
     e.preventDefault();
     setBusy(true);
     try {
-      await createPost(target, body.trim());
+      await createPost(target, body.trim(), photo);
       setBody("");
+      setPhoto(null);
       toast({ title: `Posted to ${name}`, tone: "confirmed" });
       queryClient.invalidateQueries({ queryKey: ["posts"] });
     } catch (err) {
@@ -45,6 +49,17 @@ export function Composer({ communities, slug }) {
           aria-label="New post"
           className="min-h-[72px]"
         />
+        {preview && (
+          <div className="flex items-start gap-3">
+            <div className="relative">
+              <img src={preview} alt="Photo to post" className="h-24 w-auto max-w-[12rem] rounded-control border border-line object-cover" />
+              <button type="button" onClick={() => setPhoto(null)} aria-label="Remove photo" className="focus-ring absolute end-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-ink/70 text-on-ink">
+                <X size={14} />
+              </button>
+            </div>
+            <p className="text-caption text-muted">Faces are blurred automatically when you post. A moderator checks the photo before others see it.</p>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           {!slug && communities.length > 1 && (
             <select
@@ -55,6 +70,12 @@ export function Composer({ communities, slug }) {
             >
               {communities.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
             </select>
+          )}
+          {!photo && (
+            <label className="inline-flex h-8 cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-ink items-center gap-1.5 rounded-control px-2 text-meta text-muted hover:bg-ink/5 hover:text-ink [@media(pointer:coarse)]:h-11">
+              <ImagePlus size={16} />Photo
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+            </label>
           )}
           <p className="hidden flex-1 text-caption text-muted sm:block">Members read it in their language. Not checked by editors.</p>
           <Button type="submit" size="sm" className="ms-auto" disabled={busy || !body.trim()}>

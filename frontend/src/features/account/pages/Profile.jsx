@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bookmark, LogOut, Trophy } from "lucide-react";
+import { ArrowRight, Bookmark, CircleHelp, Gift, LogOut, Trophy } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -10,6 +10,7 @@ import { useCommunities } from "@/features/communities/hooks/useCommunities";
 import { useFantasyMode } from "@/features/fantasy/lib/fantasyMode";
 import { preloadFantasy } from "@/features/fantasy/lib/fantasyPreload";
 import { useSaved } from "@/features/feed/hooks/useFeed";
+import StandingCard from "@/features/trust/components/StandingCard";
 import { LANGUAGES, SITUATIONS, timeAgo, topicIcon, topicLabel } from "@/lib/i18n";
 import { updateMe } from "../api";
 
@@ -160,6 +161,23 @@ export default function Profile() {
         ) : (
           <p className="py-3 text-meta text-muted">You haven't joined any yet. Communities let you ask neighbours and vote on Next stories.</p>
         )}
+        <StandingCard />
+      </Section>
+
+      <Section title="Rewards and help">
+        {[
+          { to: "/rewards", icon: Gift, label: "Rewards", hint: "Partner offers for contributing, and the ad-free plan" },
+          { to: "/help", icon: CircleHelp, label: "Help", hint: "How Oulu News works, and answers to common questions" },
+        ].map(({ to, icon: Icon, label, hint }) => (
+          <Link key={to} to={to} className="focus-ring group flex items-center gap-3 rounded-control py-3.5">
+            <Icon size={16} className="shrink-0 text-muted" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-ui font-medium group-hover:underline">{label}</span>
+              <span className="block text-meta text-muted">{hint}</span>
+            </span>
+            <ArrowRight size={16} className="text-muted rtl:rotate-180" />
+          </Link>
+        ))}
       </Section>
 
       <Section title="Account">

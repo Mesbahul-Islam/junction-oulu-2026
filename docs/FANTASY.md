@@ -15,10 +15,13 @@ Code: `backend/apps/fantasy/` (rules in `rules.py`) and `frontend/src/pages/Fant
 | Squad | 15 players: 2 goalies, 5 defenders, 8 forwards |
 | Budget | 100.0 |
 | Players from one Liiga team | at most 3 |
+| Stars (price 11.0 or more) | at most 2 |
 | Lineup each gameweek | 11 starters (1 goalie, 4 defenders, 6 forwards) and 4 on the bench |
 | Captain | scores double. If the captain doesn't play, the vice-captain scores double instead. |
 
 **Player prices** run from 4.0 to 13.0. Each player is priced by his rank in points per game within his position. A price is set when he is first priced and doesn't change after someone owns him.
+
+**Stars:** the budget alone would still fit about four of the league's best players, so a squad may hold at most 2 stars (marked ★). Transfers can't take you above 2. A squad made before this rule keeps its stars but can't add more. **Random pick** fills the open places with a random, legal squad of ordinary players and at most one star, so it is never the strongest team: over 300 tries its median squad had 472 season points and its best 693, against about 900 for a squad picked with care.
 
 **Gameweeks** follow Liiga's own gameweek numbers. A gameweek locks at the first face-off of its first game. Changes made after that count from the next gameweek.
 
@@ -55,14 +58,16 @@ After every game, each player's box score from the Liiga API is turned into poin
 
 ## 3. Changing your team
 
+Choosing your team is free. After that, every change costs points, and you need enough points to make it.
+
 Tap **Change team** under your lineup.
 
-- **Swap a player:** tap one of your players, pick a Liiga team (or all teams), pick a player. You see his price, his points and what the change costs. Then confirm.
-- **Shake up:** choose how many points you are willing to spend. Lämäri replaces up to 3 of your weakest-form starters with better-form players in the same position. It picks at random from the strongest options and stays within your money and that points limit.
+- **Swap a player:** tap one of your players, pick a Liiga team (or all teams), pick a player. Each option shows his price, his points and what he costs. Players you can't afford in points are greyed out. Tap **Save changes** to make the swap.
+- **Shake up:** choose how many points you are willing to spend (up to what you have). Lämäri **suggests** replacing up to 3 of your weakest-form starters with better-form players in the same position, picked at random from the strongest options and within your money. Nothing changes until you tap **Save changes**. **Try again** gives a new suggestion.
 
-**Cost of a change** (`rules.transfer_cost`): every incoming player costs points in that gameweek, by his season rank within his position. The lowest-ranked costs 1 point and the top-ranked costs 8. The cost is shown on every option.
+**Cost of a change** (`rules.transfer_cost`): every incoming player costs points by his season rank within his position. The lowest-ranked costs 1 point and the top-ranked costs 8.
 
-**Free changes:** before your first deadline, building and changing your team costs nothing.
+**Points you can spend** (`squads.points_available`): your season points minus what you've already spent on changes for the coming gameweek. A change that costs more than that is refused. The cost comes off your total when that gameweek is scored.
 
 **Money:** you sell a player for what you paid and buy at his current price. The difference goes to or from your bank.
 
@@ -112,10 +117,12 @@ All facts come from Liiga data: results, standings computed the Liiga way (3 / 2
 
 - **Coach tab:** your last gameweek reviewed, and picks for the next one: captain, start or bench, one transfer, each with the reason in numbers.
 - **Matches tab:** one gameweek per page. Tap a game for the context beyond the score, or a preview. Choose **Fan** or **New to hockey** (which explains the rules that game depends on), and **Short** or **Full**.
-- **Coach chat:**
-  - Answers only questions about winning with Liiga data.
-  - Anything else gets "Sorry, I can only help with sports data". Asking again straight away gets a firm stop.
+- **Coach chat:** two steps, so the answering model never sees anything off-topic.
+  1. **Gate** (`services/chat_gate.py`): the message and the last few lines of the conversation are classified, as text, with one yes/no question: is this about ice hockey, Liiga or the Lämäri game? Jev answers it (about 0.3 s). If Jev is unavailable, the AI model answers the same yes/no question. If neither is available, a word check refuses only obvious off-topic requests.
+  2. **Coach** (`services/chat.py`), only on a yes: answers from Liiga data (captain, start or bench, transfers, players to watch, the leaderboard, last week, prizes, deadlines, any player or team). Follow-ups such as "are you sure?" use the previous answer. The AI may word the reply but only sees the checked facts, never the question.
+  - Off-topic gets "Sorry, I can only help with sports data". Two clearly off-topic messages in a row get a firm stop.
   - Limits: 8 messages a minute and 120 a day per reader.
+  - `manage.py check_coach` runs 31 fixed questions (on-topic and off-topic, English and Finnish, one follow-up) and reports the pass rate.
 
 ## 7. Sports desk agent
 

@@ -9,6 +9,7 @@ router.register(r"groups/(?P<community_slug>[-\w]+)/posts", views.PostViewSet, b
 router.register("groups", views.CommunityViewSet, basename="community")
 router.register("news", views.CommunityNewsView, basename="community-news")
 router.register("moderation", views.PostModerationViewSet, basename="post-moderation")
+router.register("photos", views.PhotoReviewViewSet, basename="photo-review")
 router.register("contributions", views.ContributionViewSet, basename="contribution")
 router.register("feedback-prompts", views.FeedbackPromptViewSet, basename="feedback-prompt")
 router.register("feedback-responses", views.FeedbackResponseViewSet, basename="feedback-response")

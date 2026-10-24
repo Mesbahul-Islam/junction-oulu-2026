@@ -59,10 +59,23 @@ class PostSerializer(serializers.ModelSerializer):
         fields = ["id", "community", "community_name", "community_slug", "author", "author_name", "is_mine", "kind",
                   "body", "language", "translation", "answered_by", "image", "parent", "reply_count", "like_count", "liked",
                   "share_count", "status", "flag_count", "moderation_note", "hot", "misleading_reports",
-                  "community_note", "notes_to_rate",
+                  "community_note", "notes_to_rate", "image_status", "faces_blurred",
                   "created_at", "updated_at"]
         read_only_fields = ["community", "author", "status", "language", "share_count", "moderation_note",
-                            "created_at", "updated_at"]
+                            "image_status", "faces_blurred", "created_at", "updated_at"]
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        # A photo is shown only after a moderator checked the face blurring. Until then only its
+        # author (and moderators) see it.
+        if obj.image and obj.image_status != "approved":
+            from . import services
+
+            request = self.context.get("request")
+            user = getattr(request, "user", None)
+            if not (user and user.is_authenticated and (obj.author_id == user.pk or services.can_moderate(user, obj.community))):
+                data["image"] = None
+        return data
 
     def _reader_chain(self):
         from apps.feed.services import language_chain, requester_language

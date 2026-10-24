@@ -13,6 +13,7 @@ drf-spectacular==0.30.0
 
 # DB / images (files are stored on local disk)
 Pillow==13.0.0
+opencv-python-headless==4.11.0.86  # community photos: face detection and blurring
 psycopg[binary]==3.3.6
 
 # Background jobs

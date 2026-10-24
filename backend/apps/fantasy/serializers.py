@@ -92,6 +92,12 @@ class SquadSerializer(serializers.ModelSerializer):
     standing = serializers.SerializerMethodField()
     free_changes = serializers.SerializerMethodField()
     points_spent = serializers.SerializerMethodField()
+    points_available = serializers.SerializerMethodField()
+
+    def get_points_available(self, obj):
+        from .services.squads import points_available
+
+        return float(points_available(obj))
 
     def get_free_changes(self, obj):
         from .services.squads import changes_are_free
@@ -116,7 +122,7 @@ class SquadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Squad
         fields = ["id", "name", "manager", "season", "bank", "value", "free_transfers", "first_gameweek", "total_points",
-                  "standing", "free_changes", "points_spent", "players"]
+                  "standing", "free_changes", "points_spent", "points_available", "players"]
 
     def get_standing(self, obj):
         from .services.leaderboards import season_standing

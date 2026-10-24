@@ -20,14 +20,15 @@ export class ApiError extends Error {
 
 export async function api(path, { method = "GET", body, auth = true } = {}) {
   const headers = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const upload = body instanceof FormData; // photos: the browser sets the multipart header itself
+  if (body !== undefined && !upload) headers["Content-Type"] = "application/json";
   const jwt = auth && token.get();
   if (jwt) headers.Authorization = `Bearer ${jwt}`;
 
   const res = await fetch(`${API_URL}/api${path}`, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : upload ? body : JSON.stringify(body),
   });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;

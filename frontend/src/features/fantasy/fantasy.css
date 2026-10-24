@@ -339,3 +339,18 @@
   display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px;
 }
 .fx-primary:disabled { opacity: 0.45; cursor: default; }
+
+.fx-plan-row { display: flex; align-items: center; gap: 8px; padding: 8px 4px; }
+.fx-arrow { color: var(--lb-blue, #1d5bc4); }
+.fx-pick-list li.off { opacity: 0.45; }
+.fx-ghost { padding: 8px 12px; border-radius: 99px; font-size: 14px; font-weight: 700; color: var(--lb-navy, #0a2a66); background: #fff; border: 1px solid var(--lb-line, #dbe5f1); }
+.fx-confirm { flex-wrap: wrap; }
+.fx-confirm > span { flex: 1 1 100%; }
+/* The tier badge keeps its full width next to text (it clips for the sheen). */
+.fx-tier { flex: none; white-space: nowrap; }
+/* All five Lämäri tabs share the width, so none is hidden off-screen. */
+.fx-tabs { overflow: visible; }
+.fx-tabs button { flex: 1 1 0; min-width: 0; padding: 10px 2px; font-size: 13px; text-align: center; white-space: nowrap; }
+.fx-tabs { gap: 0; }
+.fx-tabs button { padding: 10px 4px; font-size: 12.5px; letter-spacing: -0.01em; }
+.fx-star { margin-left: 5px; color: #c9971e; font-size: 12px; vertical-align: 1px; }

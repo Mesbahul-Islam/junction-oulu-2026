@@ -16,6 +16,14 @@ STARTING_COMPOSITION = {Position.GOALIE: 1, Position.DEFENCE: 4, Position.FORWAR
 SQUAD_SIZE = sum(SQUAD_COMPOSITION.values())  # 15
 STARTERS = sum(STARTING_COMPOSITION.values())  # 11
 MAX_PER_TEAM = 3
+# Premium players (price at or above PREMIUM_PRICE): at most MAX_PREMIUM per squad, so nobody can
+# stack the league's stars. The 100 budget alone would still allow about four.
+PREMIUM_PRICE = 11
+MAX_PREMIUM = 2
+
+
+def is_premium(player) -> bool:
+    return player.price >= PREMIUM_PRICE
 
 CAPTAIN_MULTIPLIER = 2
 TRANSFER_POINT_COST = 4  # (legacy) flat cost; transfers now cost by the incoming player's rank, see transfer_cost

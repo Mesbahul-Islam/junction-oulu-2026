@@ -455,11 +455,11 @@ def coach(squad: Squad, ai: bool = False, lang: str = "en") -> dict:
                     diff = picks[weakest.pk].purchase_price - pick.price
                     if fi:
                         money = f"säästät {n(diff)}" if diff > 0 else (f"maksaa {n(-diff)} enemmän" if diff < 0 else "sama hinta")
-                        text = (f"Harkitse vaihtoa: ulos {weakest.name}, sisään {pick.name} ({pick.team.name}). "
+                        text = (f"Myy {weakest.name}, osta {pick.name} ({pick.team.name}). "
                                 f"{avg_of(pick, cf)} vs {avg_of(weakest)} {per}, {counts.get(pick.team_id, 0)} vs {counts.get(weakest.team_id, 0)} ottelua {gwl}, {money}.")
                     else:
                         money = f"saves {n(diff)}" if diff > 0 else (f"costs {n(-diff)} more" if diff < 0 else "same price")
-                        text = (f"Consider {pick.name} ({pick.team.name}) for {weakest.name}: {avg_of(pick, cf)} vs {avg_of(weakest)} "
+                        text = (f"Sell {weakest.name}, buy {pick.name} ({pick.team.name}): {avg_of(pick, cf)} vs {avg_of(weakest)} "
                                 f"points per game, {counts.get(pick.team_id, 0)} vs {counts.get(weakest.team_id, 0)} games in GW{nxt.number}, {money}.")
                     tips.append({"kind": "transfer", "out": weakest.pk, "in": pick.pk, "text": text})
 

@@ -442,9 +442,29 @@ $("qBatch").onclick = async () => {
 // ---------- moderation ----------
 const mState = { status: "pending" };
 $("mStatus").querySelectorAll("button").forEach((b) => (b.onclick = () => { $("mStatus").querySelectorAll("button").forEach((x) => (x.classList.toggle("on", x === b), x.setAttribute("aria-pressed", String(x === b)))); mState.status = b.dataset.v; loadModeration(); }));
+async function loadPhotos(box) {
+  const photos = await api("/communities/photos/");
+  if (!photos.length) { box.innerHTML = `<div class="card empty">No photos waiting. Faces in new photos are blurred on upload; check them here before others see them.</div>`; return; }
+  box.innerHTML = photos.map((p) => `<div class="card task" data-id="${p.id}">
+    <div class="task-head"><b>${esc(p.author_name)}</b><span class="muted">in ${esc(p.community_name)} · posted ${ago(p.created_at)}</span>
+      <span class="pill">${p.faces_blurred} face${p.faces_blurred === 1 ? "" : "s"} blurred</span></div>
+    <img src="${esc(p.image)}" alt="Photo awaiting review" style="display:block;max-width:100%;max-height:420px;border-radius:10px;margin:0 0 8px">
+    ${p.notes.length ? `<div class="flag warn"><b>Check</b><ul>${p.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
+    <p style="white-space:pre-wrap;margin:0 0 8px" dir="auto">${esc(p.body)}</p>
+    <p class="small muted">Approve only if every face is unrecognisable and nothing else identifies a person (name tags, number plates, home addresses).</p>
+    <div class="actions"><button class="btn primary" data-photo="approve">Approve photo</button><button class="btn danger" data-photo="reject">Reject photo (keep the text)</button></div>
+  </div>`).join("");
+  box.querySelectorAll("[data-photo]").forEach((b) => (b.onclick = async () => {
+    const id = b.closest(".task").dataset.id;
+    try { await api(`/communities/photos/${id}/decide/`, { method: "POST", body: { decision: b.dataset.photo } }); toast(b.dataset.photo === "approve" ? "Photo approved." : "Photo removed."); loadModeration(); }
+    catch (e) { toast(e.message); }
+  }));
+}
+
 async function loadModeration() {
   const box = $("modList");
   box.innerHTML = '<div class="empty" role="status">Loading community posts…</div>';
+  if (mState.status === "photos") { try { await loadPhotos(box); } catch (e) { box.innerHTML = `<div class="card empty">${esc(e.message)}</div>`; } return; }
   try {
     const posts = results(await api(`/communities/moderation/?status=${mState.status}`));
     if (!posts.length) { box.innerHTML = `<div class="card empty">${{ pending: "Nothing to moderate. Reported posts appear here.", questions: "No unanswered questions. Questions members post in Community News appear here." }[mState.status] || "Nothing here yet."}</div>`; return; }
