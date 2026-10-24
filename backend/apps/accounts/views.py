@@ -1,5 +1,8 @@
 """Accounts API (FR-1.1, FR-3.11). JWT login lives at /api/auth/token/; Google OAuth via allauth."""
 
+from django.conf import settings
+from django.http import HttpResponseRedirect
+from django.views import View
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -86,3 +89,18 @@ class ReaderListView(generics.ListAPIView):
 
     def get_queryset(self):
         return User.objects.filter(onboarded=True).select_related("profile").prefetch_related("profile__interests", "roles").order_by("email")
+
+
+class OAuthCallbackView(View):
+    """Redirects after Google OAuth via allauth to frontend or admin with JWT token."""
+
+    def get(self, request):
+        if request.user.is_authenticated:
+            refresh = RefreshToken.for_user(request.user)
+            token = str(refresh.access_token)
+            next_param = request.GET.get("next") or request.session.get("oauth_next", "")
+            if "admin" in next_param:
+                return HttpResponseRedirect(f"/#token={token}")
+            frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+            return HttpResponseRedirect(f"{frontend_url}/welcome#token={token}")
+        return HttpResponseRedirect("/")
