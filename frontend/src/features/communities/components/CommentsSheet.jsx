@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import { getReplies, likePost, replyToPost } from "../api";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { languageName, timeAgo } from "@/lib/i18n";
+import TrustBadge from "@/features/trust/components/TrustBadge";
+import { useTrustedVoices } from "@/features/trust/hooks";
 
 /** One reply, in the reader's language when a machine translation exists (labelled, original a tap away). */
 function Reply({ reply, slug }) {
   const { me } = useAuth();
+  const isTrusted = useTrustedVoices();
   const [r, setR] = useState(reply);
   const [original, setOriginal] = useState(false);
   const t = r.translation;
@@ -19,7 +22,7 @@ function Reply({ reply, slug }) {
     <li className="comment">
       <span className="comment-avatar">{(r.author_name || "?").slice(0, 2).toUpperCase()}</span>
       <div className="comment-main">
-        <div className="comment-meta"><b>@{r.author_name}</b> · {timeAgo(r.created_at, me?.preferred_language)}</div>
+        <div className="comment-meta"><b>@{r.author_name}</b>{isTrusted(r.author, slug) && <TrustBadge />} · {timeAgo(r.created_at, me?.preferred_language)}</div>
         <p dir="auto">{t && !original ? t.text : r.body}</p>
         {t && (
           <button className="comment-translated" onClick={() => setOriginal(!original)}>

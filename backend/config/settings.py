@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.notes",
     "apps.markets",
     "apps.fantasy",
+    "apps.trust",
 ]
 
 MIDDLEWARE = [

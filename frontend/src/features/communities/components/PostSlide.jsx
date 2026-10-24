@@ -8,6 +8,8 @@ import { languageName, timeAgo } from "@/lib/i18n";
 import CommentsSheet from "./CommentsSheet";
 import NotesSheet from "@/features/notes/components/NotesSheet";
 import { RailButton } from "@/features/feed/components/StorySlide";
+import TrustBadge from "@/features/trust/components/TrustBadge";
+import { useTrustedVoices } from "@/features/trust/hooks";
 
 const REASONS = [
   { value: "hate", label: "Hate or harassment" },
@@ -26,6 +28,7 @@ const host = (url) => { try { return new URL(url).hostname.replace(/^www\./, "")
  * the post until a moderator reviews it.
  */
 export default function PostSlide({ post: initial, onFlagged }) {
+  const isTrusted = useTrustedVoices();
   const { me } = useAuth();
   const [post, setPost] = useState(initial);
   const [comments, setComments] = useState(false);
@@ -82,7 +85,7 @@ export default function PostSlide({ post: initial, onFlagged }) {
         <div className="tt-label"><Users size={14} /> Community post · not reviewed by editors</div>
         {post.image && post.image_status === "pending" && <div className="tt-label photo-pending">Only you can see this photo until a moderator checks it</div>}
         {post.image && post.faces_blurred > 0 && <div className="tt-label">Faces blurred automatically</div>}
-        <div className="tt-meta"><b>@{post.author_name}</b> · {post.community_name} · {timeAgo(post.created_at, me?.preferred_language)}</div>
+        <div className="tt-meta"><b>@{post.author_name}</b>{isTrusted(post.author, post.community_slug) && <TrustBadge />} · {post.community_name} · {timeAgo(post.created_at, me?.preferred_language)}</div>
         <p className="tt-post-body" lang={t && !showOriginal ? t.language : post.language || undefined}>
           {t && !showOriginal ? t.text : post.body}
         </p>

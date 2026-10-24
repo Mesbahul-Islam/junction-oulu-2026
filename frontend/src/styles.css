@@ -727,3 +727,20 @@ a { color: inherit; text-decoration: none; }
 .photo-preview button { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(0,0,0,0.6); color: #fff; }
 .photo-note { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
 .tt-label.photo-pending { background: rgba(232, 131, 58, 0.85); }
+
+/* ---------- Trusted community voices ---------- */
+.trust-badge { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 700; vertical-align: 1px; color: #0b5d3b; background: #dff5e9; }
+.tt-meta .trust-badge { color: #0b5d3b; background: #dff5e9; }
+.trust-card { margin-top: 14px; }
+.trust-title { font-weight: 600; margin-bottom: 6px; }
+.trust-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.trust-row:last-of-type { border-bottom: 0; }
+.trust-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.trust-level { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.trust-level.trusted { color: #0b5d3b; }
+.trust-level.eligible { color: #8a5a00; }
+.trust-score { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.trust-why { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.trust-why span { font-size: 12px; background: #f3efeb; color: var(--teal-800); border-radius: 99px; padding: 2px 8px; }
+.trust-next { margin: 6px 0 0; font-size: 13px; color: var(--teal-800); }
+.trust-how { margin: 8px 0 0; font-size: 12px; color: var(--muted); }

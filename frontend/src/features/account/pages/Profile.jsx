@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { useFantasyMode } from "@/features/fantasy/lib/fantasyMode";
 import { preloadFantasy } from "@/features/fantasy/lib/fantasyPreload";
 import { languageName, SITUATIONS, topicLabel } from "@/lib/i18n";
+import StandingCard from "@/features/trust/components/StandingCard";
 
 export default function Profile() {
   const { me, logout, refresh } = useAuth();
@@ -81,6 +82,8 @@ export default function Profile() {
         )}
         <Link to="/onboarding" className="btn-primary" style={{ marginTop: 10 }}>Edit preferences</Link>
       </section>
+
+      <StandingCard />
 
       <button className="btn-ghost" onClick={() => { logout(); navigate("/welcome"); }}>
         <LogOut size={16} style={{ verticalAlign: -3 }} /> Log out
