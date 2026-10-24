@@ -118,7 +118,7 @@ def answer_team(team: Team, lang: str) -> list[str]:
     if nxt:
         t = timezone.localtime(nxt.starts_at)
         when = t.strftime("%d.%m. klo %H.%M") if fi else t.strftime("%a %d.%m. at %H:%M")
-        lines.append(f"{'Seuraava' if fi else 'Next'}: {nxt.home.name} - {nxt.away.name}, {when}.")
+        lines.append(f"{'Seuraava' if fi else 'Next'}: {nxt.home.name} vs {nxt.away.name}, {when}.")
     row = analysis._rank_of(analysis.standings(season), team.pk)
     if row:
         lines.append(f"{team.name} on sijalla {row['rank']}, {row['pts']} pistettä {row['gp']} ottelusta." if fi

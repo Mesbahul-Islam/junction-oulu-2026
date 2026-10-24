@@ -1,9 +1,9 @@
-import { Copy, Crown, UserPlus } from "lucide-react";
+import { Copy, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { createLeague, getLeaderboard, inviteToLeague, joinLeague, searchManagers } from "../../lib/api";
 import { Spinner } from "../Spinner";
-import { Pager, prizeFor, TierBadge } from "./util";
+import { MEDAL, Pager, prizeFor, TierBadge } from "./util";
 import { useT } from "../../lib/lamariText";
 import { forget } from "../../lib/fantasyPreload";
 
@@ -53,7 +53,7 @@ function Board({ season, leagues, me, rewards }) {
               const prize = prizePeriod && (scope === "global" || scope === "oulu") ? prizeFor(r.rank, rewards, prizePeriod, scope) : null;
               return (
                 <li key={r.squad_id} className={r.manager === me.username ? "me" : ""}>
-                  <span className="fx-rank">{r.rank}</span>
+                  <span className={`fx-rank${MEDAL[r.rank] ? " medal" : ""}`}>{MEDAL[r.rank] || r.rank}</span>
                   <span className="fx-who">
                     <b>{r.squad_name}</b>
                     <small>@{r.manager} {period === "season" && scope === "global" && tierOf(r.rank, data.total) && <TierBadge tier={tierOf(r.rank, data.total)} />}</small>
@@ -139,7 +139,7 @@ function Leagues({ leagues, setLeagues, me }) {
                 <ol className="fx-board">
                   {l.members.map((m, i) => (
                     <li key={m.squad_id} className={m.username === me.username ? "me" : ""}>
-                      <span className="fx-rank">{i === 0 ? <Crown size={15} /> : i + 1}</span>
+                      <span className={`fx-rank${MEDAL[i + 1] ? " medal" : ""}`}>{MEDAL[i + 1] || i + 1}</span>
                       <span className="fx-who"><b>@{m.username}</b><small>{m.squad_name}</small></span>
                       <span className="fx-pts">{Math.round(m.total_points)}</span>
                     </li>

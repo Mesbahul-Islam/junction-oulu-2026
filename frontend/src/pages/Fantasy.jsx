@@ -31,10 +31,10 @@ function MatchCarousel({ fixtures, now, onOpen }) {
         const left = countdown(f.starts_at, now, t.lang);
         const soon = new Date(f.starts_at) - now < 864e5; // under a day: show the countdown
         return (
-          <button key={f.id} type="button" role="listitem" className={`fx-match${f.status === "live" ? " live" : ""}`} onClick={() => onOpen(f)}>
+          <button key={f.id} type="button" role="listitem" className={`fx-match${f.status === "live" ? " live" : ""}${soon && f.status !== "live" ? " soon" : ""}`} onClick={() => onOpen(f)}>
             <span className="fx-vs">
               {f.home.logo_url && <img src={f.home.logo_url} alt="" />}<b>{f.home.abbreviation || f.home.name}</b>
-              <i>v</i>
+              <i>vs</i>
               <b>{f.away.abbreviation || f.away.name}</b>{f.away.logo_url && <img src={f.away.logo_url} alt="" />}
             </span>
             <em className={f.status === "live" || (left && soon) ? "hot" : ""}>
@@ -53,7 +53,7 @@ function MatchSheet({ fixture, players, mine, onClose }) {
   return (
     <div className="fx-sheet-wrap" onClick={onClose}>
       <div className="fx-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="fx-sheet-head"><b>{fixture.home.name} v {fixture.away.name}</b><button type="button" onClick={onClose} aria-label={t("close")}><X size={20} /></button></div>
+        <div className="fx-sheet-head"><b>{fixture.home.name} vs {fixture.away.name}</b><button type="button" onClick={onClose} aria-label={t("close")}><X size={20} /></button></div>
         <p className="fx-note">{t("topScorers", { time: finnishTime(fixture.starts_at, t.locale) })}</p>
         {[fixture.home, fixture.away].map((team) => (
           <div key={team.id}>

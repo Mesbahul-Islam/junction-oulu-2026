@@ -5,7 +5,7 @@ import { getSquadHistory, getVouchers } from "../../lib/api";
 import { useT } from "../../lib/lamariText";
 import { Spinner } from "../Spinner";
 import { PlayerToken } from "./Rink";
-import { countdown, Pager, placeText, TierBadge, useNow } from "./util";
+import { countdown, Pager, placeText, TIER_EMOJI, TierBadge, useNow } from "./util";
 
 const VOUCHER_PAGE = 4;
 const TIER_ORDER = ["bronze", "silver", "gold", "diamond"];
@@ -37,10 +37,10 @@ function PrizeCard({ reward, squad, bestWeek, standing }) {
         <span>{reward.description}</span>
         <Status reward={reward} squad={squad} bestWeek={bestWeek} standing={standing} />
       </div>
-      {reward.kind === "rank" ? <em>{placeText(reward, t)}</em>
+      {reward.kind === "rank" ? <em className={`fx-place${reward.rank_from === 1 ? " gold" : ""}`}>{placeText(reward, t)}</em>
         : reward.kind === "player" && reward.player ? <PlayerToken player={reward.player} sub={t("pts", { n: `${reward.threshold}+` })} />
           : reward.kind === "points" ? <em>{t("pts", { n: reward.threshold })}</em>
-            : <em>{t(reward.tier)}</em>}
+            : <em className={`fx-place ${reward.tier}`}>{TIER_EMOJI[reward.tier]} {t(reward.tier)}</em>}
     </li>
   );
 }

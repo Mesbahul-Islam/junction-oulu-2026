@@ -377,16 +377,43 @@ a { color: inherit; text-decoration: none; }
 .fx-presented { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 12px; font-size: 12px; color: var(--lb-muted); }
 .fx-presented img { height: 18px; width: auto; }
 
-/* Tiers */
-.fx-tier { display: inline-flex; align-items: center; gap: 4px; border-radius: 99px; padding: 2px 8px; font-size: 12px; font-weight: 700; vertical-align: middle; }
-.fx-tier.lg { font-size: 16px; padding: 6px 12px; gap: 6px; }
-.fx-tier.diamond { background: #e3f5fc; color: #0d6f93; }
-.fx-tier.gold { background: #fbf1d6; color: #8a6510; }
-.fx-tier.silver { background: #eef1f4; color: #57636f; }
-.fx-tier.bronze { background: #f6eadf; color: #87532a; }
-.fx-header .fx-tier { box-shadow: 0 0 0 1px rgba(255,255,255,0.4); }
+/* Tiers: metallic badges, with a slow sheen on Diamond and Gold */
+.fx-tier { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 4px; border-radius: 99px; padding: 2px 9px 2px 6px; font-size: 12px; font-weight: 800; vertical-align: middle; letter-spacing: 0.01em; }
+.fx-tier i { font-style: normal; font-size: 13px; line-height: 1; }
+.fx-tier.lg { font-size: 16px; padding: 6px 14px 6px 10px; gap: 6px; }
+.fx-tier.lg i { font-size: 20px; }
+.fx-tier.diamond { background: linear-gradient(135deg, #e6f7ff 0%, #b8e6fb 45%, #f2fbff 60%, #9fd8f3 100%); color: #075a7a; box-shadow: 0 0 0 1px #8fd0ee inset, 0 2px 8px rgba(72, 180, 230, 0.35); }
+.fx-tier.gold { background: linear-gradient(135deg, #fff4cf 0%, #f3d37a 45%, #fff1c2 60%, #e3b54a 100%); color: #6b4a06; box-shadow: 0 0 0 1px #e2bd5c inset, 0 2px 8px rgba(214, 160, 40, 0.35); }
+.fx-tier.silver { background: linear-gradient(135deg, #f6f8fa 0%, #d9dfe5 50%, #f4f6f8 65%, #c4ccd4 100%); color: #48525c; box-shadow: 0 0 0 1px #c8d0d8 inset; }
+.fx-tier.bronze { background: linear-gradient(135deg, #f8e7d8 0%, #e2b58e 50%, #f5e1cf 65%, #c98f62 100%); color: #6e3f1c; box-shadow: 0 0 0 1px #d9a77d inset; }
+.fx-tier.diamond::after, .fx-tier.gold::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.85), transparent); animation: fx-sheen 3.2s ease-in-out infinite; }
+@keyframes fx-sheen { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) { .fx-tier::after, .fx-match.live::before, .fx-score.live::before { animation: none !important; } }
+.fx-header .fx-tier { box-shadow: 0 0 0 1px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.25); }
 .fx-standing { display: flex; align-items: center; gap: 12px; }
 .fx-standing p { margin: 0; font-size: 14px; }
+.fx-standing.diamond { background: linear-gradient(135deg, #ffffff 0%, #eef9ff 100%); border-color: #a9dcf2; box-shadow: 0 6px 20px rgba(72, 180, 230, 0.18); }
+.fx-standing.gold { background: linear-gradient(135deg, #ffffff 0%, #fff8e3 100%); border-color: #ecd08a; box-shadow: 0 6px 20px rgba(214, 160, 40, 0.18); }
+
+/* Shine */
+.fx-header { background: linear-gradient(135deg, #0a2a66 0%, #0d3a8a 55%, #1d5bc4 100%); box-shadow: 0 2px 12px rgba(10,42,102,0.25); }
+.fx-header::after { content: ""; position: absolute; inset: 0 0 50% 0; background: linear-gradient(180deg, rgba(255,255,255,0.10), transparent); pointer-events: none; }
+.fx-brand b { text-shadow: 0 1px 0 rgba(0,0,0,0.25); }
+.fx-match.soon { border-color: #f1b3b8; }
+.fx-match.live { border-color: #d92d3a; box-shadow: 0 0 0 3px rgba(217,45,58,0.12); }
+.fx-match.live em::before, .fx-score.live::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #d92d3a; vertical-align: 1px; animation: fx-pulse 1.4s ease-in-out infinite; }
+@keyframes fx-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.8); } }
+.fx-score.live { color: #d92d3a; }
+.fx-place { font-style: normal; font-size: 12px; font-weight: 800; color: var(--lb-navy); background: var(--lb-ice); border-radius: 99px; padding: 3px 9px; white-space: nowrap; }
+.fx-place.gold { background: linear-gradient(135deg, #fff4cf, #f3d37a); color: #6b4a06; box-shadow: 0 0 0 1px #e2bd5c inset; }
+.fx-place.diamond { background: linear-gradient(135deg, #e6f7ff, #b8e6fb); color: #075a7a; }
+.fx-rank.medal { font-size: 18px; }
+.fx-board li.me { background: linear-gradient(90deg, #e3edfc, #f2f7ff); box-shadow: inset 3px 0 0 var(--lb-blue); }
+.fx-bars div { background: linear-gradient(180deg, #4a86e8 0%, #1d5bc4 100%); }
+.fx-stats div { background: linear-gradient(180deg, #ffffff 0%, #f6f9fe 100%); box-shadow: 0 1px 2px rgba(10,42,102,0.06); }
+.fx-tip-icon { background: linear-gradient(135deg, #0a2a66, #1d5bc4); }
+.fx-chat-fab { background: linear-gradient(135deg, #0a2a66, #1d5bc4) !important; }
 
 /* Rink */
 .fx-rink { position: relative; border-radius: 120px / 60px; padding: 16px 6px 24px; overflow: hidden;
@@ -474,8 +501,8 @@ a { color: inherit; text-decoration: none; }
 .fx-prize div, .fx-vouchers div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .fx-prize b, .fx-vouchers b { font-size: 14px; }
 .fx-prize span, .fx-vouchers span { font-size: 12px; color: var(--lb-muted); }
-.fx-prize em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--lb-navy); white-space: nowrap; }
-.fx-vouchers button { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: #fff; background: var(--lb-navy); border-radius: 99px; padding: 6px 10px; flex: none; }
+.fx-prize em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--lb-navy); white-space: nowrap; flex: none; }
+.fx-vouchers button { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: #fff; background: linear-gradient(135deg, #0a2a66, #1d5bc4); border-radius: 99px; padding: 6px 10px; flex: none; box-shadow: 0 2px 8px rgba(29,91,196,0.3); }
 .fx-vouchers code { font-size: 12px; font-weight: 700; color: var(--lb-navy); background: var(--lb-ice); border-radius: 6px; padding: 4px 6px; flex: none; }
 
 /* Compete */

@@ -1,4 +1,3 @@
-import { Diamond, Medal } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { API_URL } from "../../lib/api";
@@ -32,11 +31,13 @@ export function prizeFor(rank, rewards, period, scope) {
 
 export const placeText = (r, t) => (r.rank_from === r.rank_to ? t("placeOne", { n: r.rank_from }) : t("placeRange", { a: r.rank_from, b: r.rank_to }));
 
+export const TIER_EMOJI = { diamond: "💎", gold: "🥇", silver: "🥈", bronze: "🥉" };
+export const MEDAL = { 1: "🥇", 2: "🥈", 3: "🥉" };
+
 export function TierBadge({ tier, size = "sm" }) {
   const t = useT();
   if (!tier) return null;
-  const Icon = tier === "diamond" ? Diamond : Medal;
-  return <span className={`fx-tier ${tier} ${size}`}><Icon size={size === "lg" ? 18 : 13} />{t(tier)}</span>;
+  return <span className={`fx-tier ${tier} ${size}`}><i aria-hidden="true">{TIER_EMOJI[tier]}</i>{t(tier)}</span>;
 }
 
 /** Previous / next pagination. */

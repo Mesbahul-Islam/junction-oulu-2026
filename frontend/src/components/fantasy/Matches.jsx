@@ -70,7 +70,7 @@ export default function Matches({ season, sponsor }) {
               <li className={open === f.id ? "open" : ""}>
                 <button type="button" className="fx-game" onClick={() => setOpen(open === f.id ? null : f.id)}>
                   <span className="fx-team">{f.home.logo_url && <img src={f.home.logo_url} alt="" />}{f.home.name}</span>
-                  <span className="fx-score">
+                  <span className={`fx-score${f.status === "live" ? " live" : ""}`}>
                     {f.status === "finished" ? `${f.home_goals}-${f.away_goals}` : f.status === "live" ? t("live") : finnishTime(f.starts_at, t.locale)}
                     {f.finished_type?.includes("EXTENDED") && <small>{t("ot")}</small>}
                     {f.finished_type?.includes("WINNING_SHOT") && <small>{t("so")}</small>}
