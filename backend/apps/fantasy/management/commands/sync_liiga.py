@@ -7,8 +7,8 @@
 
 from django.core.management.base import BaseCommand
 
-from apps.fantasy.models import Gameweek
-from apps.fantasy.services import liiga
+from apps.fantasy.models import Gameweek, Player
+from apps.fantasy.services import liiga, photos
 from apps.fantasy.services.scoring import score_gameweek
 
 DEFAULT_SEASON = 2027
@@ -22,12 +22,17 @@ class Command(BaseCommand):
         parser.add_argument("--skip-stats", action="store_true")
         parser.add_argument("--limit", type=int, default=None, help="Max fixtures to backfill stats for")
         parser.add_argument("--no-reprice", action="store_true", help="Keep existing player prices")
+        parser.add_argument("--skip-photos", action="store_true", help="Don't make player photo thumbnails")
 
-    def handle(self, *args, season, skip_stats, limit, no_reprice, **opts):
+    def handle(self, *args, season, skip_stats, limit, no_reprice, skip_photos, **opts):
         client = liiga.LiigaClient()
         s = liiga.sync_schedule(client, season)
         self.stdout.write(f"Season {s}: {s.gameweeks.count()} gameweeks, {s.fixtures.count()} fixtures")
         self.stdout.write(f"Players: {liiga.sync_players(client, s)} on rosters")
+        if not skip_photos:
+            # Small photos made up front, so the app never waits on Liiga's 450 KB originals.
+            active = Player.objects.filter(active=True, team__isnull=False)
+            self.stdout.write(f"Player photos ready: {photos.generate_thumbnails(active)}")
         if not skip_stats:
             n = liiga.sync_finished_stats(client, s, limit=limit)
             self.stdout.write(f"Box scores synced: {n} fixtures")

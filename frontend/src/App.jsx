@@ -7,6 +7,7 @@ import { RTL } from "./lib/i18n";
 import Communities from "./pages/Communities";
 import Create from "./pages/Create";
 import Explore from "./pages/Explore";
+import Fantasy from "./pages/Fantasy";
 import Feed from "./pages/Feed";
 import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/communities" element={<Reader><Communities /></Reader>} />
           <Route path="/story/:id" element={<Reader><Story /></Reader>} />
           <Route path="/vote" element={<Reader><Vote /></Reader>} />
+          <Route path="/fantasy" element={<Reader><Fantasy /></Reader>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

@@ -119,6 +119,7 @@ class Player(TimeStampedModel):
     suspended = models.BooleanField(default=False)
     active = models.BooleanField(default=True)  # False once removed from the team roster
     total_points = models.DecimalField(**POINTS, default=ZERO)  # denormalised, current season
+    desk_checked_at = models.DateTimeField(null=True, blank=True)  # last sports desk visit
 
     class Meta:
         ordering = ["-total_points", "last_name"]
@@ -255,3 +256,115 @@ class League(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+
+# --------------------------------------------------------------------------- brand partners
+
+class Sponsor(TimeStampedModel):
+    """A brand that funds prizes. Its logo is a file under MEDIA_ROOT (see services/rewards.py)."""
+
+    name = models.CharField(max_length=80)
+    slug = models.SlugField(unique=True)
+    logo = models.CharField(max_length=200, blank=True)  # path under MEDIA_ROOT, e.g. fantasy/brands/prisma.webp
+    tagline = models.CharField(max_length=140, blank=True)
+    website = models.URLField(blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Reward(TimeStampedModel):
+    """A sponsored prize for a leaderboard position, e.g. Prisma's gift card for 1st place each gameweek."""
+
+    class Period(models.TextChoices):
+        WEEK = "week", "Every gameweek"
+        SEASON = "season", "End of season"
+
+    class Scope(models.TextChoices):
+        GLOBAL = "global", "Finland"
+        COMMUNITY = "community", "Community"
+
+    class Kind(models.TextChoices):
+        RANK = "rank", "Leaderboard place (top 3)"
+        PLAYER = "player", "Your pick scores"
+        POINTS = "points", "Points target"
+        TIER = "tier", "Season tier"
+
+    sponsor = models.ForeignKey(Sponsor, on_delete=models.CASCADE, related_name="rewards")
+    kind = models.CharField(max_length=8, choices=Kind.choices, default=Kind.RANK)
+    # PLAYER: the brand's player; you win if he is in your lineup and scores at least `threshold` points.
+    player = models.ForeignKey(Player, null=True, blank=True, on_delete=models.SET_NULL, related_name="rewards")
+    # PLAYER and POINTS: fantasy points needed in the gameweek.
+    threshold = models.PositiveSmallIntegerField(null=True, blank=True)
+    # TIER: lowest season tier that wins ("gold" means gold or diamond).
+    tier = models.CharField(max_length=8, blank=True)
+    season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name="rewards")
+    title = models.CharField(max_length=80)  # what you get, e.g. "50 € gift card"
+    description = models.CharField(max_length=200, blank=True)
+    title_fi = models.CharField(max_length=80, blank=True)  # Finnish versions for Finnish readers
+    description_fi = models.CharField(max_length=200, blank=True)
+    period = models.CharField(max_length=8, choices=Period.choices, default=Period.WEEK)
+    scope = models.CharField(max_length=10, choices=Scope.choices, default=Scope.GLOBAL)
+    community_slug = models.SlugField(blank=True)  # for community scope, e.g. "oulu"
+    rank_from = models.PositiveSmallIntegerField(default=1)
+    rank_to = models.PositiveSmallIntegerField(default=1)
+    voucher_days = models.PositiveSmallIntegerField(default=30)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["period", "scope", "rank_from"]
+
+    def __str__(self):
+        return f"{self.sponsor}: {self.title} (#{self.rank_from}-{self.rank_to}, {self.period})"
+
+
+class Voucher(TimeStampedModel):
+    """A prize won: one per reward, squad and gameweek."""
+
+    reward = models.ForeignKey(Reward, on_delete=models.CASCADE, related_name="vouchers")
+    squad = models.ForeignKey(Squad, on_delete=models.CASCADE, related_name="vouchers")
+    gameweek = models.ForeignKey(Gameweek, null=True, blank=True, on_delete=models.CASCADE, related_name="vouchers")
+    rank = models.PositiveSmallIntegerField()
+    code = models.CharField(max_length=32, unique=True)
+    expires_at = models.DateTimeField()
+    redeemed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [models.UniqueConstraint(fields=["reward", "squad", "gameweek"], name="uniq_voucher_per_win")]
+
+
+# --------------------------------------------------------------------------- sports desk (background agent)
+
+class PlayerNote(TimeStampedModel):
+    """Something the sports desk agent found about a player: recent form from the Liiga game log,
+    a status change, or a Kaleva story that mentions him."""
+
+    class Kind(models.TextChoices):
+        FORM = "form", "Form"
+        STATUS = "status", "Status"
+        NEWS = "news", "News"
+
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="notes")
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+    key = models.CharField(max_length=300)  # dedupe: the story URL, or "form" (updated in place)
+    title = models.CharField(max_length=300)
+    body = models.TextField(blank=True)
+    url = models.URLField(max_length=500, blank=True)
+    source = models.CharField(max_length=20)  # "liiga" or "kaleva"
+    wording = models.CharField(max_length=4, default="data")  # "ai" when reworded (numbers checked)
+    published_at = models.DateTimeField(null=True, blank=True)
+    # Form notes keep their numbers, so the text can be written in the reader's language.
+    facts = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-published_at", "-updated_at"]
+        constraints = [models.UniqueConstraint(fields=["player", "key"], name="uniq_player_note")]
+
+
+class Report(TimeStampedModel):
+    """A precomputed match analysis or coach report, so the app reads it instead of waiting."""
+
+    key = models.CharField(max_length=80, unique=True)  # e.g. "match:123:full", "coach:45"
+    data = models.JSONField(default=dict)
+    wording = models.CharField(max_length=4, default="data")
