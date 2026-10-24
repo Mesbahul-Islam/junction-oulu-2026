@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -51,8 +51,9 @@ export default function Feed() {
               <p>No reviewed stories yet.<br />Editors publish new ones through the day.</p>
             ) : (
               <>
-                <p>No posts in your community yet.</p>
+                <p>No posts in your communities yet.</p>
                 <Link to="/create" className="tt-cta"><Plus size={18} /> Write the first one</Link>
+                <Link to="/communities" className="tt-cta" style={{ marginTop: 10 }}><Users size={18} /> Find communities</Link>
               </>
             )}
           </div>

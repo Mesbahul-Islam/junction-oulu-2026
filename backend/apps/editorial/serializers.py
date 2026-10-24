@@ -17,13 +17,16 @@ class ReviewTaskSerializer(serializers.ModelSerializer):
     community = serializers.CharField(source="snippet.community.slug", read_only=True, default=None)
     versions = serializers.SerializerMethodField()
     flags = serializers.SerializerMethodField()
+    # The AI newsroom's verdict: "ready" (one click to publish) or "needs_review", with reasons.
+    review_level = serializers.CharField(source="snippet.review_level", read_only=True)
+    review_reasons = serializers.JSONField(source="snippet.review_reasons", read_only=True)
 
     class Meta:
         model = ReviewTask
         fields = [
             "id", "snippet", "language", "required_role", "priority", "reason", "status",
             "risk_tier", "confidence", "community", "assigned_to", "decided_by", "decided_at",
-            "comment", "created_at", "versions", "flags",
+            "comment", "created_at", "versions", "flags", "review_level", "review_reasons",
         ]
         read_only_fields = fields
 

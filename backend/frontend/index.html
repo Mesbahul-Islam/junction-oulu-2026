@@ -92,6 +92,29 @@
   .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
   .field label { font-weight: 600; font-size: 13px; }
   .bar { height: 8px; border-radius: 6px; background: linear-gradient(90deg, var(--teal-700), var(--orange)); }
+  /* AI newsroom live view */
+  .desks { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+  .desk-arrow { align-self: center; color: #c3bbb3; }
+  .desk { width: 150px; border: 1px solid var(--line); border-left-width: 4px; border-radius: 12px; padding: 8px 10px; background: #fff; font-size: 12px; }
+  .desk .st { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .desk .nm { font-weight: 700; font-size: 13.5px; margin: 1px 0; }
+  .desk .who { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+  .desk .pr { margin-top: 5px; }
+  .desk.done { border-left-color: var(--green); } .desk.done .st { color: var(--green); }
+  .desk.failed { border-left-color: var(--red); background: var(--red-soft); } .desk.failed .st { color: var(--red); }
+  .desk.waiting { border-style: dashed; border-left-style: solid; opacity: .6; }
+  .desk.active { border-color: var(--orange); background: var(--orange-soft); animation: deskpulse 1.4s ease-in-out infinite; } .desk.active .st { color: var(--orange); }
+  .desk.human { border-left-color: var(--blue); } .desk.human .st { color: var(--blue); }
+  @keyframes deskpulse { 50% { box-shadow: 0 0 0 4px rgba(232,131,58,.25); } }
+  .stages { display: flex; gap: 3px; margin: 3px 0; }
+  .stages i { width: 18px; height: 6px; border-radius: 3px; background: #ece6e1; }
+  .stages i.done { background: var(--green); } .stages i.now { background: var(--orange); } .stages i.bad { background: var(--red); }
+  .verdict { display: inline-block; font-weight: 700; font-size: 12px; padding: 2px 10px; border-radius: 999px; }
+  .verdict.ready { background: var(--green-soft); color: var(--green); } .verdict.needs_review { background: var(--amber-soft); color: var(--amber); }
+  .verdict.published { background: var(--blue-soft); color: var(--blue); }
+  .reasons { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
+  .reasons li.note { color: var(--muted); }
+  .jev { display: inline-block; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--teal-700), var(--orange)); vertical-align: middle; }
   #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 10px; display: none; z-index: 20; max-width: 90vw; }
 </style>
 </head>
@@ -143,7 +166,6 @@
           <div class="row spread"><h2 style="margin:0">AI newsroom schedule</h2><span id="schedState"></span></div>
           <p id="schedText" class="muted"></p>
           <div class="row">
-            <select id="ovCommunity"></select>
             <label class="small muted">stories <input id="ovMax" type="number" min="1" max="20" value="4" style="width:64px"></label>
             <button class="btn accent" id="ovRun">Run now</button>
           </div>
@@ -185,14 +207,24 @@
       <header class="page">
         <div><h1>AI newsroom</h1><p id="nrSched"></p></div>
         <div class="row">
-          <select id="nrCommunity"></select>
+          <select id="nrPick" title="Show another run"></select>
           <label class="small muted">stories <input id="nrMax" type="number" min="1" max="20" value="4" style="width:64px"></label>
           <button class="btn accent" id="nrRun">Run now</button>
         </div>
       </header>
+      <div class="card" style="margin-bottom:14px">
+        <div class="row spread"><h2 style="margin:0" id="nrTitle">Newsroom</h2><span id="nrState"></span></div>
+        <p class="small muted" style="margin:4px 0 10px">Wire desk and news editor work on all articles; then each picked story goes desk by desk. Nothing reaches readers until a person sends it.</p>
+        <div id="desks" class="desks"><div class="muted">No runs yet. Press Run now.</div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="row spread"><h2 style="margin:0">Stories</h2><button class="btn accent" id="sendAll" disabled>Send all ready</button></div>
+        <p class="small muted" style="margin:4px 0 10px"><span class="verdict ready">Ready to send</span> passed every check and touches nothing sensitive: one click publishes it in your name. <span class="verdict needs_review">Needs review</span> has something a person must read first (listed); open it in the Editor queue.</p>
+        <div id="stories"></div>
+      </div>
       <div class="grid two">
-        <div class="card"><h2>Runs</h2><div id="runs"></div></div>
-        <div class="card"><h2>Run details</h2><div id="runDetail" class="muted">Select a run.</div></div>
+        <div class="card"><h2>Wire desk</h2><div id="nrWire" class="muted">–</div></div>
+        <div class="card"><h2>News editor: what Jev ranked highest</h2><div id="nrJev" class="muted">–</div></div>
       </div>
     </section>
 
@@ -266,7 +298,7 @@ function show(view) {
   S.view = view;
   document.querySelectorAll(".nav").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
   document.querySelectorAll("section.view").forEach((s) => s.classList.toggle("on", s.id === "v-" + view));
-  ({ overview: renderOverview, queue: loadQueue, moderation: loadModeration, newsroom: loadRuns, compare: loadReaders }[view])();
+  ({ overview: renderOverview, queue: loadQueue, moderation: loadModeration, newsroom: loadNewsroom, compare: loadReaders }[view])();
 }
 
 // ---------- dashboard data ----------
@@ -275,12 +307,9 @@ async function loadDashboard() {
   const c = S.dash.counts;
   const badge = (id, n) => { $(id).textContent = n || ""; n ? $(id).removeAttribute("data-zero") : $(id).setAttribute("data-zero", ""); };
   badge("b-queue", c.editor_tasks + c.translation_tasks); badge("b-mod", c.flagged_posts); badge("b-run", S.dash.running.length);
-  const opts = S.dash.communities.map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join("");
-  for (const id of ["ovCommunity", "nrCommunity"]) if (!$(id).options.length) $(id).innerHTML = opts;
   const sch = S.dash.schedule, next = sch.next_run_at ? new Date(sch.next_run_at) : null;
-  const txt = `Runs automatically every ${sch.every_minutes} minutes, up to ${sch.max_stories_per_run} stories per community. ` +
-    (next ? (next > new Date() ? `Next run at ${clock(next)}.` : "Next run due now.") : "Waiting for the first scheduled run.") +
-    " A community is skipped while its previous run is still going.";
+  const txt = `Fetches the Kaleva RSS feeds every ${sch.every_minutes} minutes and covers the ${sch.max_stories_per_run} stories Jev ranks highest. ` +
+    (next ? (next > new Date() ? `Next run at ${clock(next)}.` : "Next run due now.") : "Waiting for the first scheduled run.");
   $("schedText").textContent = txt; $("nrSched").textContent = txt;
 }
 
@@ -302,7 +331,7 @@ function renderOverview() {
     <td>${m.stub_reason ? `<span class="pill bad">offline stub</span><div class="small muted">${esc(m.stub_reason)}</div>` : `<span class="pill ok">ready</span>`}</td></tr>`).join("")}</table>`;
   api("/agents/runs/").then((r) => {
     $("ovRuns").innerHTML = runsTable(results(r).slice(0, 5), true);
-    $("ovRuns").querySelectorAll("[data-run]").forEach((tr) => (tr.onclick = () => { location.hash = "newsroom"; setTimeout(() => showRun(tr.dataset.run), 50); }));
+    $("ovRuns").querySelectorAll("[data-run]").forEach((tr) => (tr.onclick = () => { S.nrRun = tr.dataset.run; location.hash = "newsroom"; }));
   });
 }
 
@@ -311,43 +340,101 @@ function runsTable(runs, clickable) {
   if (!runs.length) return `<div class="empty">No runs yet.</div>`;
   const badge = (s) => `<span class="pill ${s === "succeeded" ? "ok" : s === "failed" ? "bad" : "run"}">${s}</span>`;
   const dur = (r) => (r.started_at && r.finished_at ? Math.round((new Date(r.finished_at) - new Date(r.started_at)) / 1000) + " s" : "–");
-  return `<table><tr><th>Run</th><th>Status</th><th>Trigger</th><th>Stories</th><th>Started</th><th>Took</th></tr>
-    ${runs.map((r) => `<tr class="${clickable ? "click" : ""}" data-run="${r.id}"><td>#${r.id}</td><td>${badge(r.status)}</td><td>${esc(r.trigger)}</td>
-      <td>${(r.snippet_ids || []).length}</td><td>${ago(r.started_at || r.created_at)}</td><td>${dur(r)}</td></tr>`).join("")}</table>`;
+  return `<table><tr><th>Run</th><th>Status</th><th>Stories</th><th>Ready</th><th>Needs review</th><th>Started</th><th>Took</th></tr>
+    ${runs.map((r) => `<tr class="${clickable ? "click" : ""}" data-run="${r.id}"><td>#${r.id}</td><td>${badge(r.status)}</td>
+      <td>${r.counts.stories}</td><td>${r.counts.ready}</td><td>${r.counts.needs_review}</td><td>${ago(r.started_at || r.created_at)}</td><td>${dur(r)}</td></tr>`).join("")}</table>`;
 }
-let runPoll;
-async function loadRuns() {
-  clearTimeout(runPoll);
+
+const STORY_DESKS = ["reporter", "explainer", "translator", "fact_checker", "standards", "copy_desk"];
+let nrPoll;
+async function loadNewsroom() {
+  clearTimeout(nrPoll);
   const runs = results(await api("/agents/runs/"));
-  $("runs").innerHTML = runsTable(runs.slice(0, 25), true);
-  $("runs").querySelectorAll("[data-run]").forEach((tr) => (tr.onclick = () => showRun(tr.dataset.run)));
-  if (runs.some((r) => ["queued", "running"].includes(r.status)) && S.view === "newsroom") runPoll = setTimeout(loadRuns, 5000);
-}
-async function showRun(id) {
+  $("nrPick").innerHTML = runs.slice(0, 30).map((r) => `<option value="${r.id}">Run #${r.id} · ${esc(r.status)} · ${ago(r.created_at)}</option>`).join("");
+  if (!runs.length) return;
+  const id = S.nrRun && runs.some((r) => String(r.id) === String(S.nrRun)) ? S.nrRun : runs[0].id;
+  $("nrPick").value = id;
   const r = await api(`/agents/runs/${id}/`);
-  const rep = r.report, steps = r.steps || [];
-  const max = Math.max(1, ...steps.map((s) => s.duration_ms));
-  $("runDetail").classList.remove("muted");
-  $("runDetail").innerHTML = `
-    <div class="row" style="margin-bottom:8px"><b>Run #${r.id}</b><span class="pill">${esc(r.trigger)}</span><span class="pill ${r.status === "failed" ? "bad" : r.status === "succeeded" ? "ok" : "run"}">${esc(r.status)}</span></div>
-    <p style="margin:0 0 8px">Fetched <b>${rep.fetched}</b> items · drafted <b>${rep.drafted}</b> stories · languages ${rep.languages.map(lang).join(", ") || "–"}</p>
-    ${r.error ? `<div class="flag bad">${esc(r.error)}</div>` : ""}
-    ${rep.excluded.length ? `<div class="flag warn"><b>Not news, excluded (JSN 11/16): ${rep.excluded.length}</b><ul>${rep.excluded.map((e) => `<li>${esc(e.content_type)} (${esc(e.marker)}): ${esc(e.title)}</li>`).join("")}</ul></div>` : ""}
-    ${rep.error_count ? `<div class="flag bad"><b>${rep.error_count} agent errors</b> (those calls used the offline fallback)<ul>${rep.errors.slice(0, 8).map((e) => `<li>${esc(e.agent)}: ${esc(String(e.error).slice(0, 160))}</li>`).join("")}</ul></div>` : `<div class="flag check">No agent errors.</div>`}
-    ${steps.length ? `<h2 style="margin:14px 0 6px">Agents</h2>${steps.map((s) => `<div class="row small" style="margin:4px 0"><span style="width:96px">${esc(s.agent)}</span>
-      <div style="flex:1"><div class="bar" style="width:${Math.max(2, (s.duration_ms / max) * 100)}%"></div></div><span style="width:60px;text-align:right">${(s.duration_ms / 1000).toFixed(1)} s</span></div>`).join("")}` : ""}
-    ${(r.snippet_ids || []).length ? `<p class="small" style="margin-top:12px">Stories created: ${r.snippet_ids.map((i) => `#${i}`).join(", ")}. <a href="#queue">Review them</a></p>` : ""}`;
+  renderRun(r);
+  if (["queued", "running"].includes(r.status) && S.view === "newsroom" && !document.hidden) nrPoll = setTimeout(loadNewsroom, 2000);
 }
-async function runNow(communityId, max) {
+$("nrPick").onchange = () => { S.nrRun = $("nrPick").value; loadNewsroom(); };
+
+function renderRun(r) {
+  const live = ["queued", "running"].includes(r.status);
+  $("nrTitle").textContent = `Run #${r.id} · up to ${r.max_stories} stories`;
+  $("nrState").innerHTML = `<span class="pill ${r.status === "failed" ? "bad" : r.status === "succeeded" ? "ok" : "run"}">${esc(r.status)}${r.status === "queued" ? " (waiting for the worker)" : ""}</span>`
+    + (r.started_at ? ` <span class="small muted">${live ? "started" : "ran"} ${ago(r.started_at)}${r.finished_at ? `, took ${Math.round((new Date(r.finished_at) - new Date(r.started_at)) / 1000)} s` : ""}</span>` : "");
+  const st = { done: "Done", active: "Working now", waiting: "Waiting", failed: "Failed" };
+  const desk = (d) => `<div class="desk ${d.status}" title="${esc(d.does)}"><div class="st">${st[d.status]}</div><div class="nm">${esc(d.label)}</div><div class="who">${esc(d.who)}</div>
+      <div class="pr">${d.total > 1 || !["wire", "news_editor"].includes(d.key) ? `${d.done} of ${d.total} stories` : ""}${d.seconds ? ` <span class="muted">· ${d.seconds} s</span>` : ""}</div>
+      ${d.working_on ? `<div class="pr"><b>#${d.working_on.rank}</b> ${esc(d.working_on.title.slice(0, 50))}…${d.working_on.detail ? `<div class="muted">${esc(d.working_on.detail)}</div>` : ""}</div>` : ""}</div>`;
+  const c = r.counts;
+  const human = `<div class="desk human"><div class="st">${c.ready + c.needs_review ? `${c.ready + c.needs_review} waiting` : "Nothing waiting"}</div><div class="nm">Editors (people)</div>
+      <div class="who">Send ready stories, review the rest</div><div class="pr">${c.ready} ready · ${c.needs_review} need review · ${c.published} published</div></div>`;
+  $("desks").innerHTML = r.desks.map(desk).join('<span class="desk-arrow">→</span>') + '<span class="desk-arrow">→</span>' + human
+    + (r.error ? `<div class="flag bad" style="width:100%">${esc(r.error)}</div>` : "");
+
+  // Stories
+  const stageBar = (s) => STORY_DESKS.map((k) => {
+    const i = STORY_DESKS.indexOf(k), at = STORY_DESKS.indexOf(s.stage);
+    const cls = s.stage === "failed" ? "bad" : s.stage === "done" || i < at ? "done" : i === at ? "now" : "";
+    return `<i class="${cls}" title="${esc(k.replace("_", " "))}"></i>`;
+  }).join("");
+  const stageText = (s) => s.stage === "done" ? "With the editors" : s.stage === "failed" ? "Failed" : s.stage === "picked" ? "Waiting for the reporter"
+    : `${s.stage.replace("_", " ")}${s.detail ? ": " + s.detail : ""}…`;
+  const verdict = (s) => {
+    if (s.published_at) return `<span class="verdict published">Published</span>`;
+    if (!s.verdict) return s.error ? `<span class="pill bad">failed</span><div class="small" style="color:var(--red)">${esc(s.error.slice(0, 160))}</div>` : `<span class="muted small">being written</span>`;
+    const block = s.reasons.filter((x) => x.blocking), notes = s.reasons.filter((x) => !x.blocking);
+    return `<span class="verdict ${s.verdict}">${s.verdict === "ready" ? "Ready to send" : "Needs review"}</span>
+      ${block.length || notes.length ? `<ul class="reasons">${block.map((x) => `<li>${esc(x.text)}</li>`).join("")}${notes.map((x) => `<li class="note">Note: ${esc(x.text)}</li>`).join("")}</ul>` : ""}`;
+  };
+  const action = (s) => s.published_at ? "" : s.verdict === "ready" ? `<button class="btn accent" data-send="${s.snippet}">Send</button>`
+    : s.verdict === "needs_review" ? `<a class="btn" href="#queue">Review</a>` : "";
+  $("stories").innerHTML = r.stories.length ? `<table><tr><th>#</th><th>Jev</th><th>Story</th><th>Progress</th><th>Verdict</th><th></th></tr>
+    ${r.stories.map((s) => `<tr><td>${s.rank}</td>
+      <td style="width:120px"><span class="jev" style="width:${Math.round((s.jev_score || 0) * 60)}px"></span> <b>${(s.jev_score ?? 0).toFixed(2)}</b>
+        <div class="small muted">${s.ranked_by === "jev" ? "Jev" : "heuristic"}${s.pick_reasons.length ? ": " + esc(s.pick_reasons.join(", ")) : ""}</div></td>
+      <td><div dir="auto"><b>${esc(s.headline || s.title)}</b></div><div class="small muted">${s.headline ? `Kaleva: <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title.slice(0, 80))}</a>` : `<a href="${esc(s.url)}" target="_blank" rel="noopener">source</a>`} · ${esc(s.section)}${s.languages.length ? ` · ${s.languages.length} languages` : ""}</div></td>
+      <td style="width:170px"><div class="stages">${stageBar(s)}</div><div class="small muted">${esc(stageText(s))}</div></td>
+      <td style="max-width:360px">${verdict(s)}</td><td>${action(s)}</td></tr>`).join("")}</table>`
+    : `<div class="empty">${live ? "The wire desk and news editor are choosing stories…" : "No stories in this run."}</div>`;
+  $("stories").querySelectorAll("[data-send]").forEach((b) => (b.onclick = () => sendStories(r.id, { snippets: [Number(b.dataset.send)] })));
+  $("sendAll").disabled = !c.ready;
+  $("sendAll").textContent = c.ready ? `Send all ${c.ready} ready` : "Send all ready";
+  $("sendAll").onclick = () => sendStories(r.id, { all_ready: true });
+
+  // Wire desk and Jev
+  const w = r.state?.wire, ne = r.state?.news_editor;
+  $("nrWire").classList.toggle("muted", !w);
+  $("nrWire").innerHTML = w ? `<p style="margin:0 0 6px">${w.feeds} Kaleva feeds · ${w.fetched} articles read · <b>${w.new}</b> new · <b>${w.candidates}</b> candidates</p>
+    ${w.errors.length ? `<div class="flag bad">Could not fetch: ${esc(w.errors.join(", "))}</div>` : ""}
+    ${w.excluded_count ? `<div class="flag warn"><b>Not news, left out (JSN 11/16): ${w.excluded_count}</b><ul>${w.excluded.slice(0, 6).map((e) => `<li>${esc(e.type)}: ${esc(e.title)}</li>`).join("")}</ul></div>` : ""}` : "–";
+  $("nrJev").classList.toggle("muted", !ne);
+  $("nrJev").innerHTML = ne ? `<p class="small muted" style="margin:0 0 6px">${ne.considered} articles ranked by ${ne.ranked_by === "jev" ? "Jev" : "the heuristic (no Jev key)"}; the top ${ne.picked} were covered.</p>
+    <table>${ne.top.map((t, i) => `<tr><td class="small">${i + 1}</td><td class="small" style="width:70px"><b>${t.score.toFixed(2)}</b></td><td class="small">${esc(t.title)}${i < ne.picked ? ' <span class="pill ok">covered</span>' : ""}</td></tr>`).join("")}</table>` : "–";
+}
+
+async function sendStories(runId, body) {
   try {
-    const run = await api("/agents/runs/", { method: "POST", body: { community: Number(communityId), max_items: Number(max) } });
-    toast(`Run #${run.id} queued. Its stories go to the editor queue when it finishes.`);
-    await loadDashboard();
-    if (S.view === "newsroom") loadRuns(); else renderOverview();
+    const res = await api(`/agents/runs/${runId}/send/`, { method: "POST", body });
+    toast(res.sent.length ? `Published ${res.sent.length} ${res.sent.length === 1 ? "story" : "stories"}.` : "Nothing was published.");
+    loadNewsroom(); loadDashboard();
   } catch (e) { toast(e.message); }
 }
-$("ovRun").onclick = () => runNow($("ovCommunity").value, $("ovMax").value);
-$("nrRun").onclick = () => runNow($("nrCommunity").value, $("nrMax").value);
+
+async function runNow(max) {
+  try {
+    const run = await api("/agents/runs/", { method: "POST", body: { max_stories: Number(max) } });
+    toast(`Run #${run.id} started.`);
+    S.nrRun = run.id;
+    await loadDashboard();
+    if (S.view === "newsroom") loadNewsroom(); else location.hash = "newsroom";
+  } catch (e) { toast(e.message); }
+}
+$("ovRun").onclick = () => runNow($("ovMax").value);
+$("nrRun").onclick = () => runNow($("nrMax").value);
 
 // ---------- editor queue ----------
 const qState = { role: "editor" };
@@ -382,7 +469,9 @@ async function loadQueue() {
           <span class="pill ${esc(t.risk_tier)}">${esc(t.risk_tier)} risk</span>
           <span class="pill">${esc(t.reason.replace(/_/g, " "))}</span>
           <span class="pill">${t.language ? "Translation: " + esc(lang(t.language)) : "Story (Finnish)"}</span>
+          ${t.review_level ? `<span class="verdict ${esc(t.review_level)}">${t.review_level === "ready" ? "Ready to send" : "Needs review"}</span>` : ""}
           <span class="small muted">needs ${esc(t.required_role.replace("_", " "))} · confidence ${(t.confidence ?? 0).toFixed(2)} · ${ago(t.created_at)}</span></div>
+        ${!t.language && (t.review_reasons || []).some((x) => x.blocking) ? `<div class="flag warn"><b>Why the newsroom wants a person to read this</b><ul>${t.review_reasons.filter((x) => x.blocking).map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>` : ""}
         ${(t.language ? t.versions : (t.versions || []).filter((x) => x.language === "fi")).map((x) => `<div class="version"><span class="pill">${esc(lang(x.language))}${x.is_machine_translated ? " · machine-translated" : ""}</span>
           <div dir="auto"><b>${esc(x.headline) || "<i>Empty: write the translation with Edit text</i>"}</b></div><div class="muted" dir="auto">${esc(x.summary)}</div>
           ${(x.key_facts || []).length ? `<ul class="small">${x.key_facts.map((k) => `<li dir="auto">${esc(k)}</li>`).join("")}</ul>` : ""}</div>`).join("")}

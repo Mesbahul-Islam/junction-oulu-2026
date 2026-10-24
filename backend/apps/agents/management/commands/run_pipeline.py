@@ -1,31 +1,28 @@
-"""Run the LangGraph newsroom once, synchronously, for one community.
+"""Run one AI newsroom shift synchronously (no Celery needed).
 
-    python manage.py run_pipeline oulu --max-items 3
+    python manage.py run_pipeline --stories 3
 
-Results land in the editorial review queue (never published automatically).
+Fetches the Kaleva feeds, lets Jev pick the stories and sends each through the desks.
+Results land in the review queue as Ready to send or Needs review (never published).
 """
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
+from apps.agents import services
 from apps.agents.models import AgentRun
-from apps.agents.tasks import ingest_and_run
-from apps.communities.models import CommunityGroup
+from apps.agents.newsroom.runner import run_newsroom
 
 
 class Command(BaseCommand):
-    help = "Fetch the community's sources and run all agents once (no Celery needed)."
+    help = "Run one AI newsroom shift now."
 
     def add_arguments(self, parser):
-        parser.add_argument("community", help="Community slug, e.g. oulu")
-        parser.add_argument("--max-items", type=int, default=3, help="Stories to process (default 3)")
+        parser.add_argument("--stories", type=int, default=None, help="Stories to cover (default AGENT_MAX_ITEMS)")
 
-    def handle(self, *args, community, max_items, **options):
-        try:
-            group = CommunityGroup.objects.get(slug=community)
-        except CommunityGroup.DoesNotExist:
-            raise CommandError(f"No community with slug {community!r}. Did you run bootstrap?")
-        result = ingest_and_run(group.id, trigger=AgentRun.Trigger.MANUAL, max_items=max_items)
+    def handle(self, *args, stories, **options):
+        run = run_newsroom(services.create_run(AgentRun.Trigger.MANUAL, stories))
+        result = run.state.get("result") or {}
         self.stdout.write(self.style.SUCCESS(
-            f"Run {result['run_id']}: {len(result['snippets'])} snippet(s) sent to the review queue "
-            f"-> /admin/agents/agentrun/{result['run_id']}/"
+            f"Run {run.pk} {run.status}: {result.get('ready', 0)} ready to send, "
+            f"{result.get('needs_review', 0)} need review, {result.get('failed', 0)} failed. {run.error}"
         ))

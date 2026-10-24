@@ -24,6 +24,10 @@ class CommunityGroup(TimeStampedModel):
     municipality = models.CharField(max_length=120, blank=True)
     bbox = models.JSONField(null=True, blank=True)  # [min_lng, min_lat, max_lng, max_lat]
     languages = models.JSONField(default=list, blank=True)  # list of Language codes
+    description = models.CharField(max_length=240, blank=True)
+    # Used to recommend the community to readers whose profile matches (onboarding, Profile).
+    interests = models.ManyToManyField("accounts.Interest", blank=True, related_name="communities")
+    audiences = models.JSONField(default=list, blank=True)  # ReaderSituation values; empty = everyone
     is_active = models.BooleanField(default=True)
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, through="Membership", related_name="communities")
 
@@ -87,12 +91,23 @@ class Post(TimeStampedModel):
     )
     moderated_at = models.DateTimeField(null=True, blank=True)
     moderation_note = models.TextField(blank=True)
+    share_count = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.kind} by {self.author} in {self.community}"
+
+
+class PostLike(TimeStampedModel):
+    """A member likes a community post or reply (one like per member)."""
+
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="likes")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="post_likes")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["post", "user"], name="uniq_post_like")]
 
 
 class PostTranslation(TimeStampedModel):

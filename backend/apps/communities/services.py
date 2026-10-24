@@ -4,9 +4,9 @@ import re
 import unicodedata
 
 from django.db import transaction
-from django.db.models import F
+from django.db.models import Count, F
 
-from .models import CommunityContribution, CommunityGroup, Membership, Post, PostFlag
+from .models import CommunityContribution, CommunityGroup, Membership, Post, PostFlag, PostLike
 
 # Questions asked this many times become story candidates for editors (FR-3.12).
 RECURRING_QUESTION_THRESHOLD = 3
@@ -30,6 +30,70 @@ def leave_community(user, community: CommunityGroup) -> None:
     Membership.objects.filter(user=user, community=community).delete()
 
 
+def newsroom_for(community: CommunityGroup) -> CommunityGroup:
+    """Topic communities have no newsroom of their own: their questions and tips go to the
+    geographic community of the same municipality (whose sources the agents read)."""
+    if community.kind == CommunityGroup.Kind.TOPIC:
+        geo = CommunityGroup.objects.filter(
+            kind=CommunityGroup.Kind.GEO, municipality__iexact=community.municipality, is_active=True
+        ).first()
+        if geo:
+            return geo
+    return community
+
+
+def recommend_communities(user, limit: int = 6) -> list[tuple[CommunityGroup, float, list[str]]]:
+    """Communities the reader hasn't joined, ranked by how well they fit the profile:
+    where they live, their situation (newcomer, student...), shared topics and language.
+    Returns (community, score, reasons) for those that match at least one of these."""
+    from apps.accounts.models import Interest
+    from apps.agents.graph.text import LANGUAGE_LABELS
+    from apps.common.choices import ReaderSituation
+
+    profile = getattr(user, "profile", None)
+    location = profile.location if profile else None
+    my_interests = set(profile.interests.values_list("pk", flat=True)) if profile else set()
+    names = dict(Interest.objects.filter(pk__in=my_interests).values_list("pk", "name"))
+    situation = user.reader_situation
+    language = user.preferred_language
+    joined = set(user.memberships.values_list("community_id", flat=True))
+
+    ranked = []
+    groups = CommunityGroup.objects.filter(is_active=True).exclude(pk__in=joined).prefetch_related("interests")
+    for group in groups.annotate(member_count=Count("memberships")):
+        score, reasons = 0.0, []
+        if group.kind == CommunityGroup.Kind.GEO:
+            if location and _in_area(location, group):
+                score += 3
+                reasons.append(f"You live in {group.municipality or group.name}")
+            elif not location:  # no location given: the platform's town community is still where they live
+                score += 3
+                reasons.append(f"Local news and neighbours in {group.municipality or group.name}")
+        if group.audiences and situation in group.audiences:
+            score += 2
+            reasons.append(f"For {ReaderSituation(situation).label.lower()}s")
+        shared = [names[i.pk] for i in group.interests.all() if i.pk in my_interests]
+        if shared:
+            score += 1.5 * len(shared)
+            reasons.append("You follow " + ", ".join(shared[:3]))
+        if score and language in group.languages and language not in ("fi", "en"):  # worth saying for smaller languages
+            score += 0.5
+            reasons.append(f"Members read {LANGUAGE_LABELS.get(language, language)}")
+        if score:
+            ranked.append((group, score + min(group.member_count, 50) / 100, reasons))
+    ranked.sort(key=lambda r: -r[1])
+    return ranked[:limit]
+
+
+def _in_area(location, group: CommunityGroup) -> bool:
+    if location.municipality and group.municipality and location.municipality.lower() == group.municipality.lower():
+        return True
+    if group.bbox and location.lat is not None and location.lng is not None:
+        min_lng, min_lat, max_lng, max_lat = group.bbox
+        return min_lng <= location.lng <= max_lng and min_lat <= location.lat <= max_lat
+    return False
+
+
 def normalize_text(text: str) -> str:
     """Lowercase, strip accents-insensitive punctuation and collapse whitespace (near-dup key).
 
@@ -49,6 +113,7 @@ def record_question(*, community, author, body, contributor_consent=False, named
     RECURRING_QUESTION_THRESHOLD it is flagged as a story candidate. Never auto-published.
     Returns (contribution, created).
     """
+    community = newsroom_for(community)
     key = normalize_text(body)
     existing = (
         CommunityContribution.objects.select_for_update()
@@ -83,6 +148,7 @@ def record_question(*, community, author, body, contributor_consent=False, named
 
 def submit_contribution(*, community, author, kind, body, contributor_consent=False, named_persons_consent=False):
     """FR-3.10/3.12 entry point. Questions are de-duplicated; everything starts as status=new."""
+    community = newsroom_for(community)
     if kind == CommunityContribution.Kind.QUESTION:
         return record_question(
             community=community,
@@ -125,6 +191,32 @@ def visible_posts(user, community_ids):
         .filter(Q(status=Post.Status.VISIBLE) | Q(author=user))
         .select_related("author", "community")
     )
+
+
+def with_engagement(qs, user):
+    """Annotate posts with visible reply count, like count and whether `user` liked each."""
+    from django.db.models import Exists, OuterRef, Q
+
+    return qs.annotate(
+        n_replies=Count("replies", filter=Q(replies__status=Post.Status.VISIBLE), distinct=True),
+        n_likes=Count("likes", distinct=True),
+        is_liked=Exists(PostLike.objects.filter(post=OuterRef("pk"), user=user)),
+    )
+
+
+def set_like(post, user, liked: bool) -> int:
+    """Like or unlike a post; returns its like count."""
+    if liked:
+        PostLike.objects.get_or_create(post=post, user=user)
+    else:
+        PostLike.objects.filter(post=post, user=user).delete()
+    return post.likes.count()
+
+
+def record_share(post) -> int:
+    Post.objects.filter(pk=post.pk).update(share_count=F("share_count") + 1)
+    post.refresh_from_db(fields=["share_count"])
+    return post.share_count
 
 
 def flag_post(post, user, reason="other", note="") -> bool:

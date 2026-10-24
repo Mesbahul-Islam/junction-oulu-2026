@@ -1,6 +1,6 @@
 import { ChevronLeft, Send } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { createPost, getMyCommunities, sendContribution } from "../lib/api";
 
@@ -64,7 +64,7 @@ export default function Create() {
 
       <section className="panel">
         {communities.length === 0 ? (
-          <p style={{ margin: 0 }}>Join a community first (it's set when you onboard with a QR code).</p>
+          <p style={{ margin: 0 }}>Join a community first. <Link to="/communities" className="btn-link">Find communities</Link></p>
         ) : (
           <>
             {communities.length > 1 && (

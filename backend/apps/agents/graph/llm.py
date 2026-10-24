@@ -55,7 +55,7 @@ class StubLLM:
 
 
 
-AGENTS = ("assignment", "synthesizer", "explainer", "translator", "fact_checker")
+AGENTS = ("reporter", "explainer", "translator")  # the newsroom desks that call a model
 
 # Friendly names -> LangChain provider ids.
 PROVIDER_ALIASES = {
@@ -151,7 +151,8 @@ def resolve(agent: str | None = None) -> dict:
 
 
 def ollama_model_problem(info: dict) -> str:
-    """For Ollama models: "" if the server has the model, else why not (unreachable / not pulled)."""
+    """For Ollama models: "" if the server has the model, else why not (unreachable / not pulled).
+    Used by the admin dashboard and before translating community posts."""
     if info.get("provider") != "ollama" or info.get("stub_reason"):
         return ""
     try:
@@ -181,6 +182,9 @@ class ChatModelLLM:
                 kwargs["base_url"] = base_url
             if max_out:
                 kwargs["num_predict"] = max_out
+            # Reasoning models (qwen3, deepseek-r1...) would otherwise put their answer in a separate
+            # "thinking" field and leave the reply empty; the desks need the answer itself.
+            kwargs["reasoning"] = False
         else:
             kwargs = {"temperature": 0, "timeout": 90, "max_retries": int(getattr(settings, "LLM_MAX_RETRIES", 2))}
             if max_out:
@@ -209,6 +213,15 @@ class ChatModelLLM:
                 raise
             logger.info("%s rejected %s (%s); retrying with %s", self.spec, self.method, str(exc)[:120], other)
             return self._structured(prompt, schema, other)
+
+    def text(self, prompt: str) -> str:
+        """Plain-text answer (used to translate community posts, which need no JSON)."""
+        import re
+
+        content = self.chat.invoke(self._messages(prompt)).content
+        if isinstance(content, list):
+            content = "".join(c.get("text", "") if isinstance(c, dict) else str(c) for c in content)
+        return re.sub(r"<think>.*?</think>", "", content or "", flags=re.S).strip()
 
     def _structured(self, prompt: str, schema: type[T], method: str) -> T:
         runnable = self.chat.with_structured_output(schema, method=method)

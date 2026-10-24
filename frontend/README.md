@@ -44,12 +44,15 @@ src/
     i18n.js           languages, reader situations, topic icons, "3 hours ago"
   components/
     StorySlide        one full-screen For You story + right-hand action rail
-    PostSlide         one full-screen community post (labelled, with Report)
+    PostSlide         one full-screen community post (labelled): Like, Comments, Share (with counts), Report
+    CommentsSheet     a post's replies (translated, likeable) and a box to add one
+    CommunityCard     a community with why it's suggested and a Join / Leave button
     BottomNav         TikTok-style bar: Home, Discover, +, Saved, Profile
     NewsCard          list card (Discover, Saved); ListenPlayer (read-aloud); Spinner
   pages/
     Welcome           sign up / log in / demo accounts
-    Onboarding        language → categories → situation + arrival date (also "Edit preferences")
+    Onboarding        language → categories → situation + arrival date → communities to join (also "Edit preferences")
+    Communities       your communities, suggested ones (with why) and the rest; Join / Leave
     Feed              home: "Community News | For You" tabs over snap-scrolling slides
     Create            "+": post to your community, or send a tip / question to the newsroom
     Story             full story: for-you text, key facts, Finnish original, why ranked, report
@@ -62,9 +65,10 @@ src/
 | Screen | Endpoint |
 |---|---|
 | Log in / sign up | `POST /api/auth/token/`, `POST /api/accounts/register/` |
-| Onboarding | `GET /api/accounts/interests/`, `POST /api/accounts/onboarding/`, `GET /api/accounts/onboarding-link/<code>/` (QR) |
+| Onboarding | `GET /api/accounts/interests/`, `POST /api/accounts/onboarding/`, `GET /api/accounts/onboarding-link/<code>/` (QR), `GET /api/communities/groups/recommended/`, `POST …/groups/<slug>/join/` |
+| Communities | `GET /api/communities/groups/`, `…/groups/recommended/`, `POST …/groups/<slug>/join/` and `…/leave/` |
 | For You, Discover | `GET /api/feed/snippets/?tag=…`, `GET /api/feed/arrival/` |
-| Community News | `GET /api/communities/news/` (with `translation`, `answered_by`), `POST /api/communities/groups/<slug>/posts/<id>/flag/` |
+| Community News | `GET /api/communities/news/` (with `translation`, `answered_by`, `like_count`, `liked`, `reply_count`, `share_count`); on `/api/communities/groups/<slug>/posts/<id>/`: `like/` (POST / DELETE), `share/`, `flag/`; replies: `GET …/posts/?parent=<id>`, `POST …/posts/ {body, parent}` |
 | Create (+) | `POST /api/communities/groups/<slug>/posts/`, `POST /api/communities/contributions/` (tip/question) |
 | Story | `GET /api/feed/snippets/<id>/`, `POST …/interact/` (like, bookmark, view, read_through, expand, share), `POST …/report/` |
 | Saved | `GET /api/feed/snippets/bookmarks/` |

@@ -1,58 +1,79 @@
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import services
 from .models import AgentRun
 from .serializers import (
     AgentRunCreateSerializer,
     AgentRunDetailSerializer,
     AgentRunSerializer,
+    SendSerializer,
 )
 
 
 class AgentRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    """Staff-only: list/inspect agent runs and trigger a new one (FR-3.1/3.2).
+    """Staff only: the AI newsroom's shifts.
 
-    POST /api/agents/runs/ ``{"community": 1, "source_ids": [..]?, "language_targets": [..]?, "max_items": 5?}``
-    queues ``ingest_and_run`` (or ``run_graph_for_sources`` when ``source_ids``
-    are given) via Celery and returns the queued run (202).
+    * ``POST /api/agents/runs/ {"max_stories": 4}`` starts a shift (202); 409 while one is going.
+    * ``GET /api/agents/runs/<id>/`` is the live view: every desk's progress and every story's.
+    * ``POST /api/agents/runs/<id>/send/ {"snippets": [..]}`` or ``{"all_ready": true}`` publishes
+      stories marked Ready to send, in the name of the person who clicks.
     """
 
     permission_classes = [IsAdminUser]
-    filterset_fields = ["community", "status", "trigger"]
+    filterset_fields = ["status", "trigger"]
 
     def get_queryset(self):
-        qs = AgentRun.objects.select_related("community")
+        qs = AgentRun.objects.select_related("community").prefetch_related("stories")
         if self.action == "retrieve":
-            qs = qs.prefetch_related("steps")
+            qs = qs.prefetch_related("steps", "stories__snippet", "stories__source_document")
         return qs
 
     def get_serializer_class(self):
-        if self.action == "retrieve":
-            return AgentRunDetailSerializer
-        if self.action == "create":
-            return AgentRunCreateSerializer
-        return AgentRunSerializer
+        return AgentRunDetailSerializer if self.action == "retrieve" else AgentRunSerializer
+
+    def list(self, request, *args, **kwargs):
+        services.close_stale_runs()
+        return super().list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        from .tasks import ingest_and_run, run_graph_for_sources
+        from .tasks import run_newsroom
 
         ser = AgentRunCreateSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        data = ser.validated_data
-        options = {k: data[k] for k in ("language_targets", "max_items") if k in data}
-        run = AgentRun.objects.create(community_id=data["community"], trigger=AgentRun.Trigger.MANUAL)
-
-        def _queue():
-            if data.get("source_ids"):
-                run_graph_for_sources.delay(data["community"], data["source_ids"], run_id=run.pk, **options)
-            else:
-                ingest_and_run.delay(data["community"], run_id=run.pk, trigger=AgentRun.Trigger.MANUAL, **options)
-
-        transaction.on_commit(_queue)
+        services.close_stale_runs()
+        if services.busy():
+            return Response({"detail": "A newsroom run is already going. Wait for it to finish."}, status=409)
+        try:
+            run = services.create_run(AgentRun.Trigger.MANUAL, ser.validated_data.get("max_stories"))
+        except ValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=400)
+        transaction.on_commit(lambda: run_newsroom.delay(run.pk))
         return Response(AgentRunSerializer(run).data, status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=["post"])
+    def send(self, request, pk=None):
+        ser = SendSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        run = self.get_object()
+        stories = [s for s in run.stories.select_related("snippet") if s.snippet_id]
+        if ser.validated_data["all_ready"]:
+            snippets = [s.snippet for s in stories if s.snippet.review_level == "ready"]
+        else:
+            wanted = set(ser.validated_data["snippets"])
+            snippets = [s.snippet for s in stories if s.snippet_id in wanted]
+        sent, refused = [], []
+        for snippet in snippets:
+            try:
+                (sent if services.send_story(snippet, request.user) else refused).append(snippet.pk)
+            except ValidationError:
+                refused.append(snippet.pk)
+        return Response({"sent": sent, "refused": refused})
 
 
 class DashboardView(APIView):
@@ -74,6 +95,7 @@ class DashboardView(APIView):
         return rows
 
     def get(self, request):
+        services.close_stale_runs()
         from datetime import timedelta
 
         from django.apps import apps as django_apps
@@ -124,5 +146,7 @@ class DashboardView(APIView):
             },
             "running": AgentRunSerializer(AgentRun.objects.filter(status__in=["queued", "running"]), many=True).data,
             "llm": self._llm_status(llm),
-            "communities": [{"id": c.pk, "name": c.name, "slug": c.slug} for c in CommunityGroup.objects.filter(is_active=True)],
+            # Only communities with their own feeds can be run (topic communities have none).
+            "communities": [{"id": c.pk, "name": c.name, "slug": c.slug}
+                            for c in CommunityGroup.objects.filter(is_active=True, source_feeds__is_active=True).distinct()],
         })

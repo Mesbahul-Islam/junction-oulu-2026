@@ -1,4 +1,4 @@
-import { Languages, LogOut, Sparkles } from "lucide-react";
+import { ChevronRight, Languages, LogOut, Sparkles, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../lib/auth";
@@ -30,6 +30,9 @@ export default function Profile() {
             {(me.profile?.interests || []).map((t) => <span key={t} className="tag-chip">{topicLabel(t)}</span>)}
           </div>
         </div>
+        <Link to="/communities" className="row-link" style={{ color: "inherit" }}>
+          <span><Users size={16} style={{ verticalAlign: -3 }} /> Communities</span><ChevronRight size={18} />
+        </Link>
         <Link to="/onboarding" className="btn-primary" style={{ marginTop: 10 }}>Edit preferences</Link>
       </section>
 

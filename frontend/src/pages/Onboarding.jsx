@@ -2,17 +2,21 @@ import { ArrowRight, Check, ChevronLeft, CircleCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
+import CommunityCard from "../components/CommunityCard";
 import { Spinner } from "../components/Spinner";
-import { getInterests, resolveCode, saveOnboarding } from "../lib/api";
+import { getInterests, getRecommendedCommunities, joinCommunity, resolveCode, saveOnboarding } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { LANGUAGES, SITUATIONS, TOPICS, topicIcon } from "../lib/i18n";
 
-const STEPS = ["language", "categories", "about"];
+const STEPS = ["language", "categories", "about", "communities"];
+// Suggestions scoring at least this are pre-selected (e.g. "New in Oulu" for a newcomer).
+const PRESELECT_SCORE = 3;
 
 /**
- * Three steps: language (every story is then translated into it), categories
- * (the design's "Choose Categories" grid), and situation + arrival date.
- * Also used to edit preferences later, pre-filled from the profile.
+ * Four steps: language (every story is then translated into it), categories
+ * (the design's "Choose Categories" grid), situation + arrival date, and communities
+ * to join, recommended from the answers so far. Also used to edit preferences later,
+ * pre-filled from the profile.
  */
 export default function Onboarding() {
   const { me, loading, refresh } = useAuth();
@@ -24,6 +28,8 @@ export default function Onboarding() {
   const [code, setCode] = useState(params.get("code") || "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [picked, setPicked] = useState([]);
 
   useEffect(() => {
     getInterests().then((data) => setInterests(Array.isArray(data) ? data : data.results || []));
@@ -59,19 +65,35 @@ export default function Onboarding() {
   const toggle = (slug) =>
     set({ interests: form.interests.includes(slug) ? form.interests.filter((s) => s !== slug) : [...form.interests, slug] });
 
-  const finish = async () => {
+  const run = async (work) => {
     setBusy(true);
     setError("");
     try {
-      await saveOnboarding({ ...form, arrival_date: form.arrival_date || null, ...(code ? { onboarding_code: code } : {}) });
-      await refresh();
-      navigate("/", { replace: true });
+      await work();
     } catch (err) {
       setError(Object.values(err.data || {}).flat()[0] || err.message);
     } finally {
       setBusy(false);
     }
   };
+
+  // Save the profile first: the community suggestions are computed from it.
+  const savePreferences = () => run(async () => {
+    await saveOnboarding({ ...form, arrival_date: form.arrival_date || null, ...(code ? { onboarding_code: code } : {}) });
+    await refresh();
+    const list = await getRecommendedCommunities();
+    setSuggestions(list);
+    setPicked(list.filter((c) => c.score >= PRESELECT_SCORE).map((c) => c.slug));
+    setStep(STEPS.indexOf("communities"));
+  });
+
+  const finish = () => run(async () => {
+    for (const slug of picked) await joinCommunity(slug);
+    await refresh();
+    navigate("/", { replace: true });
+  });
+
+  const togglePick = (slug) => setPicked((p) => (p.includes(slug) ? p.filter((s) => s !== slug) : [...p, slug]));
 
   const name = STEPS[step];
   return (
@@ -147,12 +169,35 @@ export default function Onboarding() {
         </>
       )}
 
-      {step < STEPS.length - 1 ? (
+      {name === "communities" && (
+        <>
+          <h2 className="title-serif">Communities for you</h2>
+          <p className="lead">
+            Neighbours post, ask and help each other here. Posts reach you in your language. We picked these from your answers.
+          </p>
+          {suggestions.length === 0 ? (
+            <p className="lead">You're already in every community that fits you. You can find more later in Profile → Communities.</p>
+          ) : (
+            <div className="community-list">
+              {suggestions.map((c) => (
+                <CommunityCard key={c.slug} community={c} joined={picked.includes(c.slug)} onToggle={() => togglePick(c.slug)}
+                  actionLabel={picked.includes(c.slug) ? <><Check size={16} /> Added</> : "Add"} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {name === "about" ? (
+        <button className="btn-primary" disabled={busy} onClick={savePreferences}>Continue <ArrowRight size={18} /></button>
+      ) : name === "communities" ? (
+        <button className="btn-primary" disabled={busy} onClick={finish}>
+          {picked.length ? `Join ${picked.length} and start reading` : "Start reading"} <ArrowRight size={18} />
+        </button>
+      ) : (
         <button className="btn-primary" disabled={name === "categories" && !form.interests.length} onClick={() => setStep(step + 1)}>
           Continue <ArrowRight size={18} />
         </button>
-      ) : (
-        <button className="btn-primary" disabled={busy} onClick={finish}>Start reading <ArrowRight size={18} /></button>
       )}
     </main>
   );

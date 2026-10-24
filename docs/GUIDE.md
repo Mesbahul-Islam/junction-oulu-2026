@@ -37,7 +37,7 @@ docker compose up --build -d
 
 That's all. On every start, a one-shot `setup` container runs `manage.py bootstrap`, then exits:
 1. It migrates the database.
-2. It loads the demo data (Oulu community, Kaleva feeds, markets, demo readers) and creates an admin user.
+2. It loads the demo data (Oulu and 6 topic communities, Kaleva feeds, markets, demo readers, and 20 Community News posts by six neighbours in Finnish, English, Swedish, Ukrainian and Arabic, with replies, likes and shares: `DEMO_POSTS` and `DEMO_REPLIES` in `bootstrap.py`; missing ones are added on every start) and creates an admin user.
 3. **On the first start only**, it imports the Liiga season from the Liiga API and creates the Fantasy Liiga demo managers and leagues. This needs internet and takes about 3 minutes. Later starts skip it, taking a couple of seconds. Set `SEED_FANTASY=false` in `.env` to skip it entirely.
 
 Web, worker and beat start only after `setup` succeeds, so they always see a migrated, seeded database. Follow the first start with `docker compose logs -f setup`.
@@ -45,7 +45,7 @@ Web, worker and beat start only after `setup` succeeds, so they always see a mig
 | URL | What |
 |---|---|
 | http://localhost:5173 | **Reader app** (React + Vite, `frontend/`): onboarding, personalised feed in the reader's language, stories with the Finnish original, saved, profile. See `frontend/README.md`. |
-| http://localhost:8000/ | **Newsroom Admin** dashboard (`backend/frontend/index.html`, staff login). It has five sections:<br>• **Overview:** queue counts, checklist items to confirm, reported posts, runs, the schedule with the next run and a "Run now" button, and model status (checked against the Ollama server).<br>• **Editor queue:** stories and translations with the AI's flags and the JSN checklist. Edit text before approving (also how Sámi text is written), approve, request changes, reject, or batch-approve low-risk items.<br>• **Community:** reported posts with the reasons, and Keep or Remove; **Unanswered questions** from members, where you link the story that answers each; the removed and kept history.<br>• **AI newsroom:** run controls and a runs table. Each run opens a report: fetched, drafted, excluded as not news, errors and agent timings.<br>• **Compare feeds:** up to 3 real readers side by side, exactly as each gets the feed (`/api/feed/snippets/?as_user=<id>`, staff only). |
+| http://localhost:8000/ | **Newsroom Admin** dashboard (`backend/frontend/index.html`, staff login). It has five sections:<br>• **Overview:** queue counts, checklist items to confirm, reported posts, runs, the schedule with the next run and a "Run now" button, and model status (checked against the Ollama server).<br>• **Editor queue:** stories and translations with the AI's flags and the JSN checklist. Edit text before approving (also how Sámi text is written), approve, request changes, reject, or batch-approve low-risk items.<br>• **Community:** reported posts with the reasons, and Keep or Remove; **Unanswered questions** from members, where you link the story that answers each; the removed and kept history.<br>• **AI newsroom:** Run now (choose how many stories) and a live view of the latest or any earlier run: every desk's progress, every story's Jev score, stage and verdict (Ready to send with a Send button, or Needs review with the reasons), plus what the wire desk fetched and what Jev ranked highest (§4–5).<br>• **Compare feeds:** up to 3 real readers side by side, exactly as each gets the feed (`/api/feed/snippets/?as_user=<id>`, staff only). |
 | http://localhost:8000/api/docs/ | Interactive API docs (Swagger). Try any endpoint here. |
 | http://localhost:8000/admin/ | Django admin. Log in with `admin@example.com` / `admin`. |
 
@@ -66,7 +66,7 @@ Useful commands (or use `make up`, `make logs`, `make down`; run `make help` for
 
 ```bash
 docker compose logs -f web worker      # watch what's happening
-docker compose exec web python manage.py run_pipeline oulu   # run the AI newsroom once
+docker compose exec web python manage.py run_pipeline --stories 3   # run the AI newsroom once
 docker compose exec web python manage.py shell               # Python shell with Django loaded
 docker compose down                    # stop (keeps data)
 docker compose down -v                 # stop AND wipe the database
@@ -89,15 +89,13 @@ cd backend
 ../.venv/bin/python manage.py runserver
 ```
 
-Run the tests with `cd backend && ../.venv/bin/pytest` (or `make test`).
-
 ### Troubleshooting
 
 | Symptom | Cause / fix |
 |---|---|
 | `address already in use` on 5433 / 6380 / 8000 | Another program uses that port. Change the left-hand number under `ports:` in `docker-compose.yml`. |
 | `setup` exited with an error | `docker compose logs setup` shows why. Usually a migration problem after pulling new code; `docker compose down -v` gives you a fresh database. |
-| `run_pipeline` reports 0 snippets | The scout skips articles it has already ingested. Wait for new articles, or `docker compose down -v` to start over. |
+| `run_pipeline` reports 0 stories | The wire desk only offers articles from the last 48 h that no story was written from yet. Wait for new articles, or `docker compose down -v` to start over. |
 | Translations look like `[en] Finnish text…` | That agent is on the offline stub: `LLM_MODEL` empty, no `LLM_API_KEY`, or the provider's package isn't installed. `manage.py llm_check` says which (§5). |
 | Newsroom runs fine but text still looks stubbed, with a key set | The run's errors (admin → Agents → Agent runs → state) and `docker compose logs worker` show the Gemini error. Usually a wrong key or `LLM_MODEL` name; after editing `.env`, run `docker compose up -d`. |
 | Newsroom is very slow with Ollama | Local models on a CPU take minutes per story. Use a smaller model (`qwen3:4b`, `qwen3:1.7b`), a GPU (§5), or fewer stories per run (`AGENT_MAX_ITEMS`). |
@@ -162,96 +160,83 @@ Every app follows the same pattern, so once you know one you know them all:
 | `views.py` | HTTP endpoints. Thin: validate input, call a service, return JSON. |
 | `urls.py` | Mounted at `/api/<app>/` |
 | `admin.py` | Django admin screens |
-| `tests/` | pytest tests |
 
 Apps refer to each other's models by string (`"feed.Snippet"`) to avoid circular imports.
 
 ---
 
-## 4. The life of a news snippet (the core flow)
+## 4. The AI newsroom: from Kaleva to a reader
 
-This is the most important section. Follow one story from Kaleva to a reader:
+This is the most important section. A newsroom **run** (a shift) works like a real newsroom: desks
+hand the work on, and people decide what goes out.
 
 ```mermaid
 flowchart TD
-    A["Kaleva RSS article"] --> S["1. scout<br/>store as SourceDocument"]
-    T["Reader tip / question<br/>(CommunityContribution)"] --> S
-    S --> AS["2. assignment<br/>rank, risk tier, reader need, expiry"]
-    AS --> SY["3. synthesizer<br/>Finnish headline, summary, key facts"]
-    SY --> EX["4. explainer<br/>'what this means for me'"]
-    EX --> TR["5. translator<br/>en, sv, uk, ar… (never Sámi)"]
-    TR --> FC["6. fact_checker<br/>dates/numbers/names match?"]
-    FC --> ST["7. standards<br/>journalism checklist"]
-    ST --> TG["8. tagging<br/>topics, embedding, map area"]
-    TG --> P["persist: Snippet + SnippetVersion per language<br/>status = pending_review"]
-    P --> Q["Editorial review queue<br/>(ReviewTask rows)"]
-    Q -->|"human approves"| PUB["published → appears in feed"]
-    Q -->|"human rejects"| REJ["rejected"]
-    PUB -->|"reader reports / review-by date passes"| Q
-    PUB -->|"expires_at passes"| EXP["expired → removed from feed"]
+    K["Kaleva RSS feeds"] --> W["1. Wire desk<br/>fetch, store, drop opinion and ads"]
+    W --> N["2. News editor (Jev)<br/>rank every article, pick the top N"]
+    N --> R["3. Reporter<br/>Finnish headline, summary, key facts"]
+    R --> E["4. Explainer<br/>what it means for newcomers, students…"]
+    E --> T["5. Translator<br/>every reader language (never Sámi)"]
+    T --> F["6. Fact-checker<br/>draft numbers vs the article"]
+    F --> S["7. Standards editor<br/>risk, JSN sensitive topics"]
+    S --> C["8. Copy desk<br/>file the story with a verdict"]
+    C -->|"no blocking issue"| RD["Ready to send<br/>one click publishes it"]
+    C -->|"blocking issue"| NR["Needs review<br/>an editor reads it in the queue"]
+    RD -->|"a person clicks Send"| PUB["published: in readers' feeds"]
+    NR -->|"editor approves"| PUB
 ```
 
-Step by step, with the code location:
+Step by step, with the code location (`backend/apps/agents/newsroom/`):
 
-1. **Trigger.**
-   - Normally: `beat` queues `ingest_all_communities` every 30 min, which queues `ingest_and_run(community_id)` for each community (`apps/agents/tasks.py`).
-   - Manually: `manage.py run_pipeline oulu`, or `POST /api/agents/runs/` as staff.
-   - Each run creates an `AgentRun` row.
-2. **The graph runs** (`apps/agents/graph/build.py`). LangGraph passes one shared dictionary, the *state* (`graph/state.py`), through eight agent functions in a fixed order. Each agent reads what earlier agents wrote and adds its own part, and each step is saved as an `AgentStep` row, so you can see what every agent did in the admin under *Agents → Agent runs*. If one agent crashes, the error is recorded and the run continues. The fact-checker and standards agents then fail the incomplete item, which sends it to a human.
-3. **Persist** (`apps/agents/services.py: persist_graph_result`):
-   - For each story, it creates one `Snippet`, which holds the language-neutral data: risk tier, tags, expiry, confidence.
-   - It creates one `SnippetVersion` per language, holding the text.
-   - It stores the `VerificationResult` and `StandardsCheck` and calls `editorial.enqueue()`.
-   - **Failed verification or low confidence bumps the risk tier to High.**
-4. **Human review** (`apps/editorial/services.py`). `enqueue` creates one `ReviewTask` per required approval (see §6). Editors work through `GET /api/editorial/tasks/`, highest priority first. When the last required approval lands, `approve()` calls `publish()` automatically.
-5. **Feed.** `GET /api/feed/snippets/` shows only published snippets that haven't expired, and for each one only language versions a human approved.
-6. **After publishing:**
-   - A reader report (`POST /api/feed/snippets/{id}/report/`) reopens the snippet with top priority, which takes it out of the feed until re-approved.
-   - Past `review_by`, a "refresh" review task is created.
-   - Past `expires_at`, the snippet becomes `expired`.
-   - Editing a published snippet creates a public `Correction`.
+1. **Start.** Every `AGENT_SCHEDULE_MINUTES` (30) `beat` starts a run with `AGENT_MAX_ITEMS` stories; or press **Run now** on the dashboard's AI newsroom page and choose how many; or `manage.py run_pipeline --stories 3`. Only one run goes at a time. Each run is an `AgentRun` (`tasks.run_newsroom` → `runner.run_newsroom`).
+2. **Wire desk** (`wire.py`) fetches the community's Kaleva feeds (`SourceFeed`, seeded by `seed_demo`). New or changed articles become `SourceDocument`s (duplicates skipped by content hash). Candidates are the last 48 h of stored articles nothing was written from yet, minus opinion pieces and paid content (JSN 11/16).
+3. **News editor** (`news_editor.py`) asks **Jev** about every candidate (see below) and keeps the top N. Each pick becomes a `RunStory` with its Jev score and reasons.
+4. **Each story goes desk by desk** through a small LangGraph (`runner.story_graph`): reporter → explainer → translator → fact-checker → standards editor → copy desk (`desks.py`, `copy_desk.py`). Every desk records where it is (`RunStory.stage`, e.g. "translator: Ukrainian (3 of 7)") and what it did (`AgentStep`). That is what the dashboard shows live. A story that breaks is marked failed; the others go on.
+5. **Copy desk** saves the `Snippet` and one `SnippetVersion` per language, the check results the editor queue shows, any JSN checklist items, and opens the `ReviewTask`s. It sets the **verdict** (`Snippet.review_level`, with `review_reasons`):
+   - **Ready to send:** no blocking issue. A person publishes it with one click (`POST /api/agents/runs/<id>/send/`), alone or with "Send all ready". Their name goes on every approval and in the audit log (`sent_without_review`).
+   - **Needs review:** at least one blocking issue, listed on the story. An editor reads it in the Editor queue and approves it there (§6).
+6. **Feed.** `GET /api/feed/snippets/` shows only published, unexpired stories, each reader in their own language. After that, reports reopen a story, `review_by` brings it back to an editor, and `expires_at` retires it.
+
+**What makes a story "Needs review"** (blocking issues):
+- The AI reporter failed, so the draft is just the article's first sentences.
+- The draft has a number the article doesn't (the fact-checker compares numbers; "24. lokakuuta" counts as 24.10.).
+- A high-stakes topic: residence permits, health, legal matters, safety (`RISK_KEYWORDS` in `graph/text.py`).
+- A JSN sensitive topic: crime or suspicion, right of reply, minors, illness or death (`apps/editorial/checklist.py`). The editor must tick each one before approving.
+
+Notes that don't block: a translation that came back in the wrong language (it's left out, and those readers see English or Finnish), a translation that may have lost a number, a missing "what this means for you", a sensational-looking headline, Sámi (always left to a human translator).
 
 ---
 
-## 5. The agents, one by one
+## 5. The desks, one by one
 
-All in `backend/apps/agents/graph/nodes/`. Each one maps to a newsroom job and has
-a human counterpart who can overrule it (FR-3.6).
-
-| # | Agent | Newsroom job | What it does | Human counterpart |
+| # | Desk | Who does it | What it does | Human counterpart |
 |---|---|---|---|---|
-| 1 | `scout` | Reporter / tip desk | Fetches the community's `SourceFeed`s (RSS) and stores new or changed articles as `SourceDocument`. It skips duplicates by content hash, and a changed article gets `version + 1`. It also re-offers stored articles from the last 3 days that never became a snippet. It pulls open reader questions and tips, and loads the glossary and context library. | Members and editors adding tips |
-| 2 | `assignment` | News desk | Ranks items by **relevance** and keeps the top `max_items` (see *Which stories get picked* below). Picks reader needs (Kaleva model) and a **risk tier**, plus expiry and review-by dates. The risk tier only decides how much review a snippet gets; it never affects which stories are picked | News editor |
-| 3 | `synthesizer` | Writer | Finnish headline, 2-sentence summary, 3–5 key facts. | Editor |
-| 4 | `explainer` | Writer | "What this means for me" per reader situation (newcomer, student…). Background text is copied **only** from human-reviewed `ContextEntry` rows and stored in a separate `background` field. | Editor |
-| 5 | `translator` | Translator | Translates into the community's languages **and every member's profile language**, using the `GlossaryTerm` list (Kela, Migri…). One language per call; each answer is filed under the language that was asked for, never the model's own label. **It never writes Sámi.** For Sámi it creates an empty placeholder that a human must fill. | Native-language reviewer |
-| 6 | `fact_checker` | Fact-checker | Pulls dates, times, numbers and names out of the source, the Finnish draft and every translation, and checks they match. It checks that each translation is really in its language and not just the Finnish copied over. This uses the script, Ukrainian vs Russian letters, and common words, so a confused model can't vouch for itself. It also back-translates each translation and compares it with the draft. Outputs pass/fail, a confidence score and a list of mismatches. | Editor resolving flags |
-| 7 | `standards` | Standards editor | Runs the JSN-mapped checklist (`STANDARDS_CHECKLIST` in `apps/editorial/models.py`): source named (10), fact vs. opinion (11), no advertising (16), AI role disclosed, correction path (35), privacy (25). Also flags sensitive topics, which an editor must confirm before publishing (§6). | Standards editor |
-| 8 | `tagging` | – | Topic tags, an embedding vector, and a geographic bounding box. | Editor |
+| 1 | Wire desk | Kaleva RSS | Fetches every active feed, stores new and changed articles, sets aside opinion and paid content. | Editors choosing the feeds |
+| 2 | News editor | **Jev** | Ranks every candidate for this community's readers and picks the top N. | News editor |
+| 3 | Reporter | AI model | Finnish headline (under 100 characters), 2–3 sentence summary, 2–5 key facts, only from the article. | Editor |
+| 4 | Explainer | AI model | One or two sentences per reader situation (newcomer, seasonal worker, student, resident). | Editor |
+| 5 | Translator | AI model | Every language of the community and of its members, one call per language. A translation in the wrong language (checked by script, Ukrainian vs Russian letters and common words) or still in Finnish is left out. Never Sámi. | Language reviewer |
+| 6 | Fact-checker | rules | Every number in the draft must be in the article; translations should keep them. | Editor |
+| 7 | Standards editor | rules | Risk tier and JSN sensitive topics. | Standards editor |
+| 8 | Copy desk | rules | Files the story: Ready to send or Needs review, with reasons. | Editors |
 
-**Which stories get picked.** `rank()` in `nodes/assignment.py` scores every candidate by how relevant it is to this community's readers:
+**Jev picks the news.** `news_editor.py` sends Jev the community's readership (town, share of each reader situation, top interests, languages: never anything about a person) and one article, with four questions:
 
 ```
-score = 1
-      + 1.0  if it's local (names the community's town, e.g. "Oulu"/"Oulun", or comes from a feed named after it, e.g. "Oulun seutu")
-      + 0–1  share of the community's members whose interests match the story's topics (from their profiles)
-      + 0.5  if fetched in the last 24 h
-      + 0.8  per reader question/tip it answers
+score = 0.30 × is it about the town or its region?          (yes/no)
+      + 0.30 × does it affect people living there?           (yes/no)
+      + 0.15 × can a reader act on it?                       (yes/no)
+      + 0.25 × how newsworthy is it? (0–3, scaled to 0–1)
 ```
 
-Reader questions and tips that no official story answers also become candidates (counted as local, plus a boost that grows each time the question is asked again). Risk tier is **not** part of this score: a risky topic isn't more newsworthy, it just needs more review. The weights are constants at the top of the file.
+Answers are cached per article. Without `TYPESAFE_API_KEY`, or when Jev fails for an article, a heuristic scores it (local, fresh, a topic readers follow). Jev also still ranks each reader's For You feed (§7).
 
-**Risk tiers.** The assignment agent asks the LLM for the tier, using the spec's definitions:
-- **High:** residence permits, health, employment, legal matters, safety.
-- **Medium:** transport, services, events.
-- **Low:** opening hours, weather.
+**Small models.** Every model call asks for a small JSON object as plain text and parses it leniently (code fences, text around it, trailing commas), with one retry (`newsroom/ai.py`). For Ollama, the model's separate "thinking" output is switched off, so reasoning models like qwen3 answer directly.
 
-The keyword list in `graph/text.py` (`RISK_KEYWORDS`) is a safety floor that the LLM can't go below. It is deliberately narrow:
-- **High** only fires on terms that clearly concern a reader's permits, benefits, health care, employment services or an official safety notice, e.g. *oleskelulupa, Migri, Kela, verokortti, TE-palvelut, terveyskeskus, vaaratiedote, evakuointi*.
-- Broad words such as *työ*, *oikeus* or *poliisi* are left out, because they appear in ordinary news (a crime report isn't a safety instruction).
-- Without an LLM, the keywords alone decide; anything unmatched is medium.
-
-Separately, a failed fact-check or confidence below 0.7 raises a snippet to High (§6). That happens for real: in testing, the back-translation check caught a Swedish translation that reversed the meaning of a sentence.
+**The live view.** The admin dashboard's **AI newsroom** page shows the latest run (or any earlier one) and refreshes every 2 s while it runs:
+- every desk: done, working now (and on which story) or waiting, who does it, progress and time;
+- every story: its Jev score and why, how far through the desks it is, and its verdict with reasons, with **Send** for ready stories and **Review** for the rest;
+- what the wire desk fetched and what Jev ranked highest.
 
 ### The AI model: any provider, three lines in `.env`
 
@@ -295,7 +280,7 @@ LLM_MODEL_TRANSLATOR=anthropic:claude-haiku-5-5
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-The agents are `ASSIGNMENT`, `SYNTHESIZER`, `EXPLAINER`, `TRANSLATOR` and `FACT_CHECKER`. A good use: give the fact-checker a different model from the translator, so it doesn't share the translator's mistakes. Per-provider key variables: `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` and so on (`LLM_PROVIDER_KEY_VARS` in `config/settings.py`).
+The desks that call a model are `REPORTER`, `EXPLAINER` and `TRANSLATOR` (e.g. `LLM_MODEL_TRANSLATOR`). Per-provider key variables: `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` and so on (`LLM_PROVIDER_KEY_VARS` in `config/settings.py`).
 
 **No model or no key → the offline stub.** An agent without a usable model runs a deterministic **stub** instead of AI:
 - Headlines come from the RSS title, facts from sentences that contain numbers, and risk from keywords.
@@ -472,8 +457,6 @@ Each request sends Jev a **state**: the reader's profile and the snippet. It ask
 - **Privacy:** Jev receives only the reader's situation, language, days since arrival, interest names, and community/municipality names. It never receives name, email, user id or coordinates (`reader_state()`). TypeSafe is an external US-based service, so mention it in the privacy notice before a public launch.
 - **Changing the questions:** edit `questions()` and `combine()` in `jev.py`. Keep each question small and specific; the TypeSafe docs recommend several atomic questions over one big one. You can try questions in the [TypeSafe Playground](https://console.typesafe.ai/playground) first.
 
-Tests use a fake client (`apps/feed/tests/test_jev.py`), so they don't need a key.
-
 **Interactions:** `POST /api/feed/snippets/{id}/interact/` with `{"kind": "like" | "unlike" | "bookmark" | "unbookmark" | "share" | "expand" | "read_through" | "view"}`.
 - The frontend should send `view` when a card is shown, `expand` when it's tapped open, and `read_through` when the user reaches the end.
 - These events feed the ranking.
@@ -500,7 +483,16 @@ Tests use a fake client (`apps/feed/tests/test_jev.py`), so they don't need a ke
 Google login is wired through django-allauth at `/accounts/google/login/` once `GOOGLE_CLIENT_ID/SECRET` are set.
 
 **Communities** (`apps/communities/`):
-- **Groups:** `groups/`, `groups/{slug}/join/`.
+- **Groups:** `groups/`, `groups/{slug}/join/`, `groups/{slug}/leave/`.
+  - **Geographic** (`kind=geo`, e.g. Oulu): has its own newsroom sources and runs.
+  - **Topic** (`kind=topic`, e.g. "New in Oulu", "Students in Oulu", "Kärpät & sports"): a place for people with something in common. It has no sources of its own; questions and tips posted there go to the geographic community of the same `municipality` (`services.newsroom_for`), so the Oulu newsroom answers them.
+- **Recommended communities:** `GET groups/recommended/` ranks communities the reader hasn't joined against their profile (`services.recommend_communities`). Each result carries `reasons` the app shows, e.g. "For students", "You follow Housing, Work".
+  - Where they live: +3 for the town community (by location, or by default when no location is set).
+  - Their situation: +2 if it's in the community's `audiences` (newcomer, student, seasonal worker, resident).
+  - Shared topics: +1.5 for each interest they follow that the community lists in `interests`.
+  - Their language: +0.5 if members read it (shown only for languages other than Finnish and English).
+  - A small bonus for size breaks ties.
+  - The last onboarding step shows these, with those scoring 3 or more pre-selected, and joins the ones the reader keeps. Profile → Communities shows yours, the suggestions and the rest, with Join and Leave.
 - **Member-only boards:** `groups/{slug}/posts/`.
 - **Reader contributions:** `contributions/` (question, topic suggestion, tip, bridge story).
   - Repeated questions are merged and counted; after 3 repeats one becomes a story candidate.
@@ -511,20 +503,21 @@ Google login is wired through django-allauth at `/accounts/google/login/` once `
   - `POST …/posts/<id>/flag/` reports a post. It's hidden from everyone but its author until a moderator decides.
   - Moderators (community editors of that community, editors, admins) see flagged posts in `GET /api/communities/moderation/` (the dashboard's Community section) and decide with `POST …/moderation/<id>/decide/` `{decision: keep|remove, note}`.
   - Only moderators can post announcements.
-  - `GET /api/communities/news/` lists the posts from all of a reader's communities.
+  - `GET /api/communities/news/` lists the posts from all of a reader's communities. Each post carries `like_count`, `liked`, `reply_count` (visible replies) and `share_count`.
+  - **Likes, comments, shares:** `POST …/posts/<id>/like/` likes a post or reply, and `DELETE` on the same URL unlikes it. `POST …/posts/<id>/share/` counts a share. Comments are replies: `GET …/posts/?parent=<id>` returns the whole thread oldest first, and `POST …/posts/ {body, parent}` adds one. Replies are translated, can be reported and are moderated like posts.
   - **Auto-translated:** after a post is saved, the `translate_post` Celery task (`apps/communities/tasks.py`) translates it into every language the community reads (`CommunityGroup.languages` plus members' profile languages, never Sámi), one model call per language. A translation is stored as a `PostTranslation` only if it passes the same language check as stories. Readers get `translation` `{language, text, from_language}` in their own language, and the app labels it "Auto-translated from X · Show original". With no working model nothing is stored and readers see the original.
   - **Answered by the newsroom:** a top-level post containing "?" is also recorded as a question `CommunityContribution` (merged with repeats, so it counts toward a story). It shows up in the dashboard's Community → **Unanswered questions**, where a moderator links the story that answers it (`POST /api/communities/news/<id>/answer/ {snippet}`). Once that story is published, the post shows "Answered by the newsroom" with the headline in the reader's language, and the question is marked answered. Publishing a story that a question already links to marks it answered too.
   - `manage.py register_posts` backfills language, question links and translations for posts created before this existed.
 
 **Adding a new community, town or language needs no code (FR-3.14).** In admin, or via the admin-only API:
-1. Create a `CommunityGroup` with its slug, map area (`bbox`) and `languages`.
-2. Add its `SourceFeed`s (RSS URLs).
+1. Create a `CommunityGroup` with its slug, map area (`bbox`) and `languages`. For it to be recommended, also fill `description`, `interests` and `audiences` (empty `audiences` = anyone).
+2. Add its `SourceFeed`s (RSS URLs). Topic communities need none.
 3. Add `GlossaryTerm`s and `ContextEntry`s (background articles that a human wrote and reviewed).
 4. Give reviewers `UserRole`s scoped to it.
 
 The next scheduled run picks it up.
 
-The seed (`manage.py seed_demo`) creates Oulu, 7 Kaleva RSS feeds, 10 interests, 4 QR onboarding codes, 6 glossary terms and 3 placeholder context entries.
+The seed (`manage.py seed_demo`) creates Oulu and 6 topic communities in Oulu (`TOPIC_COMMUNITIES`), 7 Kaleva RSS feeds, 10 interests, 4 QR onboarding codes, 6 glossary terms and 3 placeholder context entries.
 
 ---
 
@@ -622,7 +615,7 @@ With the stack running:
 
 ```bash
 # 1. Run the AI newsroom on fresh Kaleva news (takes ~10 s with the stub)
-docker compose exec web python manage.py run_pipeline oulu --max-items 3
+docker compose exec web python manage.py run_pipeline --stories 3
 
 # 2. Log in as the dev admin
 TOKEN=$(curl -s -X POST localhost:8000/api/auth/token/ -H 'Content-Type: application/json' \

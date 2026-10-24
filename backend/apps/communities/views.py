@@ -32,6 +32,7 @@ from .serializers import (
     ModeratePostSerializer,
     ModerationPostSerializer,
     PostSerializer,
+    RecommendedCommunitySerializer,
     SourceFeedSerializer,
 )
 
@@ -52,7 +53,16 @@ class CommunityViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["kind", "municipality"]
 
     def get_queryset(self):
-        return CommunityGroup.objects.filter(is_active=True).annotate(member_count=Count("memberships"))
+        return CommunityGroup.objects.filter(is_active=True).annotate(member_count=Count("memberships")).prefetch_related("interests")
+
+    @action(detail=False, permission_classes=[permissions.IsAuthenticated])
+    def recommended(self, request):
+        """Communities to join, ranked against the reader's profile, each with its reasons."""
+        items = []
+        for group, score, reasons in services.recommend_communities(request.user):
+            group.score, group.reasons = round(score, 2), reasons
+            items.append(group)
+        return Response(RecommendedCommunitySerializer(items, many=True, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
     def join(self, request, slug=None):
@@ -89,8 +99,15 @@ class PostViewSet(viewsets.ModelViewSet):
             qs = qs.filter(status=Post.Status.VISIBLE) | qs.filter(author=self.request.user)
         if self.action == "list":
             parent = self.request.query_params.get("parent")
-            qs = qs.filter(parent_id=parent) if parent else qs.filter(parent__isnull=True)
+            # Replies read top to bottom, oldest first; posts newest first.
+            qs = qs.filter(parent_id=parent).order_by("created_at") if parent else qs.filter(parent__isnull=True)
+            qs = services.with_engagement(qs.prefetch_related("translations"), self.request.user)
         return qs
+
+    def paginate_queryset(self, queryset):
+        if self.request.query_params.get("parent"):
+            return None  # a reply thread comes whole, oldest first
+        return super().paginate_queryset(queryset)
 
     def get_serializer_context(self):
         return {**super().get_serializer_context(), "community": self.community}
@@ -102,6 +119,17 @@ class PostViewSet(viewsets.ModelViewSet):
             kind = Post.Kind.POST
         post = serializer.save(community=self.community, author=self.request.user, kind=kind)
         services.register_post(post)
+
+    @action(detail=True, methods=["post", "delete"], permission_classes=[permissions.IsAuthenticated, IsCommunityMember])
+    def like(self, request, community_slug=None, pk=None):
+        """POST likes the post (or reply), DELETE takes the like back."""
+        count = services.set_like(self.get_object(), request.user, liked=request.method == "POST")
+        return Response({"liked": request.method == "POST", "like_count": count})
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsCommunityMember])
+    def share(self, request, community_slug=None, pk=None):
+        """Count a share (the app opens the phone's share sheet or copies the text)."""
+        return Response({"share_count": services.record_share(self.get_object())})
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsCommunityMember])
     def flag(self, request, community_slug=None, pk=None):
@@ -123,7 +151,8 @@ class CommunityNewsView(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     def get_queryset(self):
         ids = self.request.user.memberships.values_list("community_id", flat=True)
-        return services.visible_posts(self.request.user, ids).select_related("question__linked_snippet").prefetch_related("translations")
+        qs = services.visible_posts(self.request.user, ids).select_related("question__linked_snippet").prefetch_related("translations")
+        return services.with_engagement(qs, self.request.user)
 
     @action(detail=True, methods=["post"])
     def answer(self, request, pk=None):

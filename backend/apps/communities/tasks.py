@@ -3,21 +3,17 @@
 import logging
 
 from celery import shared_task
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
-
-
-class PostTranslationOut(BaseModel):
-    text: str = Field(description="The post translated into the target language")
 
 
 @shared_task(name="apps.communities.tasks.translate_post")
 def translate_post(post_id: int) -> list[str]:
     """Translate a community post into every language its community reads, one language
-    per call. Only translations that pass the language check are stored; with no working
-    model nothing is stored (readers then see the original)."""
-    from apps.agents.graph.llm import get_llm, structured_call
+    per call, as plain text (no JSON for the model to get wrong). A translation is stored
+    only if it is in the right language; with no working model nothing is stored (readers
+    then see the original)."""
+    from apps.agents.graph.llm import get_llm, ollama_model_problem, resolve
     from apps.agents.graph.text import LANGUAGE_LABELS, language_problem
 
     from . import services
@@ -30,8 +26,6 @@ def translate_post(post_id: int) -> list[str]:
     if llm.is_stub:
         return []
     # Don't tie up the worker on an unreachable Ollama server or a model that isn't pulled.
-    from apps.agents.graph.llm import ollama_model_problem, resolve
-
     problem = ollama_model_problem(resolve("translator"))
     if problem:
         logger.warning("Not translating post %s: %s", post_id, problem)
@@ -42,14 +36,17 @@ def translate_post(post_id: int) -> list[str]:
             continue
         prompt = (
             f"Translate this message written by a member of a local community in Finland into "
-            f"{LANGUAGE_LABELS.get(lang, lang)} ({lang}). Keep its meaning, tone, names, times and numbers. "
-            f"Translate only; don't add anything.\n\nMESSAGE:\n{post.body}"
+            f"{LANGUAGE_LABELS.get(lang, lang)}. Keep its meaning, tone, names, times and numbers. "
+            f"Reply with the translation only, nothing else.\n\nMESSAGE:\n{post.body}"
         )
-        errors: list = []
-        out = structured_call(prompt, PostTranslationOut, lambda: PostTranslationOut(text=""), llm=llm, errors=errors, agent="translator")
-        text = (out.text or "").strip()
-        if not text or errors or language_problem(text, lang):
-            logger.info("Post %s: no usable %s translation (%s)", post_id, lang, errors or language_problem(text, lang))
+        try:
+            text = llm.text(prompt).strip().strip('"').strip()
+        except Exception as exc:  # network, model error: try again on the next post registration
+            logger.warning("Post %s: %s translation failed: %s", post_id, lang, exc)
+            continue
+        problem = "empty answer" if not text else language_problem(text, lang)
+        if problem:
+            logger.info("Post %s: %s translation not stored (%s)", post_id, lang, problem)
             continue
         PostTranslation.objects.create(post=post, language=lang, text=text, model=getattr(llm, "spec", ""))
         done.append(lang)

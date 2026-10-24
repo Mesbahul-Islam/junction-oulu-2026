@@ -1,26 +1,25 @@
 from django.contrib import admin
 
-from .models import AgentRun, AgentStep
+from .models import AgentRun, AgentStep, RunStory
 
 
-class AgentStepInline(admin.TabularInline):
-    model = AgentStep
+class RunStoryInline(admin.TabularInline):
+    model = RunStory
     extra = 0
-    fields = ("agent", "duration_ms", "snippet", "created_at")
+    fields = ("rank", "title", "jev_score", "ranked_by", "stage", "snippet")
     readonly_fields = fields
-    show_change_link = True
 
 
 @admin.register(AgentRun)
 class AgentRunAdmin(admin.ModelAdmin):
-    list_display = ("id", "community", "trigger", "status", "started_at", "finished_at")
-    list_filter = ("status", "trigger", "community")
+    list_display = ("id", "community", "trigger", "status", "max_stories", "started_at", "finished_at")
+    list_filter = ("status", "trigger")
     readonly_fields = ("created_at", "updated_at")
-    inlines = [AgentStepInline]
+    inlines = [RunStoryInline]
 
 
 @admin.register(AgentStep)
 class AgentStepAdmin(admin.ModelAdmin):
-    list_display = ("id", "run", "agent", "duration_ms", "snippet", "created_at")
+    list_display = ("id", "run", "agent", "story", "duration_ms", "created_at")
     list_filter = ("agent",)
-    raw_id_fields = ("run", "snippet")
+    raw_id_fields = ("run", "story", "snippet")

@@ -62,6 +62,12 @@ class Snippet(TimeStampedModel):
     review_by = models.DateTimeField(null=True, blank=True)  # date the facts must be re-checked
     arrival_day_bucket = models.CharField(max_length=20, choices=ArrivalBucket.choices, null=True, blank=True)
     ai_generated = models.BooleanField(default=True)
+    # The newsroom's verdict for the human editors: "ready" = every check passed and nothing
+    # sensitive, one click to publish; "needs_review" = an editor must read it (see review_reasons).
+    review_level = models.CharField(
+        max_length=20, choices=[("ready", "Ready to send"), ("needs_review", "Needs review")], blank=True, db_index=True
+    )
+    review_reasons = models.JSONField(default=list, blank=True)
     created_by_agent_run = models.ForeignKey(
         "agents.AgentRun", null=True, blank=True, on_delete=models.SET_NULL, related_name="snippets"
     )

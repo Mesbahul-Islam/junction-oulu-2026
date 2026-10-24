@@ -27,7 +27,7 @@ The AI model is three lines in `.env`; any provider works (local Ollama, Groq, G
 Then run the AI newsroom once:
 
 ```bash
-docker compose exec web python manage.py run_pipeline oulu
+docker compose exec web python manage.py run_pipeline --stories 3
 ```
 
 Without Docker (Python 3.13, SQLite):
@@ -46,8 +46,3 @@ Django 5.2 + DRF, JWT and Google OAuth, Celery + Redis, LangGraph agents
 (model-agnostic: Gemini, OpenAI, Anthropic, local models … chosen per agent; offline stub without a key), Jev (TypeSafe AI)
 for feed ranking, Postgres (SQLite locally), and local disk storage for uploaded files.
 
-## Tests
-
-```bash
-cd backend && ../.venv/bin/pytest
-```

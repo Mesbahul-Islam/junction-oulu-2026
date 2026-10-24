@@ -17,6 +17,7 @@ import os
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 # Local demo accounts (also listed in docs/GUIDE.md). Never use these anywhere shared.
 DEMO_READER_PASSWORD = "demo-reader"
@@ -27,11 +28,59 @@ DEMO_READERS = [
 ]
 
 
+# Topic communities the demo readers belong to (besides Oulu), so their Community News has variety.
+DEMO_MEMBERSHIPS = {
+    "newcomer@example.com": ["oulu-newcomers", "oulu-families"],
+    "fan@example.com": ["karpat-sports", "oulu-culture"],
+}
+
+# Neighbours who write the demo posts: email, display name, language, communities.
+DEMO_NEIGHBOURS = [
+    ("aino@example.com", "Aino", "fi", ["oulu", "oulu-culture", "oulu-families"]),
+    ("jussi@example.com", "Jussi", "fi", ["oulu", "karpat-sports"]),
+    ("hassan@example.com", "Hassan", "ar", ["oulu", "oulu-newcomers"]),
+    ("iryna@example.com", "Iryna", "uk", ["oulu", "oulu-newcomers", "oulu-families"]),
+    ("maria@example.com", "Maria", "en", ["oulu", "oulu-students", "oulu-culture"]),
+    ("erik@example.com", "Erik", "sv", ["oulu", "oulu-students", "oulu-families"]),
+]
+
+# 20 member posts, newest first (author, community, text), in the languages people really write in.
+# Posts ending in "?" also reach the newsroom as reader questions.
 DEMO_POSTS = [
-    ("fan@example.com", "Kärpät home game on Saturday: the 18:30 bus 3 from the centre gets very full, take the 18:10 one."),
-    ("newcomer@example.com", "Does anyone know where to get a library card in Oulu? I arrived last week. Thanks!"),
-    ("fan@example.com", "Ice on the Toppilansalmi walking path this morning, careful with strollers and bikes."),
-    ("newcomer@example.com", "Ukrainian-speaking parents in Oulu: we meet at the main library on Sundays at 12, everyone welcome."),
+    ("jussi@example.com", "karpat-sports", "Kärpät voitti Tapparan 4–2! Raksilan tunnelma oli ihan huikea."),
+    ("iryna@example.com", "oulu-newcomers",
+     "Порада: картку Kela можна замовити онлайн, але спочатку потрібні банківські коди. Мені допоміг чат OmaKela."),
+    ("maria@example.com", "oulu", "Found a black cat with a red collar near the Tuira bridge this morning. It's safe at my place, message me if it's yours!"),
+    ("hassan@example.com", "oulu", "هل يعرف أحد طبيب أسنان في أولو يتحدث العربية أو الإنجليزية؟"),
+    ("fan@example.com", "karpat-sports", "Myydäänkö lauantain peliin vielä lippuja ovelta?"),
+    ("aino@example.com", "oulu-culture", "Taidemuseon perjantai-illan opastus on tällä viikolla suomeksi ja englanniksi, klo 17."),
+    ("erik@example.com", "oulu-families", "Finns det svenskspråkig dagvård i Uleåborg?"),
+    ("newcomer@example.com", "oulu-newcomers", "Free Finnish conversation group at the main library on Tuesdays at 17:00. Total beginners welcome, I went last week and it was great."),
+    ("jussi@example.com", "oulu", "Nallikarin talviuintipaikan sauna on taas auki. Keskiviikkoisin yhteinen uintiilta klo 18, uudetkin mukaan!"),
+    ("maria@example.com", "oulu-students", "Is the PSOAS queue faster for shared flats than for studios?"),
+    ("hassan@example.com", "oulu-newcomers", "How long did your residence permit card take to arrive after Migri approved the application?"),
+    ("aino@example.com", "oulu", "Pekurinkulman kirpputorille mahtuu vielä myyjiä lauantaina. Pöytä on ilmainen, tule ajoissa!"),
+    ("iryna@example.com", "oulu-families", "Хтось знає, де в Оулу недорого купити зимовий одяг для дітей?"),
+    ("maria@example.com", "oulu-culture", "Anyone going to the music video festival this weekend? Looking for people to go with, I'm new here."),
+    ("erik@example.com", "oulu-students", "Selling a winter bike with studded tyres, 60 €. Pick up at the Linnanmaa campus this week."),
+    ("aino@example.com", "oulu", "Milloin Hupisaarten uusi kävelysilta valmistuu?"),
+    ("fan@example.com", "oulu", "Kärpät home game on Saturday: the 18:30 bus 3 from the centre gets very full, take the 18:10 one."),
+    ("newcomer@example.com", "oulu", "Does anyone know where to get a library card in Oulu? I arrived last week. Thanks!"),
+    ("fan@example.com", "oulu", "Ice on the Toppilansalmi walking path this morning, careful with strollers and bikes."),
+    ("newcomer@example.com", "oulu", "Ukrainian-speaking parents in Oulu: we meet at the main library on Sundays at 12, everyone welcome."),
+]
+
+# Replies under demo posts: (index in DEMO_POSTS, author, text). Authors are members of that post's community.
+DEMO_REPLIES = [
+    (0, "fan@example.com", "Mikä ilta! Kolmas maali oli kauden paras."),
+    (2, "jussi@example.com", "Näin saman kissan eilen Tuirassa. Toivottavasti omistaja löytyy!"),
+    (3, "aino@example.com", "Keskustan hammaslääkäriasemalla palvellaan myös englanniksi, kysy ajanvarauksesta."),
+    (3, "maria@example.com", "My dentist at the city health centre spoke English, just ask when you book."),
+    (6, "aino@example.com", "Keskustassa on ruotsinkielinen päiväkoti. Kysy kaupungin varhaiskasvatuksen palveluohjauksesta."),
+    (10, "iryna@example.com", "Мені картку надіслали приблизно через два тижні після рішення."),
+    (10, "newcomer@example.com", "About two weeks for me too."),
+    (12, "aino@example.com", "Kierrätyskeskus on halvin, ja Pekurinkulman kirpputori lauantaisin."),
+    (17, "maria@example.com", "Just go to any library with your ID, it took me five minutes!"),
 ]
 
 
@@ -74,12 +123,12 @@ class Command(BaseCommand):
                 "docker compose exec web python manage.py seed_fantasy_demo"))
 
     def _ensure_demo_readers(self):
-        """Two readers with opposite profiles, to compare personalised feeds (local dev only)."""
+        """Two readers with opposite profiles, to compare personalised feeds, plus the neighbours
+        who write the demo posts (local dev only)."""
         from apps.accounts.models import Interest
         from apps.communities.models import CommunityGroup, Membership
 
         User = get_user_model()
-        oulu = CommunityGroup.objects.filter(slug="oulu").first()
         for email, situation, language, interests, days in DEMO_READERS:
             if User.objects.filter(email=email).exists():
                 continue
@@ -89,24 +138,65 @@ class Command(BaseCommand):
                 onboarded=True,
             )
             user.profile.interests.set(Interest.objects.filter(slug__in=interests))
-            if oulu:
-                Membership.objects.get_or_create(user=user, community=oulu)
             self.stdout.write(f"Created demo reader {email}.")
+        for email, name, language, _ in DEMO_NEIGHBOURS:
+            if not User.objects.filter(email=email).exists():
+                User.objects.create_user(email=email, password=DEMO_READER_PASSWORD, display_name=name,
+                                         preferred_language=language, onboarded=True)
+        memberships = {email: ["oulu", *slugs] for email, slugs in DEMO_MEMBERSHIPS.items()}
+        memberships.update({email: slugs for email, _, _, slugs in DEMO_NEIGHBOURS})
+        groups = {g.slug: g for g in CommunityGroup.objects.all()}
+        for user in User.objects.filter(email__in=memberships):
+            for slug in memberships[user.email]:
+                if slug in groups:
+                    Membership.objects.get_or_create(user=user, community=groups[slug])
 
     def _ensure_demo_posts(self):
-        """A few member posts so the app's Community News tab isn't empty on a fresh database."""
+        """Member posts so the app's Community News tab isn't empty. Adds any that are missing."""
         from apps.communities.models import CommunityGroup, Post
-
-        oulu = CommunityGroup.objects.filter(slug="oulu").first()
-        User = get_user_model()
-        authors = {u.email: u for u in User.objects.filter(email__in=[r[0] for r in DEMO_READERS])}
-        if not oulu or len(authors) < 2 or Post.objects.filter(community=oulu).exists():
-            return
         from apps.communities.services import register_post
 
-        for email, body in DEMO_POSTS:
-            register_post(Post.objects.create(community=oulu, author=authors[email], body=body))
-        self.stdout.write(f"Created {len(DEMO_POSTS)} demo community posts.")
+        User = get_user_model()
+        authors = {u.email: u for u in User.objects.filter(email__in={email for email, _, _ in DEMO_POSTS})}
+        groups = {g.slug: g for g in CommunityGroup.objects.all()}
+        now = timezone.now()
+        created = 0
+        for i, (email, slug, body) in enumerate(DEMO_POSTS):
+            if email not in authors or slug not in groups or Post.objects.filter(community=groups[slug], body=body).exists():
+                continue
+            register_post(Post.objects.create(community=groups[slug], author=authors[email], body=body))
+            created += 1
+        if created:
+            # Spread all demo posts over the last two days in list order, so the feed looks lived in.
+            for i, (email, slug, body) in enumerate(DEMO_POSTS):
+                Post.objects.filter(community__slug=slug, author__email=email, body=body).update(
+                    created_at=now - datetime.timedelta(hours=2.5 * i))
+            self.stdout.write(f"Created {created} demo community posts.")
+        self._ensure_demo_engagement()
+
+    def _ensure_demo_engagement(self):
+        """Replies, likes and share counts on the demo posts, so the post actions show real numbers."""
+        from apps.communities.models import Membership, Post, PostLike
+        from apps.communities.services import register_post
+
+        User = get_user_model()
+        posts = [Post.objects.filter(community__slug=slug, author__email=email, body=body, parent=None).first()
+                 for email, slug, body in DEMO_POSTS]
+        users = {u.email: u for u in User.objects.all()}
+        for index, email, body in DEMO_REPLIES:
+            parent = posts[index]
+            if parent and email in users and not parent.replies.filter(body=body).exists():
+                register_post(Post.objects.create(community=parent.community, author=users[email], body=body, parent=parent))
+        if PostLike.objects.filter(post__in=[p for p in posts if p]).exists():
+            return  # already seeded once; leave real likes and shares alone
+        for i, post in enumerate(posts):
+            if not post:
+                continue
+            members = list(Membership.objects.filter(community=post.community).exclude(user=post.author)
+                           .order_by("user__email").values_list("user_id", flat=True))
+            for user_id in members[: (i * 5 + 3) % (len(members) + 1)]:
+                PostLike.objects.get_or_create(post=post, user_id=user_id)
+            Post.objects.filter(pk=post.pk).update(share_count=(i * 3 + 1) % 9)
 
     def _ensure_admin(self):
         email = os.environ.get("DJANGO_SUPERUSER_EMAIL")

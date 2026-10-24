@@ -18,7 +18,7 @@ function Rail({ children }) {
   return <div className="tt-rail">{children}</div>;
 }
 
-function RailButton({ icon: Icon, label, active, onClick, count }) {
+export function RailButton({ icon: Icon, label, active, onClick, count }) {
   return (
     <button className={`tt-rail-btn${active ? " active" : ""}`} onClick={onClick} aria-label={label}>
       <span className="tt-rail-icon"><Icon size={26} fill={active ? "currentColor" : "none"} strokeWidth={1.8} /></span>

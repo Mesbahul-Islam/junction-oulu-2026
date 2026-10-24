@@ -1,10 +1,12 @@
-import { ArrowRight, Flag, Languages, MessageCircle, Newspaper, Share2, Users } from "lucide-react";
+import { ArrowRight, Flag, Heart, Languages, MessageCircle, Newspaper, Share2, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { flagPost } from "../lib/api";
+import { flagPost, likePost, sharePost } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { languageName, timeAgo } from "../lib/i18n";
+import CommentsSheet from "./CommentsSheet";
+import { RailButton } from "./StorySlide";
 
 const REASONS = [
   { value: "hate", label: "Hate or harassment" },
@@ -18,8 +20,10 @@ const REASONS = [
  * One full-screen community post. Written by a member, not the newsroom: it is labelled so,
  * and anyone can flag it (it's then hidden until a moderator reviews it).
  */
-export default function PostSlide({ post, onFlagged }) {
+export default function PostSlide({ post: initial, onFlagged }) {
   const { me } = useAuth();
+  const [post, setPost] = useState(initial);
+  const [comments, setComments] = useState(false);
   const [flagging, setFlagging] = useState(false);
   const [done, setDone] = useState("");
   const [showOriginal, setShowOriginal] = useState(false);
@@ -32,9 +36,15 @@ export default function PostSlide({ post, onFlagged }) {
     setFlagging(false);
     setTimeout(() => onFlagged?.(post.id), 1800);
   };
+  const like = async () => {
+    const res = await likePost(post.community_slug, post.id, !post.liked);
+    setPost((p) => ({ ...p, liked: res.liked, like_count: res.like_count }));
+  };
   const share = async () => {
     if (navigator.share) await navigator.share({ text: post.body }).catch(() => {});
     else await navigator.clipboard?.writeText(post.body);
+    const res = await sharePost(post.community_slug, post.id).catch(() => null);
+    if (res) setPost((p) => ({ ...p, share_count: res.share_count }));
   };
 
   return (
@@ -44,9 +54,9 @@ export default function PostSlide({ post, onFlagged }) {
 
       <div className="tt-rail">
         <span className="tt-avatar">{initials}</span>
-        <button className="tt-rail-btn" onClick={share} aria-label="Share">
-          <span className="tt-rail-icon"><Share2 size={26} strokeWidth={1.8} /></span><span className="tt-rail-label">Share</span>
-        </button>
+        <RailButton icon={Heart} label="Like" active={post.liked} count={post.like_count || 0} onClick={like} />
+        <RailButton icon={MessageCircle} label="Comments" count={post.reply_count || 0} onClick={() => setComments(true)} />
+        <RailButton icon={Share2} label="Share" count={post.share_count || "Share"} onClick={share} />
         {!post.is_mine && (
           <button className="tt-rail-btn" onClick={() => setFlagging(true)} aria-label="Report post">
             <span className="tt-rail-icon"><Flag size={26} strokeWidth={1.8} /></span><span className="tt-rail-label">Report</span>
@@ -78,6 +88,11 @@ export default function PostSlide({ post, onFlagged }) {
         )}
         {done && <div className="tt-panel">{done}</div>}
       </div>
+
+      {comments && (
+        <CommentsSheet post={post} onClose={() => setComments(false)}
+          onReplied={() => setPost((p) => ({ ...p, reply_count: (p.reply_count || 0) + 1 }))} />
+      )}
 
       {flagging && (
         <div className="tt-sheet" role="dialog" aria-label="Report this post">

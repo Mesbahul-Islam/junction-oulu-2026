@@ -1,4 +1,4 @@
-"""Idempotent demo seed: Oulu community, interests, onboarding links, Kaleva RSS feeds, glossary, context.
+"""Idempotent demo seed: Oulu community and topic communities, interests, onboarding links, Kaleva RSS feeds, glossary, context.
 
 Usage: python manage.py seed_demo
 """
@@ -34,6 +34,23 @@ INTERESTS = [
     ("events", "Events"),
     ("services", "Services"),
     ("weather", "Weather"),
+]
+
+# Topic communities in Oulu, recommended to readers whose situation or topics match.
+# (slug, name, description, audiences, interests, languages)
+TOPIC_COMMUNITIES = [
+    ("oulu-newcomers", "New in Oulu", "Ask and help with the first months: Kela, housing, registering, finding your way.",
+     ["newcomer"], ["services", "housing", "work", "health"], ["fi", "en", "uk", "ar", "ru", "so"]),
+    ("oulu-seasonal-workers", "Seasonal workers", "Work, housing and getting around for people here for the season.",
+     ["seasonal_worker"], ["work", "housing", "transport", "weather"], ["fi", "en", "uk", "et", "ru"]),
+    ("oulu-students", "Students in Oulu", "University and OAMK life: housing, events, cheap eats and transport.",
+     ["student"], ["education", "housing", "events", "transport"], ["fi", "en", "sv"]),
+    ("oulu-families", "Families in Oulu", "Schools, daycare, health services and things to do with kids.",
+     [], ["education", "health", "services"], ["fi", "en", "sv", "ar"]),
+    ("karpat-sports", "Kärpät & sports", "Match talk, results and local sport, from Liiga to junior teams.",
+     [], ["sports", "events"], ["fi", "en", "sv"]),
+    ("oulu-culture", "Culture & events", "Concerts, theatre, festivals and what's on this weekend.",
+     [], ["culture", "events"], ["fi", "en"]),
 ]
 
 # (code, language, default_arrival_offset_days)
@@ -94,6 +111,18 @@ class Command(BaseCommand):
         for slug, name in INTERESTS:
             Interest.objects.get_or_create(slug=slug, defaults={"name": name})
 
+        if not oulu.description:
+            oulu.description = "Everyone in Oulu: local talk, neighbourly help and questions for the newsroom."
+            oulu.save(update_fields=["description", "updated_at"])
+        for slug, name, description, audiences, interests, languages in TOPIC_COMMUNITIES:
+            group, created = CommunityGroup.objects.get_or_create(
+                slug=slug,
+                defaults={"name": name, "kind": CommunityGroup.Kind.TOPIC, "municipality": "Oulu",
+                          "description": description, "audiences": audiences, "languages": languages},
+            )
+            if created:
+                group.interests.set(Interest.objects.filter(slug__in=interests))
+
         for code, lang, offset in ONBOARDING_LINKS:
             OnboardingLink.objects.get_or_create(
                 code=code, defaults={"community": oulu, "language": lang, "default_arrival_offset_days": offset}
@@ -125,7 +154,7 @@ class Command(BaseCommand):
         if options["verbosity"] < 1:
             return
         self.stdout.write(self.style.SUCCESS(
-            f"Seeded: community={oulu.slug}, interests={Interest.objects.count()}, "
+            f"Seeded: communities={CommunityGroup.objects.count()}, interests={Interest.objects.count()}, "
             f"onboarding_links={OnboardingLink.objects.count()}, feeds={oulu.source_feeds.count()}, "
             f"glossary={GlossaryTerm.objects.count()}, context={ContextEntry.objects.count()}"
         ))

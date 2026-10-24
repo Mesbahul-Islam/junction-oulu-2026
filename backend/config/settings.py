@@ -169,7 +169,7 @@ LLM_LANGUAGES_PER_CALL = env.int("LLM_LANGUAGES_PER_CALL", default=1)
 # Advanced, optional: a different model for one agent, as provider:model
 # (e.g. LLM_MODEL_TRANSLATOR=anthropic:claude-haiku-5-5). Its key is read from that
 # provider's own variable below (ANTHROPIC_API_KEY ...) unless it's the main provider.
-LLM_AGENTS = ("assignment", "synthesizer", "explainer", "translator", "fact_checker")
+LLM_AGENTS = ("reporter", "explainer", "translator")  # LLM_MODEL_REPORTER etc. pick a model per desk
 LLM_AGENT_MODELS = {agent: env(f"LLM_MODEL_{agent.upper()}", default="") for agent in LLM_AGENTS}
 LLM_PROVIDER_KEY_VARS = {
     "google_genai": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),

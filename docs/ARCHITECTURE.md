@@ -22,7 +22,7 @@ backend/
 ```
 
 Each app has: `models.py`, `admin.py`, `serializers.py`, `views.py`, `urls.py`,
-`services.py` (business logic, no HTTP), `tests/`. Every app's `urls.py` is
+`services.py` (business logic, no HTTP). Every app's `urls.py` is
 mounted at `/api/<app>/` by `config/urls.py`. All models inherit
 `apps.common.models.TimeStampedModel` (`created_at`, `updated_at`).
 
@@ -66,7 +66,7 @@ mounted at `/api/<app>/` by `config/urls.py`. All models inherit
 ### agents
 - `AgentRun` — `community`, `trigger` (`schedule`/`manual`/`community_signal`), `status`, `started_at`, `finished_at`, `state` JSON (final LangGraph state), `error`.
 - `AgentStep` — `run`, `agent` (`scout`/`assignment`/`synthesizer`/`explainer`/`translator`/`fact_checker`/`standards`/`tagging`), `input` JSON, `output` JSON, `snippet` FK nullable, `duration_ms`.
-- Graph in `apps/agents/graph/`: `state.py` (TypedDict), `nodes/*.py` one per agent, `build.py` (`build_graph()`), `llm.py` (model-agnostic via LangChain `init_chat_model`; configured by `LLM_PROVIDER` + `LLM_MODEL` + `LLM_API_KEY`, optional per-agent `LLM_MODEL_<AGENT>`; deterministic stub when no model/key/package; `manage.py llm_check`).
+- Newsroom in `apps/agents/newsroom/`: `wire.py` (Kaleva RSS), `news_editor.py` (Jev picks the stories), `desks.py` (reporter, explainer, translator, fact-checker, standards editor), `copy_desk.py` (files each story as Ready to send / Needs review), `runner.py` (the shift; one LangGraph per story), `ai.py` (lenient JSON model calls). Model layer: `apps/agents/graph/llm.py` (model-agnostic via LangChain `init_chat_model`; configured by `LLM_PROVIDER` + `LLM_MODEL` + `LLM_API_KEY`, optional per-agent `LLM_MODEL_<AGENT>`; deterministic stub when no model/key/package; `manage.py llm_check`).
 - Celery tasks in `apps/agents/tasks.py`: `ingest_and_run(community_id)`, `run_graph_for_sources(community_id, source_ids)`, `expire_snippets()`.
 - Persist via `apps.agents.services.persist_graph_result(run, state)` → creates `Snippet` + `SnippetVersion` in `pending_review` and calls `apps.editorial.services.enqueue(snippet, reason=...)`.
 

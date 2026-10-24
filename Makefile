@@ -5,7 +5,7 @@ PY := .venv/bin/python
 MANAGE := cd backend && ../$(PY) manage.py
 
 .DEFAULT_GOAL := help
-.PHONY: help env up down logs reset shell-docker install bootstrap run worker test pipeline
+.PHONY: help env up down logs reset shell-docker install bootstrap run worker pipeline
 
 help:  ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -45,8 +45,5 @@ run:  ## Run the dev server locally on :8000
 worker:  ## Run a Celery worker locally (needs Redis and CELERY_TASK_ALWAYS_EAGER=False)
 	cd backend && ../.venv/bin/celery -A config worker -l info
 
-test:  ## Run the test suite
-	cd backend && ../.venv/bin/pytest -q
-
 pipeline:  ## Run the AI newsroom once for the Oulu community (local)
-	$(MANAGE) run_pipeline oulu
+	$(MANAGE) run_pipeline --stories 3

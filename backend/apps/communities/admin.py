@@ -26,6 +26,7 @@ class CommunityGroupAdmin(admin.ModelAdmin):
     list_filter = ["kind", "is_active"]
     search_fields = ["name", "slug", "municipality"]
     prepopulated_fields = {"slug": ("name",)}
+    filter_horizontal = ["interests"]
     inlines = [SourceFeedInline]
 
 

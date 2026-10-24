@@ -16,20 +16,33 @@ from .models import (
 class CommunityGroupSerializer(serializers.ModelSerializer):
     member_count = serializers.IntegerField(read_only=True)
     is_member = serializers.SerializerMethodField()
+    interests = serializers.SlugRelatedField(slug_field="slug", many=True, read_only=True)
 
     class Meta:
         model = CommunityGroup
-        fields = ["id", "name", "slug", "kind", "municipality", "bbox", "languages", "is_active",
-                  "member_count", "is_member"]
+        fields = ["id", "name", "slug", "kind", "description", "municipality", "bbox", "languages", "interests",
+                  "audiences", "is_active", "member_count", "is_member"]
 
     def get_is_member(self, obj) -> bool:
         user = self.context["request"].user
         return user.is_authenticated and obj.memberships.filter(user=user).exists()
 
 
+class RecommendedCommunitySerializer(CommunityGroupSerializer):
+    """A community suggested for the reader, with why (from services.recommend_communities)."""
+
+    reasons = serializers.ListField(child=serializers.CharField(), read_only=True)
+    score = serializers.FloatField(read_only=True)
+
+    class Meta(CommunityGroupSerializer.Meta):
+        fields = CommunityGroupSerializer.Meta.fields + ["reasons", "score"]
+
+
 class PostSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
-    reply_count = serializers.IntegerField(source="replies.count", read_only=True)
+    reply_count = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
+    liked = serializers.SerializerMethodField()
     community_name = serializers.CharField(source="community.name", read_only=True)
     community_slug = serializers.CharField(source="community.slug", read_only=True)
     is_mine = serializers.SerializerMethodField()
@@ -40,10 +53,11 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ["id", "community", "community_name", "community_slug", "author", "author_name", "is_mine", "kind",
-                  "body", "language", "translation", "answered_by", "image", "parent", "reply_count", "status",
-                  "flag_count", "moderation_note",
+                  "body", "language", "translation", "answered_by", "image", "parent", "reply_count", "like_count", "liked",
+                  "share_count", "status", "flag_count", "moderation_note",
                   "created_at", "updated_at"]
-        read_only_fields = ["community", "author", "status", "language", "moderation_note", "created_at", "updated_at"]
+        read_only_fields = ["community", "author", "status", "language", "share_count", "moderation_note",
+                            "created_at", "updated_at"]
 
     def _reader_chain(self):
         from apps.feed.services import language_chain, requester_language
@@ -69,6 +83,21 @@ class PostSerializer(serializers.ModelSerializer):
             return None
         t = next((t for t in obj.translations.all() if t.language == want), None)
         return {"language": t.language, "text": t.text, "from_language": obj.language} if t else None
+
+    # Counts come annotated by the views (services.with_engagement); computed per post otherwise.
+    def get_reply_count(self, obj) -> int:
+        n = getattr(obj, "n_replies", None)
+        return n if n is not None else obj.replies.filter(status=Post.Status.VISIBLE).count()
+
+    def get_like_count(self, obj) -> int:
+        n = getattr(obj, "n_likes", None)
+        return n if n is not None else obj.likes.count()
+
+    def get_liked(self, obj) -> bool:
+        if hasattr(obj, "is_liked"):
+            return obj.is_liked
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.likes.filter(user=request.user).exists())
 
     def get_is_mine(self, obj) -> bool:
         request = self.context.get("request")
