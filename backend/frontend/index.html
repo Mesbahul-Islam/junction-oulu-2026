@@ -70,6 +70,28 @@
   #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 14px; display: none; max-width: calc(100vw - 32px); z-index: 10; }
   pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--bg); padding: 8px; border-radius: 8px; max-height: 260px; overflow: auto; }
   @media (max-width: 640px) { .feed { max-width: none; } .meter { grid-template-columns: 96px 1fr 40px; } }
+  /* Auth Modal & Google Button */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; backdrop-filter: blur(2px); }
+  .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; width: 100%; max-width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,.25); overflow: hidden; animation: fadeIn .15s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 8px 16px; }
+  .modal-tabs { display: flex; gap: 4px; }
+  .modal-tabs button { border: none; background: none; padding: 8px 12px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; font-size: 15px; }
+  .modal-tabs button.on { color: var(--ink); border-color: var(--accent); font-weight: 600; }
+  .modal-close { border: none; background: none; font-size: 22px; line-height: 1; color: var(--muted); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+  .modal-close:hover { color: var(--ink); background: var(--bg); }
+  .modal-body { padding: 20px 24px; }
+  .auth-form { display: flex; flex-direction: column; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+  .field label { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .full-width { width: 100%; display: flex; align-items: center; justify-content: center; padding: 8px 12px; box-sizing: border-box; }
+  .auth-divider { display: flex; align-items: center; gap: 10px; margin: 4px 0; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+  .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .google-btn { display: flex; align-items: center; gap: 8px; justify-content: center; text-decoration: none; font-weight: 500; color: var(--ink); }
+  .google-btn:hover { border-color: var(--muted); }
+  .auth-footer { margin-top: 6px; text-align: center; font-size: 13px; color: var(--muted); }
+  .auth-footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .auth-footer a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -154,6 +176,66 @@
     <div class="panel"><h2>My positions</h2><div id="positions"></div></div>
   </section>
 </main>
+
+<!-- Auth Modal -->
+<div id="authModal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-tabs">
+        <button type="button" class="tab-btn on" id="tabLogin">Log In</button>
+        <button type="button" class="tab-btn" id="tabSignup">Sign Up</button>
+      </div>
+      <button type="button" class="modal-close" id="closeAuthModal" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- Login Form -->
+      <form id="modalLoginForm" class="auth-form">
+        <div class="field">
+          <label for="mLogEmail">Email</label>
+          <input id="mLogEmail" type="email" placeholder="name@example.com" required autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="mLogPw">Password</label>
+          <input id="mLogPw" type="password" placeholder="Your password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn primary full-width" id="mLogSubmit">Log In</button>
+        <div class="auth-divider"><span>or</span></div>
+        <a href="/accounts/google/login/" class="btn google-btn full-width">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+          Continue with Google
+        </a>
+        <div class="auth-footer">
+          Don't have an account? <a href="#" id="switchSignup">Sign up</a>
+        </div>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="modalSignupForm" class="auth-form" style="display:none">
+        <div class="field">
+          <label for="mSignEmail">Email</label>
+          <input id="mSignEmail" type="email" placeholder="name@example.com" required autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="mSignName">Display name (optional)</label>
+          <input id="mSignName" type="text" placeholder="e.g. Alex M.">
+        </div>
+        <div class="field">
+          <label for="mSignPw">Password</label>
+          <input id="mSignPw" type="password" placeholder="8+ characters" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn primary full-width" id="mSignSubmit">Create Account</button>
+        <div class="auth-divider"><span>or</span></div>
+        <a href="/accounts/google/login/" class="btn google-btn full-width">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+          Continue with Google
+        </a>
+        <div class="auth-footer">
+          Already have an account? <a href="#" id="switchLogin">Log in</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -176,11 +258,18 @@ function toast(msg) {
   clearTimeout(toast.t); toast.t = setTimeout(() => (t.style.display = "none"), 3500);
 }
 
+function getCookie(name) {
+  const v = document.cookie.match("(^|;) ?" + name + "=([^;]*)(;|$)");
+  return v ? decodeURIComponent(v[2]) : null;
+}
+
 async function api(path, { method = "GET", body, token = S.token } = {}) {
   const headers = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = "Bearer " + token;
-  const res = await fetch(API + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), credentials: "omit" });
+  const csrf = getCookie("csrftoken");
+  if (csrf && method !== "GET") headers["X-CSRFToken"] = csrf;
+  const res = await fetch(API + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), credentials: "same-origin" });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
@@ -202,27 +291,59 @@ async function login(email, password) {
     await loadMe();
     toast("Logged in as " + email);
     refreshTab();
-  } catch (e) { toast("Login failed: " + e.message); }
+  } catch (e) { toast("Login failed: " + e.message); throw e; }
 }
-function logout() {
+async function logout() {
   S.token = null; S.me = null;
   try { localStorage.removeItem("token"); } catch {}
+  try { await fetch("/accounts/logout/", { method: "POST", headers: { "X-CSRFToken": getCookie("csrftoken") || "" }, credentials: "same-origin" }); } catch {}
   renderWho(); refreshTab();
 }
 async function loadMe() {
-  if (!S.token) { S.me = null; return renderWho(); }
-  try { S.me = await api("/accounts/me/"); }
-  catch { S.token = null; S.me = null; try { localStorage.removeItem("token"); } catch {} }
+  try {
+    S.me = await api("/accounts/me/");
+  } catch {
+    S.token = null; S.me = null;
+    try { localStorage.removeItem("token"); } catch {}
+  }
   renderWho();
 }
+
+function openAuthModal(tab = "login") {
+  const m = $("authModal");
+  if (!m) return;
+  m.style.display = "flex";
+  switchAuthTab(tab);
+}
+function closeAuthModal() {
+  const m = $("authModal");
+  if (m) m.style.display = "none";
+}
+function switchAuthTab(tab) {
+  const isLogin = tab === "login";
+  $("tabLogin").classList.toggle("on", isLogin);
+  $("tabSignup").classList.toggle("on", !isLogin);
+  $("modalLoginForm").style.display = isLogin ? "flex" : "none";
+  $("modalSignupForm").style.display = isLogin ? "none" : "flex";
+  setTimeout(() => { if (isLogin) $("mLogEmail")?.focus(); else $("mSignEmail")?.focus(); }, 50);
+}
+
 function renderWho() {
   const w = $("who");
   const quick = Object.entries(DEMO).map(([k, d]) => `<button class="btn" data-demo="${k}">${esc(d.label)}</button>`).join("");
   w.innerHTML = S.me
-    ? `<span>Signed in: <b>${esc(S.me.email)}</b> <span class="pill">${esc(S.me.reader_situation)}</span></span>
+    ? `<span>Signed in: <b>${esc(S.me.display_name || S.me.email)}</b> <span class="pill">${esc(S.me.reader_situation)}</span></span>
        <span class="hint">switch:</span>${quick}<button class="btn" id="logout">Log out</button>`
-    : `<span class="hint">Not signed in (anonymous feed, no personalisation). Log in as:</span>${quick}`;
+    : `<button class="btn primary" id="openLogin">Log in</button>
+       <button class="btn" id="openSignup">Sign up</button>
+       <a href="/accounts/google/login/" class="btn google-btn" style="display:inline-flex;padding:6px 10px;font-size:13px" title="Sign in with Google">
+         <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+         Google
+       </a>
+       <span class="hint">or demo:</span>${quick}`;
   w.querySelectorAll("[data-demo]").forEach((b) => (b.onclick = () => login(DEMO[b.dataset.demo].email, DEMO[b.dataset.demo].password)));
+  if ($("openLogin")) $("openLogin").onclick = () => openAuthModal("login");
+  if ($("openSignup")) $("openSignup").onclick = () => openAuthModal("signup");
   if ($("logout")) $("logout").onclick = logout;
 }
 
@@ -389,8 +510,55 @@ async function renderProfile() {
 }
 $("regBtn").onclick = async () => {
   const email = $("regEmail").value.trim(), password = $("regPw").value;
-  try { await api("/accounts/register/", { method: "POST", body: { email, password }, token: null }); await login(email, password); }
-  catch (e) { toast(e.message); }
+  try {
+    const res = await api("/accounts/register/", { method: "POST", body: { email, password }, token: null });
+    toast("Registered successfully!");
+    if (res?.tokens?.access) {
+      S.token = res.tokens.access;
+      try { localStorage.setItem("token", S.token); } catch {}
+      await loadMe();
+      refreshTab();
+    } else {
+      await login(email, password);
+    }
+  } catch (e) { toast(e.message); }
+};
+
+// Modal auth event listeners
+$("closeAuthModal").onclick = closeAuthModal;
+$("authModal").onclick = (e) => { if (e.target === $("authModal")) closeAuthModal(); };
+$("tabLogin").onclick = () => switchAuthTab("login");
+$("tabSignup").onclick = () => switchAuthTab("signup");
+$("switchSignup").onclick = (e) => { e.preventDefault(); switchAuthTab("signup"); };
+$("switchLogin").onclick = (e) => { e.preventDefault(); switchAuthTab("login"); };
+
+$("modalLoginForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const email = $("mLogEmail").value.trim(), password = $("mLogPw").value;
+  try {
+    await login(email, password);
+    closeAuthModal();
+  } catch (err) {}
+};
+
+$("modalSignupForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const email = $("mSignEmail").value.trim(), display_name = $("mSignName").value.trim(), password = $("mSignPw").value;
+  try {
+    const res = await api("/accounts/register/", { method: "POST", body: { email, password, display_name }, token: null });
+    toast("Account created!");
+    if (res?.tokens?.access) {
+      S.token = res.tokens.access;
+      try { localStorage.setItem("token", S.token); } catch {}
+      await loadMe();
+      refreshTab();
+    } else {
+      await login(email, password);
+    }
+    closeAuthModal();
+  } catch (err) {
+    toast("Signup failed: " + err.message);
+  }
 };
 
 // ---------- editor ----------

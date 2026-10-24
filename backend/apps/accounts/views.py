@@ -3,6 +3,7 @@
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from . import services
 from .models import Interest, OnboardingLink
@@ -26,7 +27,13 @@ class RegisterView(APIView):
         ser.is_valid(raise_exception=True)
         user = services.register_user(**ser.validated_data)
         # TODO: return JWT pair directly so the client can skip the /api/auth/token/ round trip.
-        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        refresh = RefreshToken.for_user(user)
+        data = UserSerializer(user).data
+        data["tokens"] = {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class MeView(generics.RetrieveUpdateAPIView):

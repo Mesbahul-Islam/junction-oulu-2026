@@ -99,6 +99,8 @@ class SnippetVersion(TimeStampedModel):
         return f"[{self.language}] {self.headline}"
 
 
+
+# Doesn't need to stay because of  jeff
 class Interaction(TimeStampedModel):
     """Reader engagement events; like/bookmark are toggles (unique), the rest are event logs."""
 
