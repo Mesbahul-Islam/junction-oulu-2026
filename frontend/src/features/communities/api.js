@@ -12,7 +12,14 @@ export const getMyCommunities = async () => (await getCommunities()).filter((g) 
 export const getRecommendedCommunities = () => api("/communities/groups/recommended/");
 export const joinCommunity = (slug) => api(`/communities/groups/${slug}/join/`, { method: "POST" });
 export const leaveCommunity = (slug) => api(`/communities/groups/${slug}/leave/`, { method: "POST" });
-export const createPost = (slug, body) => api(`/communities/groups/${slug}/posts/`, { method: "POST", body: { body } });
+// With a photo, faces are blurred on the server as it uploads; a moderator checks it before others see it.
+export const createPost = (slug, body, photo) => {
+  if (!photo) return api(`/communities/groups/${slug}/posts/`, { method: "POST", body: { body } });
+  const form = new FormData();
+  form.append("body", body);
+  form.append("image", photo);
+  return api(`/communities/groups/${slug}/posts/`, { method: "POST", body: form });
+};
 export const likePost = (slug, id, liked) =>
   api(`/communities/groups/${slug}/posts/${id}/like/`, { method: liked ? "POST" : "DELETE" });
 export const sharePost = (slug, id) => api(`/communities/groups/${slug}/posts/${id}/share/`, { method: "POST" });

@@ -59,7 +59,7 @@ export default function PostSlide({ post: initial, onFlagged }) {
 
   return (
     <section className="tt-slide tt-post" dir="auto">
-      <MessageCircle className="tt-bg-icon" size={220} strokeWidth={0.8} />
+      {post.image ? <img className="tt-bg-img" src={post.image} alt="" loading="lazy" /> : <MessageCircle className="tt-bg-icon" size={220} strokeWidth={0.8} />}
       <div className="tt-shade" />
 
       <div className="tt-rail">
@@ -80,6 +80,8 @@ export default function PostSlide({ post: initial, onFlagged }) {
       <div className="tt-caption">
         {post.hot && <div className="tt-hot"><Flame size={14} /> Trending in {post.community_name}</div>}
         <div className="tt-label"><Users size={14} /> Community post · not reviewed by editors</div>
+        {post.image && post.image_status === "pending" && <div className="tt-label photo-pending">Only you can see this photo until a moderator checks it</div>}
+        {post.image && post.faces_blurred > 0 && <div className="tt-label">Faces blurred automatically</div>}
         <div className="tt-meta"><b>@{post.author_name}</b> · {post.community_name} · {timeAgo(post.created_at, me?.preferred_language)}</div>
         <p className="tt-post-body" lang={t && !showOriginal ? t.language : post.language || undefined}>
           {t && !showOriginal ? t.text : post.body}

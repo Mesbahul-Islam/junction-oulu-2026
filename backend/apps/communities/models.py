@@ -92,6 +92,18 @@ class Post(TimeStampedModel):
     moderated_at = models.DateTimeField(null=True, blank=True)
     moderation_note = models.TextField(blank=True)
     share_count = models.PositiveIntegerField(default=0)
+    # Photos: faces are blurred on upload (communities/photos.py); a moderator checks the result
+    # before anyone but the author sees it.
+    image_status = models.CharField(
+        max_length=10, blank=True, db_index=True,
+        choices=[("pending", "Waiting for a moderator"), ("approved", "Approved"), ("rejected", "Rejected")],
+    )
+    faces_blurred = models.PositiveSmallIntegerField(default=0)
+    image_notes = models.JSONField(default=list, blank=True)  # what the photo desk wants a moderator to check
+    image_checked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="checked_photos"
+    )
+    image_checked_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

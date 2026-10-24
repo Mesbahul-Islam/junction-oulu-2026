@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
 
@@ -117,7 +118,19 @@ class PostViewSet(viewsets.ModelViewSet):
         kind = serializer.validated_data.get("kind", Post.Kind.POST)
         if kind in (Post.Kind.ANNOUNCEMENT, Post.Kind.SNIPPET) and not services.can_moderate(self.request.user, self.community):
             kind = Post.Kind.POST
-        post = serializer.save(community=self.community, author=self.request.user, kind=kind)
+        extra = {}
+        upload = serializer.validated_data.pop("image", None)
+        if upload:
+            # Faces are blurred now, before anything is stored (photos.py); a moderator checks it next.
+            from .photos import PhotoError, blur_faces
+
+            try:
+                result = blur_faces(upload)
+            except PhotoError as exc:
+                raise ValidationError({"image": [str(exc)]}) from exc
+            extra = {"image": result["file"], "image_status": "pending", "faces_blurred": result["faces"],
+                     "image_notes": result["notes"]}
+        post = serializer.save(community=self.community, author=self.request.user, kind=kind, **extra)
         services.register_post(post)
 
     @action(detail=True, methods=["post", "delete"], permission_classes=[permissions.IsAuthenticated, IsCommunityMember])
@@ -283,3 +296,38 @@ class ContextEntryViewSet(_AdminConfigViewSet):
 
     perform_create = _save_reviewed
     perform_update = _save_reviewed
+
+
+class PhotoReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """GET /api/communities/photos/: photos waiting for a moderator, in communities you moderate.
+    POST /api/communities/photos/<id>/decide/ {"decision": "approve"|"reject", "note": ""}.
+    Faces were already blurred on upload; the moderator checks the blurring worked."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
+
+    def list(self, request):
+        qs = (Post.objects.filter(image_status="pending").exclude(status=Post.Status.REMOVED)
+              .select_related("author", "community").order_by("created_at"))
+        rows = [p for p in qs if services.can_moderate(request.user, p.community)]
+        return Response([{
+            "id": p.pk, "author_name": p.author.username, "community_name": p.community.name, "body": p.body,
+            "image": request.build_absolute_uri(p.image.url), "faces_blurred": p.faces_blurred,
+            "notes": p.image_notes, "created_at": p.created_at,
+        } for p in rows])
+
+    @action(detail=True, methods=["post"])
+    def decide(self, request, pk=None):
+        post = get_object_or_404(Post.objects.select_related("community"), pk=pk, image_status="pending")
+        if not services.can_moderate(request.user, post.community):
+            return Response({"detail": "Only moderators of this community can decide."}, status=status.HTTP_403_FORBIDDEN)
+        decision = request.data.get("decision")
+        if decision not in ("approve", "reject"):
+            return Response({"detail": "decision must be approve or reject"}, status=status.HTTP_400_BAD_REQUEST)
+        post.image_checked_by, post.image_checked_at = request.user, timezone.now()
+        post.image_status = "approved" if decision == "approve" else "rejected"
+        if decision == "reject":
+            post.image.delete(save=False)  # the photo is gone; the text stays
+            post.image = None
+        post.save(update_fields=["image", "image_status", "image_checked_by", "image_checked_at", "updated_at"])
+        return Response({"id": post.pk, "image_status": post.image_status})

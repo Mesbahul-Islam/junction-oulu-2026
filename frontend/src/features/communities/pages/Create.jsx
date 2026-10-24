@@ -1,5 +1,5 @@
-import { ChevronLeft, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ChevronLeft, ImagePlus, Send, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { createPost, getMyCommunities, sendContribution } from "../api";
@@ -22,6 +22,9 @@ export default function Create() {
   const [community, setCommunity] = useState(null);
   const [kind, setKind] = useState("question");
   const [body, setBody] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const preview = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
+  useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -35,7 +38,7 @@ export default function Create() {
     setMessage("");
     try {
       if (mode === "post") {
-        await createPost(community.slug, body.trim());
+        await createPost(community.slug, body.trim(), photo);
         navigate("/?tab=community");
       } else {
         await sendContribution(community.id, kind, body.trim());
@@ -89,6 +92,22 @@ export default function Create() {
                 placeholder={mode === "post" ? "Share something useful with your neighbours…" : "e.g. Why is the bus 3 timetable changing?"}
                 style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "12px 14px", font: "inherit", resize: "vertical" }} />
             </div>
+            {mode === "post" && (
+              <div className="photo-pick">
+                {preview ? (
+                  <div className="photo-preview">
+                    <img src={preview} alt="" />
+                    <button type="button" onClick={() => setPhoto(null)} aria-label="Remove photo"><X size={16} /></button>
+                  </div>
+                ) : (
+                  <label className="photo-add">
+                    <ImagePlus size={18} /> Add a photo
+                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+                  </label>
+                )}
+                {photo && <p className="photo-note">Faces are blurred automatically when you post. A moderator checks the photo before others see it.</p>}
+              </div>
+            )}
             {mode === "post" && <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>Be kind and don't share other people's private details. Posts that break this are removed.</p>}
             {message && <div className="error" style={{ background: "#eaf6ef", color: "#1d5c3a", marginTop: 12 }}>{message}</div>}
             <button className="btn-primary" disabled={busy || !body.trim()} onClick={submit}>
