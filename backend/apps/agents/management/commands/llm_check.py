@@ -36,13 +36,14 @@ class Command(BaseCommand):
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(
                     f"\n  Can't reach Ollama ({r['base_url'] or 'OLLAMA_HOST'}): {exc}\n"
-                    "  In Docker, set COMPOSE_PROFILES=ollama in .env and run `docker compose up -d`."))
+                    "  Ollama is not part of docker-compose. Set LLM_BASE_URL in .env to a running Ollama server "
+                    "(e.g. http://host.docker.internal:11434) and run `docker compose up -d`."))
                 return
             wanted = r["model"] if ":" in r["model"] else f"{r['model']}:latest"
             if wanted not in names:
                 self.stdout.write(self.style.WARNING(
-                    f"\n  Ollama has no model {r['model']!r} yet. Download it once with:\n"
-                    f"    docker compose exec ollama ollama pull {r['model']}"))
+                    f"\n  Ollama has no model {r['model']!r} yet. Download it once on the Ollama server with:\n"
+                    f"    ollama pull {r['model']}"))
             return
 
     def handle(self, *args, ping, **options):

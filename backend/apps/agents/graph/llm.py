@@ -176,7 +176,7 @@ class ChatModelLLM:
 
         max_out = int(getattr(settings, "LLM_MAX_OUTPUT_TOKENS", 0) or 0)
         if provider == "ollama":
-            # Local server: no key. Address from LLM_BASE_URL, else OLLAMA_HOST (set in docker-compose).
+            # Ollama server: no key. Address from LLM_BASE_URL, else the OLLAMA_HOST environment variable.
             kwargs: dict[str, Any] = {"temperature": 0, "client_kwargs": {"timeout": 300}}
             if base_url:
                 kwargs["base_url"] = base_url

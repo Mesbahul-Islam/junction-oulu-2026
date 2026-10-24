@@ -98,8 +98,9 @@ cd backend
 | `run_pipeline` reports 0 stories | The wire desk only offers articles from the last 48 h that no story was written from yet. Wait for new articles, or `docker compose down -v` to start over. |
 | Translations look like `[en] Finnish text…` | That agent is on the offline stub: `LLM_MODEL` empty, no `LLM_API_KEY`, or the provider's package isn't installed. `manage.py llm_check` says which (§5). |
 | Newsroom runs fine but text still looks stubbed, with a key set | The run's errors (admin → Agents → Agent runs → state) and `docker compose logs worker` show the Gemini error. Usually a wrong key or `LLM_MODEL` name; after editing `.env`, run `docker compose up -d`. |
-| Newsroom is very slow with Ollama | Local models on a CPU take minutes per story. Use a smaller model (`qwen3:4b`, `qwen3:1.7b`), a GPU (§5), or fewer stories per run (`AGENT_MAX_ITEMS`). |
-| `llm_check` says Ollama has no model | Download it once: `docker compose exec ollama ollama pull <model>`. |
+| Newsroom is very slow with Ollama | Models on a CPU take minutes per story. Use a smaller model (`qwen3:4b`, `qwen3:1.7b`), a GPU, a hosted provider, or fewer stories per run (`AGENT_MAX_ITEMS`). |
+| `llm_check` says it can't reach Ollama | Ollama is not part of docker-compose. Check that the server at `LLM_BASE_URL` is running and reachable from the containers (§5). |
+| `llm_check` says Ollama has no model | Download it once on the Ollama server: `ollama pull <model>`. |
 
 Ports on your machine: API **8000**, Postgres **5433** (user/pass/db `junction`), Redis **6380**.
 
@@ -257,7 +258,7 @@ Switching provider means changing those three lines, then running `docker compos
 | `openai` | `gpt-5.5-mini` | platform.openai.com |
 | `anthropic` (or `claude`) | `claude-haiku-5-5` | console.anthropic.com |
 | `mistral`, `openrouter`, `deepseek`, `xai`, `together`, `fireworks` | that provider's model name | that provider |
-| `ollama` (local, no key) | `qwen3:4b` (CPU-friendly), `qwen3.8:27b` (GPU / ~20 GB RAM) | runs in Docker, see *Local models with Ollama* |
+| `ollama` (no key) | `qwen3:4b` (CPU-friendly), `qwen3.8:27b` (GPU / ~20 GB RAM) | a server you run yourself, see *Ollama* below |
 
 - **Ollama, Groq, Gemini, OpenAI and Anthropic work out of the box.** For any other provider, add its `langchain-<provider>` package to `backend/requirements.txt`. `llm_check` tells you if it's missing.
 - **OpenAI-compatible servers** (vLLM, LM Studio, a LiteLLM proxy, a hackathon endpoint): `LLM_PROVIDER=openai`, `LLM_MODEL=<model>`, `LLM_BASE_URL=http://…/v1`. The key is optional.
@@ -288,25 +289,25 @@ The desks that call a model are `REPORTER`, `EXPLAINER` and `TRANSLATOR` (e.g. `
 
 The stub keeps the whole flow working offline, in tests and at demos without spending tokens. If a real model errors mid-run, that agent falls back to the stub for that item, and the run continues.
 
-**Local models with Ollama.** Ollama runs open models (Qwen, Llama, Gemma …) on your own machine, with no API key, no quota and no cost per call. It's included as an optional Docker service:
+**Ollama.** Ollama runs open models (Qwen, Llama, Gemma …) with no API key, no quota and no cost per call. It is **not** part of `docker-compose.yml`: run it yourself, on your computer or another one, and point the app at it:
 
 ```bash
 # .env
 LLM_PROVIDER=ollama
 LLM_MODEL=qwen3:4b
-COMPOSE_PROFILES=ollama      # makes `docker compose up` also start the ollama container
+LLM_BASE_URL=http://<ollama-host>:11434
 ```
 
 ```bash
+ollama pull qwen3:4b                                            # on the Ollama server, once
 docker compose up -d
-docker compose exec ollama ollama pull qwen3:4b                 # download the model once (kept in a volume)
 docker compose exec worker python manage.py llm_check --ping    # confirm it answers
 ```
 
 - **Pick a model that fits your hardware.**
   - On a laptop CPU with 8 GB RAM, use a small model like `qwen3:4b` or `qwen3:1.7b`. It works but is slow: minutes per story.
-  - `qwen3.8:27b` needs a GPU or about 20 GB of free RAM. For a GPU, uncomment the `deploy:` block of the `ollama` service in `docker-compose.yml` (needs the NVIDIA Container Toolkit).
-- **Ollama on another computer** (e.g. a GPU box on your network): leave `COMPOSE_PROFILES` empty and set `LLM_BASE_URL=http://<its-ip>:11434`. On that computer:
+  - `qwen3.8:27b` needs a GPU or about 20 GB of free RAM.
+- **Ollama on another computer** (e.g. a GPU box on your network): set `LLM_BASE_URL=http://<its-ip>:11434`. On that computer:
   - Make Ollama listen on the network, not just localhost. Its default is localhost only. For the systemd service, run `sudo systemctl edit ollama`, add `Environment="OLLAMA_HOST=0.0.0.0:11434"` under `[Service]`, then `sudo systemctl restart ollama`. When starting it by hand: `OLLAMA_HOST=0.0.0.0:11434 ollama serve`.
   - Open port 11434 in its firewall (`sudo ufw allow 11434/tcp`, or the cloud provider's security group).
   - Check with `curl http://<its-ip>:11434/api/tags`. It should list your models.
@@ -650,7 +651,7 @@ The same steps work in the Swagger UI at `/api/docs/`: click **Authorize** and p
 | `LLM_BASE_URL` | empty | OpenAI-compatible server URL (with `LLM_PROVIDER=openai`) |
 | `LLM_STRUCTURED_OUTPUT` | `auto` | `function_calling` or `json_schema` to override the per-provider choice |
 | `LLM_MODEL_<AGENT>` + `<PROVIDER>_API_KEY` | empty | Advanced: a different model for one agent (§5) |
-| `COMPOSE_PROFILES` | empty | `ollama` starts the local Ollama container with the stack |
+
 | `LLM_MAX_OUTPUT_TOKENS` | `0` | Cap on each call's output (0 = provider default) |
 | `LLM_LANGUAGES_PER_CALL` | `1` | Languages per translation/back-translation call; `0` = all at once (large models only) |
 | `LLM_MAX_RETRIES` | `2` | Retries after a failed call (hosted providers) |
