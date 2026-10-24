@@ -70,7 +70,9 @@ class ReviewTaskViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
     def approve(self, request, pk=None):
         ser = ApproveSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        task = _call(services.approve, self.get_object(), request.user, edits=ser.validated_data.get("edits"))
+        data = ser.validated_data
+        task = _call(services.approve, self.get_object(), request.user,
+                     edits=data.get("edits"), confirm=data.get("confirm"), notes=data.get("notes"))
         return Response(ReviewTaskSerializer(task).data)
 
     @action(detail=True, methods=["post"])

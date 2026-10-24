@@ -3,502 +3,502 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oulu Snippets · dev UI</title>
+<title>Newsroom Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f4f2ee; --panel: #ffffff; --ink: #1c1b19; --muted: #6b6760; --line: #e3dfd8;
-    --accent: #0b6e4f; --accent-ink: #ffffff; --warn: #b3541e; --high: #b42318; --med: #b7791f; --low: #2f6f3e;
-    --bar: #d8e9e1; --bar-fill: #0b6e4f; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #151514; --panel: #1f1f1d; --ink: #ecebe7; --muted: #a29e96; --line: #33322f;
-      --accent: #3fb68b; --accent-ink: #0d1a14; --bar: #23382f; --bar-fill: #3fb68b; --shadow: none;
-    }
+    --teal-900: #0e2f2f; --teal-800: #123b3a; --teal-700: #1c4a47; --orange: #e8833a; --orange-soft: #fdf1ea;
+    --bg: #f6f4f1; --card: #fff; --ink: #1c2524; --muted: #6b7472; --line: #e8e3de;
+    --green: #2f7d4f; --green-soft: #e8f5ec; --red: #b42318; --red-soft: #fde8e6; --amber: #a2531c; --amber-soft: #fff4e0;
+    --blue: #1d3561; --blue-soft: #eef4ff; --radius: 14px; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 18px rgba(14,47,47,.06);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
-  .bar { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .brand { font-weight: 700; letter-spacing: -.01em; }
-  .brand small { color: var(--muted); font-weight: 400; }
-  .who { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; }
-  nav { display: flex; gap: 4px; max-width: 1100px; margin: 0 auto; padding: 0 16px; overflow-x: auto; }
-  nav button { border: 0; background: none; padding: 10px 12px; color: var(--muted); border-bottom: 2px solid transparent; font: inherit; cursor: pointer; white-space: nowrap; }
-  nav button.on { color: var(--ink); border-color: var(--accent); font-weight: 600; }
-  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
-  section { display: none; } section.on { display: block; }
-  button, select, input, textarea { font: inherit; color: inherit; }
-  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  .btn:hover { border-color: var(--muted); }
-  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-  .btn.danger { color: var(--high); }
+  body { margin: 0; font: 14px/1.5 Inter, system-ui, sans-serif; color: var(--ink); background: var(--bg); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  a { color: var(--teal-700); }
+  .layout { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+  aside { background: var(--teal-900); color: #dfe9e7; padding: 22px 14px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; }
+  .brand { font-weight: 700; font-size: 17px; color: #fff; padding: 0 10px 18px; display: flex; gap: 10px; align-items: center; }
+  .brand span { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: linear-gradient(140deg, var(--teal-700), var(--orange)); }
+  .nav { display: flex; justify-content: space-between; align-items: center; border: 0; background: none; text-align: left; padding: 9px 12px; border-radius: 10px; color: #c9d8d5; cursor: pointer; }
+  .nav:hover { background: rgba(255,255,255,.06); }
+  .nav.on { background: rgba(255,255,255,.12); color: #fff; font-weight: 600; }
+  .nav .badge { background: var(--orange); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 8px; min-width: 20px; text-align: center; }
+  .nav .badge[data-zero] { display: none; }
+  aside .links { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 12px 10px 0; border-top: 1px solid rgba(255,255,255,.1); font-size: 13px; }
+  aside .links a { color: #b9cbc7; text-decoration: none; }
+  aside .who { font-size: 12px; color: #9fb4b0; padding: 10px; }
+  main { padding: 26px 32px 60px; max-width: 1280px; width: 100%; }
+  header.page { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  header.page h1 { margin: 0; font-size: 22px; }
+  header.page p { margin: 4px 0 0; color: var(--muted); }
+  section.view { display: none; } section.view.on { display: block; }
+  .grid { display: grid; gap: 14px; }
+  .stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 18px; }
+  .two { grid-template-columns: 1.2fr 1fr; }
+  @media (max-width: 1000px) { .two { grid-template-columns: 1fr; } .layout { grid-template-columns: 1fr; } aside { position: static; height: auto; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 15px; }
+  .stat { cursor: pointer; }
+  .stat .v { font-size: 28px; font-weight: 700; line-height: 1.1; }
+  .stat .l { color: var(--muted); font-size: 13px; }
+  .stat.warn .v { color: var(--orange); }
+  .stat.bad .v { color: var(--red); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .spread { justify-content: space-between; }
+  .btn { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 7px 14px; cursor: pointer; font-weight: 500; }
+  .btn:hover { border-color: #c9c2bb; }
+  .btn.primary { background: var(--teal-800); border-color: var(--teal-800); color: #fff; }
+  .btn.accent { background: var(--orange); border-color: var(--orange); color: #fff; }
+  .btn.danger { color: var(--red); }
   .btn:disabled { opacity: .5; cursor: default; }
-  input, select, textarea { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 8px; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-  .hint { color: var(--muted); font-size: 13px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px; }
-  h2 { font-size: 18px; margin: 0 0 8px; } h3 { font-size: 16px; margin: 0 0 6px; }
-  .pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
-  .pill.high { color: var(--high); border-color: currentColor; } .pill.medium { color: var(--med); border-color: currentColor; } .pill.low { color: var(--low); border-color: currentColor; }
-  .pill.jev { color: var(--accent); border-color: currentColor; font-weight: 600; }
-
-  /* Feed: vertical swipe (scroll-snap) */
-  .feed { height: calc(100vh - 190px); min-height: 420px; overflow-y: auto; scroll-snap-type: y mandatory; border-radius: 14px; max-width: 520px; }
-  .feed.compact { height: auto; max-height: calc(100vh - 230px); scroll-snap-type: none; }
-  .card { scroll-snap-align: start; min-height: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
-  .feed.compact .card { min-height: 0; }
-  .card h3 { font-size: 19px; line-height: 1.3; }
-  .card ul { margin: 0; padding-left: 18px; }
-  .card .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  .card details { border-top: 1px dashed var(--line); padding-top: 8px; }
-  .card summary { cursor: pointer; font-weight: 600; }
-  .bg { background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
-  .bg b { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-  .why { background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
-  .meter { display: grid; grid-template-columns: 120px 1fr 44px; gap: 8px; align-items: center; margin-top: 4px; }
-  .meter .track { height: 8px; background: var(--bar); border-radius: 99px; overflow: hidden; }
-  .meter .fill { height: 100%; background: var(--bar-fill); }
-  .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
-  .disclosure { font-size: 12px; color: var(--muted); }
-  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-  .empty { color: var(--muted); padding: 24px; text-align: center; border: 1px dashed var(--line); border-radius: 12px; }
-  .task .ver { border-left: 3px solid var(--line); padding-left: 10px; margin: 8px 0; }
-  table { border-collapse: collapse; width: 100%; font-size: 14px; }
-  td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 14px; display: none; max-width: calc(100vw - 32px); z-index: 10; }
-  pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--bg); padding: 8px; border-radius: 8px; max-height: 260px; overflow: auto; }
-  @media (max-width: 640px) { .feed { max-width: none; } .meter { grid-template-columns: 96px 1fr 40px; } }
+  input, select, textarea { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; background: #fff; }
+  textarea { width: 100%; resize: vertical; }
+  .pill { display: inline-block; font-size: 12px; padding: 1px 9px; border-radius: 999px; background: #f1eeea; color: #4b5553; white-space: nowrap; }
+  .pill.high { background: var(--red-soft); color: var(--red); } .pill.medium { background: var(--amber-soft); color: var(--amber); } .pill.low { background: var(--green-soft); color: var(--green); }
+  .pill.ok { background: var(--green-soft); color: var(--green); } .pill.bad { background: var(--red-soft); color: var(--red); } .pill.run { background: var(--blue-soft); color: var(--blue); }
+  .muted { color: var(--muted); } .small { font-size: 12.5px; }
+  .seg { display: inline-flex; background: #ece8e3; border-radius: 10px; padding: 3px; }
+  .seg button { border: 0; background: none; padding: 5px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); }
+  .seg button.on { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  tr.click { cursor: pointer; } tr.click:hover td { background: #faf8f6; }
+  .task { margin-bottom: 14px; }
+  .task-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .version { border-left: 3px solid var(--line); padding: 2px 0 2px 12px; margin: 8px 0; }
+  .version b { font-size: 15px; }
+  .flag { border-radius: 10px; padding: 9px 12px; margin: 8px 0; font-size: 13px; }
+  .flag ul { margin: 4px 0 0; padding-left: 18px; }
+  .flag.bad { background: var(--red-soft); color: #7f1d16; } .flag.warn { background: var(--amber-soft); color: #7a4a0c; } .flag.check { background: var(--blue-soft); color: var(--blue); }
+  .check-row { display: flex; gap: 8px; align-items: flex-start; margin-top: 6px; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .edit-box { display: none; background: #faf8f6; border-radius: 10px; padding: 10px; margin-top: 8px; }
+  .edit-box.on { display: block; }
+  .edit-box label { display: block; font-size: 12px; font-weight: 600; margin: 6px 0 2px; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+  .cols { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .feed-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; background: #fff; }
+  .feed-card h4 { margin: 2px 0 4px; font-size: 14px; }
+  .meter { display: grid; grid-template-columns: 92px 1fr 34px; gap: 6px; align-items: center; font-size: 11.5px; color: var(--muted); }
+  .meter i { display: block; height: 5px; border-radius: 4px; background: #ece6e1; overflow: hidden; }
+  .meter i b { display: block; height: 100%; background: linear-gradient(90deg, var(--teal-700), var(--orange)); }
+  .reader-pick { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; }
+  .reader-pick.on { border-color: var(--orange); background: var(--orange-soft); }
+  .login { max-width: 380px; margin: 12vh auto; }
+  .login .card { padding: 26px; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .field label { font-weight: 600; font-size: 13px; }
+  .bar { height: 8px; border-radius: 6px; background: linear-gradient(90deg, var(--teal-700), var(--orange)); }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 10px; display: none; z-index: 20; max-width: 90vw; }
 </style>
 </head>
 <body>
-<header>
-  <div class="bar">
-    <div class="brand">Oulu Snippets <small>· dev UI</small></div>
-    <div class="who" id="who"></div>
+<div id="login" class="login" hidden>
+  <div class="card">
+    <h2 style="margin:0 0 4px">Newsroom Admin</h2>
+    <p class="muted" style="margin:0 0 18px">Staff only. Every story is approved by a person before readers see it.</p>
+    <form id="loginForm">
+      <div class="field"><label for="email">Email</label><input id="email" type="email" required autocomplete="username"></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" required autocomplete="current-password"></div>
+      <div id="loginError" class="flag bad" hidden></div>
+      <button class="btn primary" style="width:100%;padding:10px">Log in</button>
+      <p class="small muted" style="margin:12px 0 0">Local dev account: admin@example.com / admin</p>
+    </form>
   </div>
-  <nav id="tabs">
-    <button data-tab="feed" class="on">Feed</button>
-    <button data-tab="compare">Compare readers</button>
-    <button data-tab="profile">My profile</button>
-    <button data-tab="editor">Editor queue</button>
-    <button data-tab="newsroom">AI newsroom</button>
-    <button data-tab="markets">Markets</button>
-  </nav>
-</header>
+</div>
 
-<main>
-  <!-- Feed -->
-  <section id="feed" class="on">
-    <div class="row">
-      <span id="feedLangInfo" class="hint"></span>
-      <button class="btn" id="feedReload">Reload</button>
-      <span class="hint" id="feedInfo"></span>
+<div id="app" class="layout" hidden>
+  <aside>
+    <div class="brand"><span>N</span> Newsroom Admin</div>
+    <button class="nav on" data-view="overview">Overview</button>
+    <button class="nav" data-view="queue">Editor queue <span class="badge" id="b-queue" data-zero></span></button>
+    <button class="nav" data-view="moderation">Moderation <span class="badge" id="b-mod" data-zero></span></button>
+    <button class="nav" data-view="newsroom">AI newsroom <span class="badge" id="b-run" data-zero></span></button>
+    <button class="nav" data-view="compare">Compare feeds</button>
+    <div class="links">
+      <a href="http://localhost:5173" target="_blank">Reader app ↗</a>
+      <a href="/fantasy/" target="_blank">Fantasy Liiga ↗</a>
+      <a href="/admin/" target="_blank">Django admin ↗</a>
+      <a href="/api/docs/" target="_blank">API docs ↗</a>
+      <a href="#" id="logout">Log out</a>
     </div>
-    <div class="feed" id="feedList"></div>
-  </section>
+    <div class="who" id="who"></div>
+  </aside>
 
-  <!-- Compare -->
-  <section id="compare">
-    <p class="hint">Same news, two demo readers with opposite profiles. With Jev on, their order differs and each card shows Jev's reasons.</p>
-    <div class="row"><button class="btn primary" id="compareLoad">Load both feeds</button><span class="hint" id="compareInfo"></span></div>
-    <div class="grid2" id="compareCols"></div>
-  </section>
-
-  <!-- Profile -->
-  <section id="profile">
-    <div class="grid2">
-      <div class="panel" id="profilePanel"></div>
-      <div class="panel">
-        <h2>Create an account</h2>
-        <p class="hint">A new reader starts with no interests; set them in the profile after logging in.</p>
-        <div class="row"><input id="regEmail" placeholder="email" type="email"><input id="regPw" placeholder="password (8+ chars)" type="password"></div>
-        <button class="btn primary" id="regBtn">Register &amp; log in</button>
+  <main>
+    <!-- Overview -->
+    <section class="view on" id="v-overview">
+      <header class="page"><div><h1>Overview</h1><p>Today in the newsroom. Refreshes every 30 seconds.</p></div></header>
+      <div class="grid stats" id="stats"></div>
+      <div class="grid two">
+        <div class="card">
+          <div class="row spread"><h2 style="margin:0">AI newsroom schedule</h2><span id="schedState"></span></div>
+          <p id="schedText" class="muted"></p>
+          <div class="row">
+            <select id="ovCommunity"></select>
+            <label class="small muted">stories <input id="ovMax" type="number" min="1" max="20" value="4" style="width:64px"></label>
+            <button class="btn accent" id="ovRun">Run now</button>
+          </div>
+          <h2 style="margin:18px 0 8px">Recent runs</h2>
+          <div id="ovRuns"></div>
+        </div>
+        <div class="card">
+          <h2>AI models</h2>
+          <div id="models"></div>
+          <p class="small muted" style="margin:10px 0 0">Set in <code>.env</code>: LLM_PROVIDER, LLM_MODEL, LLM_API_KEY. Agents without a working model use an offline stub, and their output fails verification.</p>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Editor -->
-  <section id="editor">
-    <div class="row">
-      <select id="queueRole">
-        <option value="editor">Editor tasks (publish a snippet)</option>
-        <option value="language_reviewer">Translation tasks</option>
-        <option value="">All tasks</option>
-      </select>
-      <button class="btn" id="queueReload">Reload queue</button>
-      <span class="hint">Highest priority first. Approving an editor task publishes the Finnish version; each other language needs its own approval in "Translation tasks".</span>
-    </div>
-    <div id="queue"></div>
-  </section>
+    <!-- Editor queue -->
+    <section class="view" id="v-queue">
+      <header class="page">
+        <div><h1>Editor queue</h1><p>Nothing is published until a person approves it. Translations need a reviewer for that language.</p></div>
+        <div class="row">
+          <div class="seg" id="qType"><button data-v="editor" class="on">Stories</button><button data-v="language_reviewer">Translations</button><button data-v="">All</button></div>
+          <select id="qReason"><option value="">All reasons</option><option value="report">Reader report</option><option value="flagged_verification">Failed fact-check</option><option value="failed_standards">Failed standards</option><option value="low_confidence">Low confidence</option><option value="new">New</option><option value="batch_low_risk">Low risk (batch)</option><option value="refresh">Refresh</option></select>
+          <button class="btn" id="qBatch" title="Approve every low-risk story without a checklist">Batch-approve low risk</button>
+        </div>
+      </header>
+      <div id="queue"></div>
+    </section>
 
-  <!-- Newsroom -->
-  <section id="newsroom">
-    <div class="panel">
-      <h2>Run the AI newsroom</h2>
-      <p class="hint">Fetches the community's RSS feeds and runs all 8 agents. Results land in the editor queue, never straight in the feed. Each run picks the best articles from the last 3 days that don't have a snippet yet.</p>
-      <div class="row">
-        <select id="runCommunity"></select>
-        <label>stories <input id="runMax" type="number" value="5" min="1" max="20" style="width:70px"></label>
-        <button class="btn primary" id="runBtn">Run pipeline</button>
+    <!-- Moderation -->
+    <section class="view" id="v-moderation">
+      <header class="page">
+        <div><h1>Moderation</h1><p>Community posts readers reported. Reported posts stay hidden until you decide.</p></div>
+        <div class="seg" id="mStatus"><button data-v="pending" class="on">Pending</button><button data-v="removed">Removed</button><button data-v="kept">Kept</button></div>
+      </header>
+      <div id="modList"></div>
+    </section>
+
+    <!-- Newsroom -->
+    <section class="view" id="v-newsroom">
+      <header class="page">
+        <div><h1>AI newsroom</h1><p id="nrSched"></p></div>
+        <div class="row">
+          <select id="nrCommunity"></select>
+          <label class="small muted">stories <input id="nrMax" type="number" min="1" max="20" value="4" style="width:64px"></label>
+          <button class="btn accent" id="nrRun">Run now</button>
+        </div>
+      </header>
+      <div class="grid two">
+        <div class="card"><h2>Runs</h2><div id="runs"></div></div>
+        <div class="card"><h2>Run details</h2><div id="runDetail" class="muted">Select a run.</div></div>
       </div>
-    </div>
-    <div class="panel"><h2>Recent runs</h2><div id="runs"></div></div>
-  </section>
+    </section>
 
-  <!-- Markets -->
-  <section id="markets">
-    <div class="panel" id="wallet"></div>
-    <div id="marketList"></div>
-    <div class="panel"><h2>My positions</h2><div id="positions"></div></div>
-  </section>
-</main>
+    <!-- Compare -->
+    <section class="view" id="v-compare">
+      <header class="page"><div><h1>Compare feeds</h1><p>See the For You feed exactly as each reader gets it: their language, ranking and Jev's reasons. Pick up to 3.</p></div></header>
+      <div class="card" style="margin-bottom:14px"><div class="row" id="readers"></div></div>
+      <div class="cols" id="compareCols"></div>
+    </section>
+  </main>
+</div>
 <div id="toast"></div>
 
 <script>
 const API = "/api";
-const DEMO = {
-  admin: { email: "admin@example.com", password: "admin", label: "Editor (admin)" },
-  newcomer: { email: "newcomer@example.com", password: "demo-reader", label: "Newcomer reader" },
-  fan: { email: "fan@example.com", password: "demo-reader", label: "Sports-fan reader" },
-};
-const S = { token: null, me: null, interests: null };
-const LANG_NAMES = { fi: "Finnish", sv: "Swedish", en: "English", se: "Northern Sámi", smn: "Inari Sámi", sms: "Skolt Sámi",
-  ru: "Russian", uk: "Ukrainian", ar: "Arabic", so: "Somali", et: "Estonian" };
-const langName = (code) => LANG_NAMES[code] || code;
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const results = (d) => (Array.isArray(d) ? d : d?.results ?? []);
+const LANG = { fi: "Finnish", en: "English", sv: "Swedish", uk: "Ukrainian", ru: "Russian", ar: "Arabic", so: "Somali", et: "Estonian", se: "Northern Sámi", smn: "Inari Sámi", sms: "Skolt Sámi" };
+const lang = (c) => LANG[c] || c;
+const S = { token: localStorage.getItem("admin-token"), me: null, view: "overview", dash: null, readers: [], picked: [] };
 
-function toast(msg) {
-  const t = $("toast"); t.textContent = msg; t.style.display = "block";
-  clearTimeout(toast.t); toast.t = setTimeout(() => (t.style.display = "none"), 3500);
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => (t.style.display = "none"), 3800); }
+function ago(iso) {
+  if (!iso) return "–";
+  const s = (Date.now() - new Date(iso)) / 1000, f = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  for (const [u, n] of [["day", 86400], ["hour", 3600], ["minute", 60]]) if (Math.abs(s) >= n) return f.format(-Math.round(s / n), u);
+  return "just now";
 }
-
-async function api(path, { method = "GET", body, token = S.token } = {}) {
+const clock = (d) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+async function api(path, { method = "GET", body } = {}) {
   const headers = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = "Bearer " + token;
-  const res = await fetch(API + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), credentials: "omit" });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    const detail = data?.detail || (data && JSON.stringify(data)) || res.statusText;
-    throw new Error(`${res.status}: ${detail}`);
-  }
+  if (S.token) headers.Authorization = "Bearer " + S.token;
+  const res = await fetch(API + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  const text = await res.text(), data = text ? JSON.parse(text) : null;
+  if (res.status === 401) { logout(); throw new Error("Please log in again."); }
+  if (!res.ok) throw new Error(data?.detail || (Array.isArray(data) ? data[0] : data && Object.values(data).flat()[0]) || res.statusText);
   return data;
 }
 
-async function tokenFor(email, password) {
-  return (await api("/auth/token/", { method: "POST", body: { email, password }, token: null })).access;
-}
-
 // ---------- auth ----------
-async function login(email, password) {
+$("loginForm").onsubmit = async (e) => {
+  e.preventDefault();
   try {
-    S.token = await tokenFor(email, password);
-    try { localStorage.setItem("token", S.token); } catch {}
-    await loadMe();
-    toast("Logged in as " + email);
-    refreshTab();
-  } catch (e) { toast("Login failed: " + e.message); }
-}
-function logout() {
-  S.token = null; S.me = null;
-  try { localStorage.removeItem("token"); } catch {}
-  renderWho(); refreshTab();
-}
-async function loadMe() {
-  if (!S.token) { S.me = null; return renderWho(); }
-  try { S.me = await api("/accounts/me/"); }
-  catch { S.token = null; S.me = null; try { localStorage.removeItem("token"); } catch {} }
-  renderWho();
-}
-function renderWho() {
-  const w = $("who");
-  const quick = Object.entries(DEMO).map(([k, d]) => `<button class="btn" data-demo="${k}">${esc(d.label)}</button>`).join("");
-  w.innerHTML = S.me
-    ? `<span>Signed in: <b>${esc(S.me.email)}</b> <span class="pill">${esc(S.me.reader_situation)}</span></span>
-       <span class="hint">switch:</span>${quick}<button class="btn" id="logout">Log out</button>`
-    : `<span class="hint">Not signed in (anonymous feed, no personalisation). Log in as:</span>${quick}`;
-  w.querySelectorAll("[data-demo]").forEach((b) => (b.onclick = () => login(DEMO[b.dataset.demo].email, DEMO[b.dataset.demo].password)));
-  if ($("logout")) $("logout").onclick = logout;
-}
-
-// ---------- tabs ----------
-let current = "feed";
-document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => {
-  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
-  document.querySelectorAll("main section").forEach((s) => s.classList.toggle("on", s.id === b.dataset.tab));
-  current = b.dataset.tab; refreshTab();
-}));
-function refreshTab() {
-  ({ feed: loadFeed, compare: () => {}, profile: renderProfile, editor: loadQueue, newsroom: loadNewsroom, markets: loadMarkets }[current] || (() => {}))();
-}
-
-// ---------- feed ----------
-function meter(label, value, max = 1) {
-  const pct = Math.max(0, Math.min(1, value / max));
-  const shown = max === 1 ? Math.round(pct * 100) + "%" : value.toFixed(1) + "/" + max;
-  return `<div class="meter"><span>${esc(label)}</span><span class="track"><span class="fill" style="width:${pct * 100}%;display:block"></span></span><span>${shown}</span></div>`;
-}
-function whyBox(r) {
-  if (!r) return "";
-  if (r.ranker !== "jev") {
-    return `<div class="why"><b>Why am I seeing this?</b> Ranked by the basic formula (interests, location, engagement, freshness): score ${r.score.toFixed(2)}.<br><span class="hint">Jev isn't ranking this card: no TYPESAFE_API_KEY, you're anonymous, it's outside the top 30, or the call failed.</span></div>`;
-  }
-  const j = r.jev;
-  return `<div class="why"><b>Why am I seeing this?</b> <span class="pill jev">Jev</span> final score ${r.score.toFixed(2)} (Jev relevance ${r.jev_relevance.toFixed(2)})
-    ${meter("Affects you", j.affects_reader)}${meter("Your interests", j.matches_interests)}${meter("Action needed", j.needs_action)}${meter("Urgency", j.urgency, 3)}</div>`;
-}
-function cardHtml(c, situation, compact) {
-  const explainer = c.explainer || {};
-  const forYou = c.for_you || explainer[situation];
-  const others = Object.entries(explainer).filter(([k]) => k !== (c.situation || situation));
-  const ai = c.ai_disclosure || {};
-  const o = c.original;
-  const langNote = !c.in_your_language && c.requested_language
-    ? `<div class="bg"><b>Not yet in ${esc(langName(c.requested_language))}</b><br>Showing ${esc(langName(c.language))} until a reviewer approves the ${esc(langName(c.requested_language))} version.</div>` : "";
-  return `<article class="card" data-id="${c.id}">
-    <div class="meta">
-      ${(c.tags || []).map((t) => `<span class="pill">${esc(t)}</span>`).join("")}
-      <span class="pill">${esc(langName(c.language))}${o ? " · translated" : ""}</span></div>
-    <h3>${esc(c.headline)}</h3>
-    ${compact ? "" : langNote}
-    ${compact ? "" : `<p style="margin:0">${esc(c.summary)}</p>`}
-    ${!compact && c.key_facts?.length ? `<ul>${c.key_facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
-    ${!compact && forYou ? `<div class="bg"><b>What this means for you${c.situation ? " · " + esc(c.situation.replace("_", " ")) : ""}${c.for_you_language && c.for_you_language !== c.language ? " · in " + esc(langName(c.for_you_language)) : ""}</b><br>${esc(forYou)}</div>` : ""}
-    ${c.correction_note ? `<div class="bg"><b>Correction</b><br>${esc(c.correction_note)}</div>` : ""}
-    ${!compact && o ? `<details data-expand><summary>Original (${esc(langName(o.language))})</summary>
-      <p><b>${esc(o.headline)}</b></p><p>${esc(o.summary)}</p>
-      ${o.key_facts?.length ? `<ul>${o.key_facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
-    </details>` : ""}
-    ${!compact && (others.length || c.background) ? `<details data-expand><summary>More context</summary>
-      ${others.map(([k, v]) => `<p class="hint"><b>${esc(k.replace("_", " "))}:</b> ${esc(v)}</p>`).join("")}
-      ${c.background ? `<div class="bg"><b>Background · from the reviewed context library</b><br>${esc(c.background)}</div>` : ""}
-    </details>` : ""}
-    ${whyBox(c.ranking)}
-    ${(c.community_notes || []).map((n) => `<div class="bg"><b>Community note</b><br>${esc(n.claim_summary)}: ${esc(n.context)}</div>`).join("")}
-    ${compact ? "" : `<div class="disclosure">AI-generated (${esc((ai.roles || []).join(", ") || "n/a")})${ai.machine_translated ? ", machine-translated" : ""}.
-      Reviewed by ${esc(ai.reviewer || "–")}, verified ${ai.verified_at ? new Date(ai.verified_at).toLocaleString() : "–"}.
-      Sources: ${(c.source_urls || []).map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">[${i + 1}]</a>`).join(" ") || "–"}</div>
-    <div class="actions">
-      <button class="btn" data-act="like">♥ Like (${c.metrics?.likes ?? 0})</button>
-      <button class="btn" data-act="bookmark">Bookmark (${c.metrics?.bookmarks ?? 0})</button>
-      <button class="btn" data-act="share">Share</button>
-      <button class="btn danger" data-act="report">Report wrong/outdated</button>
-    </div>`}
-  </article>`;
-}
-
-let seen = new Set();
-const observer = new IntersectionObserver((entries) => {
-  for (const e of entries) {
-    const id = e.target.dataset.id;
-    if (!e.isIntersecting || !S.token) { clearTimeout(e.target._rt); continue; }
-    if (!seen.has(id)) { seen.add(id); interact(id, "view", true); }
-    // Staying on a card for 4 s counts as reading it through (a ranking signal).
-    e.target._rt = setTimeout(() => interact(id, "read_through", true), 4000);
-  }
-}, { threshold: 0.6 });
-
-async function interact(id, kind, quiet) {
-  if (!S.token) return quiet || toast("Log in to interact");
-  try { await api(`/feed/snippets/${id}/interact/`, { method: "POST", body: { kind } }); if (!quiet) toast(kind + " ✓"); }
-  catch (e) { if (!quiet) toast(e.message); }
-}
-
-async function loadFeed() {
-  const list = $("feedList");
-  list.innerHTML = `<div class="empty">Loading…</div>`;
-  try {
-    const t0 = performance.now();
-    const data = await api(`/feed/snippets/?limit=30`);
-    const cards = results(data);
-    const ms = Math.round(performance.now() - t0);
-    const jev = cards.filter((c) => c.ranking?.ranker === "jev").length;
-    $("feedInfo").textContent = `${data.count ?? cards.length} snippets · ${jev} ranked by Jev · ${ms} ms`;
-    const want = cards[0]?.requested_language;
-    $("feedLangInfo").innerHTML = want ? `Showing news in <b>${esc(langName(want))}</b> (${S.me ? "from your profile" : "from your browser"}), with the Finnish original on each card.` : "";
-    if (!cards.length) {
-      list.innerHTML = `<div class="empty">The feed is empty.<br>Go to <b>AI newsroom</b> → Run pipeline, then approve snippets in the <b>Editor queue</b> (log in as Editor).</div>`;
-      return;
-    }
-    const situation = S.me?.reader_situation || "newcomer";
-    list.innerHTML = cards.map((c) => cardHtml(c, situation, false)).join("");
-    list.querySelectorAll(".card").forEach((el) => observer.observe(el));
-    list.querySelectorAll("details[data-expand]").forEach((d) => d.addEventListener("toggle", () => d.open && interact(d.closest(".card").dataset.id, "expand", true)));
-    list.querySelectorAll("[data-act]").forEach((b) => (b.onclick = async () => {
-      const id = b.closest(".card").dataset.id;
-      if (b.dataset.act === "report") {
-        if (!S.token) return toast("Log in to report");
-        const body = prompt("What is wrong or outdated?"); if (body === null) return;
-        try { await api(`/feed/snippets/${id}/report/`, { method: "POST", body: { reason: "wrong", body } }); toast("Reported: the snippet is back in the editor queue"); loadFeed(); }
-        catch (e) { toast(e.message); }
-      } else interact(id, b.dataset.act);
-    }));
-  } catch (e) { list.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
-}
-$("feedReload").onclick = loadFeed;
-
-// ---------- compare ----------
-$("compareLoad").onclick = async () => {
-  const cols = $("compareCols");
-  cols.innerHTML = `<div class="empty">Loading…</div>`;
-  try {
-    const out = [];
-    for (const key of ["newcomer", "fan"]) {
-      const d = DEMO[key];
-      const token = await tokenFor(d.email, d.password);
-      const me = await api("/accounts/me/", { token });
-      const cards = results(await api("/feed/snippets/?limit=10", { token }));
-      out.push({ d, me, cards });
-    }
-    $("compareInfo").textContent = out[0].cards.some((c) => c.ranking?.ranker === "jev") ? "Jev is ranking these feeds." : "Jev is off (formula only), so both readers see nearly the same order.";
-    cols.innerHTML = out.map(({ d, me, cards }) => `<div>
-      <div class="panel"><h3>${esc(d.label)}</h3><div class="hint">${esc(me.email)} · reads ${esc(langName(me.preferred_language))} · ${esc(me.reader_situation)} · interests: ${esc((me.profile?.interests || []).join(", ") || "none")}${me.arrival_date ? " · arrived " + esc(me.arrival_date) : ""}</div></div>
-      <div class="feed compact">${cards.map((c, i) => cardHtml({ ...c, headline: `${i + 1}. ${c.headline}` }, me.reader_situation, true)).join("") || `<div class="empty">No snippets yet.</div>`}</div>
-    </div>`).join("");
-  } catch (e) { cols.innerHTML = `<div class="empty">${esc(e.message)}<br>Demo readers are created by <code>manage.py bootstrap</code>.</div>`; }
+    S.token = (await api("/auth/token/", { method: "POST", body: { email: $("email").value, password: $("password").value } })).access;
+    localStorage.setItem("admin-token", S.token);
+    await start();
+  } catch (err) { $("loginError").hidden = false; $("loginError").textContent = err.message; }
 };
+function logout() { S.token = null; localStorage.removeItem("admin-token"); $("app").hidden = true; $("login").hidden = false; }
+$("logout").onclick = (e) => { e.preventDefault(); logout(); };
 
-// ---------- profile ----------
-async function renderProfile() {
-  const p = $("profilePanel");
-  if (!S.me) { p.innerHTML = `<h2>My profile</h2><p class="hint">Log in to see and edit your profile.</p>`; return; }
-  if (!S.interests) S.interests = results(await api("/accounts/interests/"));
-  const mine = new Set(S.me.profile?.interests || []);
-  const opt = (vals, cur) => vals.map((v) => `<option ${v === cur ? "selected" : ""}>${v}</option>`).join("");
-  p.innerHTML = `<h2>My profile</h2>
-    <p class="hint">This is what the ranker (and Jev) know about you. Your language decides which translation you see, and new stories are translated into it automatically. Change something and reload the feed.</p>
-    <div class="row"><label>Situation <select id="pSit">${opt(["newcomer", "seasonal_worker", "student", "resident"], S.me.reader_situation)}</select></label>
-      <label>My language <select id="pLang">${opt(["en", "fi", "sv", "uk", "ar", "ru", "so", "et"], S.me.preferred_language)}</select></label></div>
-    <div class="row"><label>Arrived in Finland <input id="pArr" type="date" value="${esc(S.me.arrival_date || "")}"></label></div>
-    <div class="checks">${S.interests.map((i) => `<label><input type="checkbox" value="${esc(i.slug)}" ${mine.has(i.slug) ? "checked" : ""}> ${esc(i.name)}</label>`).join("")}</div>
-    <div class="row" style="margin-top:12px"><button class="btn primary" id="pSave">Save profile</button></div>`;
-  $("pSave").onclick = async () => {
-    const body = {
-      reader_situation: $("pSit").value, preferred_language: $("pLang").value,
-      arrival_date: $("pArr").value || null,
-      interests: [...p.querySelectorAll(".checks input:checked")].map((x) => x.value),
-    };
-    try { await api("/accounts/onboarding/", { method: "POST", body }); await loadMe(); toast("Profile saved"); renderProfile(); }
-    catch (e) { toast(e.message); }
-  };
+let refresher;
+async function start() {
+  try { S.me = await api("/accounts/me/"); } catch { return logout(); }
+  if (!S.me.is_staff) { logout(); $("loginError").hidden = false; $("loginError").textContent = "This account isn't staff. Use an editor or admin account."; return; }
+  $("login").hidden = true; $("app").hidden = false;
+  $("who").textContent = `Signed in as ${S.me.email}`;
+  await loadDashboard();
+  show(location.hash.slice(1) || "overview");
+  clearInterval(refresher);
+  refresher = setInterval(async () => { await loadDashboard(); if (S.view === "overview") renderOverview(); }, 30000);
 }
-$("regBtn").onclick = async () => {
-  const email = $("regEmail").value.trim(), password = $("regPw").value;
-  try { await api("/accounts/register/", { method: "POST", body: { email, password }, token: null }); await login(email, password); }
-  catch (e) { toast(e.message); }
-};
 
-// ---------- editor ----------
-async function loadQueue() {
-  const q = $("queue");
-  if (!S.me) { q.innerHTML = `<div class="empty">Log in as <b>Editor (admin)</b> to review snippets.</div>`; return; }
-  q.innerHTML = `<div class="empty">Loading…</div>`;
-  try {
-    const role = $("queueRole").value;
-    const tasks = results(await api(`/editorial/tasks/?page_size=100${role ? "&role=" + role : ""}`));
-    if (!tasks.length) { q.innerHTML = `<div class="empty">Queue is empty. Run the AI newsroom to create snippets.</div>`; return; }
-    q.innerHTML = tasks.map((t) => `<div class="panel task" data-id="${t.id}">
-      <div class="meta row" style="margin:0 0 6px">
-        <b>Task #${t.id}</b> · snippet ${t.snippet}
-        <span class="pill ${esc(t.risk_tier)}">${esc(t.risk_tier)} risk</span>
-        <span class="pill">${esc(t.reason)}</span>
-        <span class="pill">${t.language ? "language: " + esc(t.language) : "whole snippet"}</span>
-        <span class="pill">needs ${esc(t.required_role)}</span>
-        <span class="hint">priority ${t.priority} · confidence ${(t.confidence ?? 0).toFixed(2)}</span>
-      </div>
-      ${(t.versions || []).map((v) => `<div class="ver"><b>[${esc(v.language)}]</b> ${esc(v.headline) || "<i>(empty: needs a human translation)</i>"}
-        <div class="hint">${esc(v.summary)}</div></div>`).join("")}
-      <div class="actions"><button class="btn primary" data-do="approve">Approve</button><button class="btn danger" data-do="reject">Reject</button></div>
-    </div>`).join("");
-    q.querySelectorAll("[data-do]").forEach((b) => (b.onclick = async () => {
-      const id = b.closest(".task").dataset.id;
-      try {
-        if (b.dataset.do === "approve") await api(`/editorial/tasks/${id}/approve/`, { method: "POST", body: {} });
-        else { const comment = prompt("Reason for rejecting?"); if (comment === null) return; await api(`/editorial/tasks/${id}/reject/`, { method: "POST", body: { comment } }); }
-        toast((b.dataset.do === "approve" ? "Approved" : "Rejected") + " task " + id); loadQueue();
-      } catch (e) { toast(e.message); }
-    }));
-  } catch (e) { q.innerHTML = `<div class="empty">${esc(e.message)}${e.message.startsWith("403") ? "<br>This account has no reviewer role. Log in as Editor (admin)." : ""}</div>`; }
+// ---------- navigation ----------
+document.querySelectorAll(".nav").forEach((b) => (b.onclick = () => { location.hash = b.dataset.view; }));
+window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+function show(view) {
+  if (!$("v-" + view)) view = "overview";
+  S.view = view;
+  document.querySelectorAll(".nav").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
+  document.querySelectorAll("section.view").forEach((s) => s.classList.toggle("on", s.id === "v-" + view));
+  ({ overview: renderOverview, queue: loadQueue, moderation: loadModeration, newsroom: loadRuns, compare: loadReaders }[view])();
 }
-$("queueReload").onclick = loadQueue;
-$("queueRole").onchange = loadQueue;
+
+// ---------- dashboard data ----------
+async function loadDashboard() {
+  S.dash = await api("/agents/dashboard/");
+  const c = S.dash.counts;
+  const badge = (id, n) => { $(id).textContent = n || ""; n ? $(id).removeAttribute("data-zero") : $(id).setAttribute("data-zero", ""); };
+  badge("b-queue", c.editor_tasks + c.translation_tasks); badge("b-mod", c.flagged_posts); badge("b-run", S.dash.running.length);
+  const opts = S.dash.communities.map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join("");
+  for (const id of ["ovCommunity", "nrCommunity"]) if (!$(id).options.length) $(id).innerHTML = opts;
+  const sch = S.dash.schedule, next = sch.next_run_at ? new Date(sch.next_run_at) : null;
+  const txt = `Runs automatically every ${sch.every_minutes} minutes, up to ${sch.max_stories_per_run} stories per community. ` +
+    (next ? (next > new Date() ? `Next run at ${clock(next)}.` : "Next run due now.") : "Waiting for the first scheduled run.") +
+    " A community is skipped while its previous run is still going.";
+  $("schedText").textContent = txt; $("nrSched").textContent = txt;
+}
+
+function renderOverview() {
+  const d = S.dash; if (!d) return;
+  const c = d.counts;
+  const card = (v, l, go, cls = "") => `<div class="card stat ${cls}" data-go="${go}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  $("stats").innerHTML = [
+    card(c.editor_tasks, "Stories to review", "queue", c.editor_tasks ? "warn" : ""),
+    card(c.translation_tasks, "Translations to review", "queue"),
+    card(c.checklist_pending, "Checklist items to confirm", "queue", c.checklist_pending ? "warn" : ""),
+    card(c.flagged_posts, "Reported community posts", "moderation", c.flagged_posts ? "bad" : ""),
+    card(c.published_24h, "Published in 24 h", "compare"),
+    card(`${c.runs_24h}${c.failed_runs_24h ? ` <span class="small" style="color:var(--red)">${c.failed_runs_24h} failed</span>` : ""}`, "Newsroom runs in 24 h", "newsroom"),
+  ].join("");
+  $("stats").querySelectorAll("[data-go]").forEach((el) => (el.onclick = () => (location.hash = el.dataset.go)));
+  $("schedState").innerHTML = d.running.length ? `<span class="pill run">Running now</span>` : `<span class="pill ok">Idle</span>`;
+  $("models").innerHTML = `<table>${d.llm.map((m) => `<tr><td>${esc(m.agent)}</td><td class="small">${esc(m.spec)}</td>
+    <td>${m.stub_reason ? `<span class="pill bad">offline stub</span><div class="small muted">${esc(m.stub_reason)}</div>` : `<span class="pill ok">ready</span>`}</td></tr>`).join("")}</table>`;
+  api("/agents/runs/").then((r) => {
+    $("ovRuns").innerHTML = runsTable(results(r).slice(0, 5), true);
+    $("ovRuns").querySelectorAll("[data-run]").forEach((tr) => (tr.onclick = () => { location.hash = "newsroom"; setTimeout(() => showRun(tr.dataset.run), 50); }));
+  });
+}
 
 // ---------- newsroom ----------
-let runPoll;
-async function loadNewsroom() {
-  try {
-    const groups = results(await api("/communities/groups/"));
-    $("runCommunity").innerHTML = groups.map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join("");
-  } catch {}
-  await loadRuns();
+function runsTable(runs, clickable) {
+  if (!runs.length) return `<div class="empty">No runs yet.</div>`;
+  const badge = (s) => `<span class="pill ${s === "succeeded" ? "ok" : s === "failed" ? "bad" : "run"}">${s}</span>`;
+  const dur = (r) => (r.started_at && r.finished_at ? Math.round((new Date(r.finished_at) - new Date(r.started_at)) / 1000) + " s" : "–");
+  return `<table><tr><th>Run</th><th>Status</th><th>Trigger</th><th>Stories</th><th>Started</th><th>Took</th></tr>
+    ${runs.map((r) => `<tr class="${clickable ? "click" : ""}" data-run="${r.id}"><td>#${r.id}</td><td>${badge(r.status)}</td><td>${esc(r.trigger)}</td>
+      <td>${(r.snippet_ids || []).length}</td><td>${ago(r.started_at || r.created_at)}</td><td>${dur(r)}</td></tr>`).join("")}</table>`;
 }
+let runPoll;
 async function loadRuns() {
   clearTimeout(runPoll);
-  const box = $("runs");
-  if (!S.me) { box.innerHTML = `<div class="hint">Log in as Editor (admin) to see runs.</div>`; return; }
-  try {
-    const runs = results(await api("/agents/runs/"));
-    box.innerHTML = runs.length ? `<table><tr><th>Run</th><th>Status</th><th>Trigger</th><th>Snippets</th><th>Started</th><th>Error</th></tr>
-      ${runs.slice(0, 15).map((r) => `<tr><td>#${r.id}</td><td>${esc(r.status)}</td><td>${esc(r.trigger)}</td><td>${(r.snippet_ids || []).length}</td>
-      <td>${r.started_at ? new Date(r.started_at).toLocaleTimeString() : "–"}</td><td class="hint">${esc(r.error)}</td></tr>`).join("")}</table>`
-      : `<div class="hint">No runs yet.</div>`;
-    if (runs.some((r) => ["queued", "running"].includes(r.status)) && current === "newsroom") runPoll = setTimeout(loadRuns, 3000);
-  } catch (e) { box.innerHTML = `<div class="hint">${esc(e.message)}</div>`; }
+  const runs = results(await api("/agents/runs/"));
+  $("runs").innerHTML = runsTable(runs.slice(0, 25), true);
+  $("runs").querySelectorAll("[data-run]").forEach((tr) => (tr.onclick = () => showRun(tr.dataset.run)));
+  if (runs.some((r) => ["queued", "running"].includes(r.status)) && S.view === "newsroom") runPoll = setTimeout(loadRuns, 5000);
 }
-$("runBtn").onclick = async () => {
-  if (!S.me) return toast("Log in as Editor (admin) first");
-  $("runBtn").disabled = true;
+async function showRun(id) {
+  const r = await api(`/agents/runs/${id}/`);
+  const rep = r.report, steps = r.steps || [];
+  const max = Math.max(1, ...steps.map((s) => s.duration_ms));
+  $("runDetail").classList.remove("muted");
+  $("runDetail").innerHTML = `
+    <div class="row" style="margin-bottom:8px"><b>Run #${r.id}</b><span class="pill">${esc(r.trigger)}</span><span class="pill ${r.status === "failed" ? "bad" : r.status === "succeeded" ? "ok" : "run"}">${esc(r.status)}</span></div>
+    <p style="margin:0 0 8px">Fetched <b>${rep.fetched}</b> items · drafted <b>${rep.drafted}</b> stories · languages ${rep.languages.map(lang).join(", ") || "–"}</p>
+    ${r.error ? `<div class="flag bad">${esc(r.error)}</div>` : ""}
+    ${rep.excluded.length ? `<div class="flag warn"><b>Not news, excluded (JSN 11/16): ${rep.excluded.length}</b><ul>${rep.excluded.map((e) => `<li>${esc(e.content_type)} (${esc(e.marker)}): ${esc(e.title)}</li>`).join("")}</ul></div>` : ""}
+    ${rep.error_count ? `<div class="flag bad"><b>${rep.error_count} agent errors</b> (those calls used the offline fallback)<ul>${rep.errors.slice(0, 8).map((e) => `<li>${esc(e.agent)}: ${esc(String(e.error).slice(0, 160))}</li>`).join("")}</ul></div>` : `<div class="flag check">No agent errors.</div>`}
+    ${steps.length ? `<h2 style="margin:14px 0 6px">Agents</h2>${steps.map((s) => `<div class="row small" style="margin:4px 0"><span style="width:96px">${esc(s.agent)}</span>
+      <div style="flex:1"><div class="bar" style="width:${Math.max(2, (s.duration_ms / max) * 100)}%"></div></div><span style="width:60px;text-align:right">${(s.duration_ms / 1000).toFixed(1)} s</span></div>`).join("")}` : ""}
+    ${(r.snippet_ids || []).length ? `<p class="small" style="margin-top:12px">Stories created: ${r.snippet_ids.map((i) => `#${i}`).join(", ")}. <a href="#queue">Review them</a></p>` : ""}`;
+}
+async function runNow(communityId, max) {
   try {
-    const run = await api("/agents/runs/", { method: "POST", body: { community: Number($("runCommunity").value), max_items: Number($("runMax").value) } });
-    toast(`Run #${run.id} ${run.status}. Snippets will appear in the Editor queue.`);
+    const run = await api("/agents/runs/", { method: "POST", body: { community: Number(communityId), max_items: Number(max) } });
+    toast(`Run #${run.id} queued. Its stories go to the editor queue when it finishes.`);
+    await loadDashboard();
+    if (S.view === "newsroom") loadRuns(); else renderOverview();
   } catch (e) { toast(e.message); }
-  $("runBtn").disabled = false; loadRuns();
+}
+$("ovRun").onclick = () => runNow($("ovCommunity").value, $("ovMax").value);
+$("nrRun").onclick = () => runNow($("nrCommunity").value, $("nrMax").value);
+
+// ---------- editor queue ----------
+const qState = { role: "editor" };
+$("qType").querySelectorAll("button").forEach((b) => (b.onclick = () => { $("qType").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); qState.role = b.dataset.v; loadQueue(); }));
+$("qReason").onchange = loadQueue;
+
+function flagsHtml(t) {
+  const f = t.flags || {}, out = [];
+  (f.sources || []).forEach((s) => out.push(`<div class="small muted">Source: <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || s.url)}</a> · ${esc(s.publisher)}</div>`));
+  (f.verification || []).filter((v) => !v.passed || v.issues.length).forEach((v) => out.push(`<div class="flag ${v.passed ? "warn" : "bad"}"><b>Fact-check ${esc(lang(v.language))}: ${v.passed ? "passed with notes" : "failed"}</b> · confidence ${v.confidence}
+    <ul>${v.issues.map((i) => `<li>${esc(i.kind)}${i.value ? ` “${esc(i.value)}”` : ""}: ${esc(i.issue)}</li>`).join("")}</ul></div>`));
+  if (f.standards?.failed?.length) out.push(`<div class="flag bad"><b>Standards check failed</b><ul>${f.standards.failed.map((x) => `<li>${esc(x.label)}</li>`).join("")}</ul></div>`);
+  if (f.checklist?.length) out.push(`<div class="flag check"><b>Editorial checklist (JSN): confirm each before approving</b>
+    ${f.checklist.map((c) => `<label class="check-row"><input type="checkbox" data-check="${esc(c.key)}" ${c.confirmed ? "checked disabled" : ""}><span>${esc(c.label)} <span class="small">(clauses ${esc(c.clauses)})${c.confirmed ? ` · confirmed by ${esc(c.confirmed_by)}` : ""}</span></span></label>`).join("")}</div>`);
+  return out.join("");
+}
+
+async function loadQueue() {
+  const box = $("queue");
+  box.innerHTML = `<div class="empty">Loading…</div>`;
+  const q = new URLSearchParams({ page_size: 100 });
+  if (qState.role) q.set("role", qState.role);
+  if ($("qReason").value) q.set("reason", $("qReason").value);
+  try {
+    const tasks = results(await api(`/editorial/tasks/?${q}`));
+    if (!tasks.length) { box.innerHTML = `<div class="card empty">The queue is empty. New stories arrive after each newsroom run.</div>`; return; }
+    box.innerHTML = tasks.map((t) => {
+      const v = (t.versions || [])[0] || {};
+      const editLang = t.language || "fi";
+      return `<div class="card task" data-id="${t.id}">
+        <div class="task-head"><b>Story #${t.snippet}</b>
+          <span class="pill ${esc(t.risk_tier)}">${esc(t.risk_tier)} risk</span>
+          <span class="pill">${esc(t.reason.replace(/_/g, " "))}</span>
+          <span class="pill">${t.language ? "Translation: " + esc(lang(t.language)) : "Story (Finnish)"}</span>
+          <span class="small muted">needs ${esc(t.required_role.replace("_", " "))} · confidence ${(t.confidence ?? 0).toFixed(2)} · ${ago(t.created_at)}</span></div>
+        ${(t.language ? t.versions : (t.versions || []).filter((x) => x.language === "fi")).map((x) => `<div class="version"><span class="pill">${esc(lang(x.language))}${x.is_machine_translated ? " · machine-translated" : ""}</span>
+          <div dir="auto"><b>${esc(x.headline) || "<i>Empty: write the translation with Edit text</i>"}</b></div><div class="muted" dir="auto">${esc(x.summary)}</div>
+          ${(x.key_facts || []).length ? `<ul class="small">${x.key_facts.map((k) => `<li dir="auto">${esc(k)}</li>`).join("")}</ul>` : ""}</div>`).join("")}
+        ${!t.language && t.versions.length > 1 ? `<div class="small muted">${t.versions.length - 1} translation(s) are reviewed separately by language reviewers (Translations tab).</div>` : ""}
+        ${flagsHtml(t)}
+        <div class="edit-box" dir="auto">
+          <label>Headline (${esc(lang(editLang))})</label><input data-e="headline" style="width:100%" value="${esc(v.headline)}">
+          <label>Summary</label><textarea data-e="summary" rows="3">${esc(v.summary)}</textarea>
+          <label>Key facts (one per line)</label><textarea data-e="key_facts" rows="3">${esc((v.key_facts || []).join("\n"))}</textarea>
+        </div>
+        <div class="actions">
+          <button class="btn primary" data-do="approve">Approve</button>
+          <button class="btn" data-do="edit">Edit text</button>
+          <button class="btn" data-do="changes">Request changes</button>
+          <button class="btn danger" data-do="reject">Reject</button>
+        </div></div>`;
+    }).join("");
+    box.querySelectorAll("[data-do]").forEach((b) => (b.onclick = () => taskAction(b)));
+  } catch (e) { box.innerHTML = `<div class="card empty">${esc(e.message)}</div>`; }
+}
+
+async function taskAction(b) {
+  const card = b.closest(".task"), id = card.dataset.id, act = b.dataset.do;
+  const editBox = card.querySelector(".edit-box");
+  try {
+    if (act === "edit") { editBox.classList.toggle("on"); b.textContent = editBox.classList.contains("on") ? "Cancel edit" : "Edit text"; return; }
+    if (act === "approve") {
+      const open = [...card.querySelectorAll("[data-check]:not(:disabled)")];
+      if (open.some((c) => !c.checked)) return toast("Tick every checklist item first: the story can't be published until an editor confirms them.");
+      const body = { confirm: open.map((c) => c.dataset.check) };
+      if (editBox.classList.contains("on")) {
+        const val = (k) => card.querySelector(`[data-e="${k}"]`).value;
+        body.edits = { headline: val("headline").trim(), summary: val("summary").trim(), key_facts: val("key_facts").split("\n").map((s) => s.trim()).filter(Boolean) };
+      }
+      await api(`/editorial/tasks/${id}/approve/`, { method: "POST", body });
+      toast("Approved.");
+    } else {
+      const comment = prompt(act === "reject" ? "Why are you rejecting this?" : "What should change?");
+      if (!comment) return;
+      await api(`/editorial/tasks/${id}/${act === "reject" ? "reject" : "request-changes"}/`, { method: "POST", body: { comment } });
+      toast(act === "reject" ? "Rejected." : "Changes requested.");
+    }
+    card.remove(); loadDashboard();
+  } catch (e) { toast(e.message); }
+}
+
+$("qBatch").onclick = async () => {
+  const tasks = results(await api("/editorial/tasks/?page_size=200&reason=batch_low_risk"));
+  if (!tasks.length) return toast("No low-risk items waiting.");
+  if (!confirm(`Approve ${tasks.length} low-risk item(s)? Items with an editorial checklist are skipped.`)) return;
+  const res = await api("/editorial/tasks/batch-approve/", { method: "POST", body: { task_ids: tasks.map((t) => t.id) } });
+  toast(`Approved ${res.approved.length}, skipped ${res.skipped.length}.`); loadQueue(); loadDashboard();
 };
 
-// ---------- markets ----------
-async function loadMarkets() {
-  const w = $("wallet"), list = $("marketList"), pos = $("positions");
-  if (!S.me) { w.innerHTML = `<div class="hint">Log in to get 1000 free virtual points and trade. Virtual points only, no real money.</div>`; }
-  else {
-    try { const wal = await api("/markets/wallet/"); w.innerHTML = `<h2>Wallet</h2><b>${esc(wal.balance)}</b> points available · ${esc(wal.locked)} at stake <span class="hint">(virtual points, no cash value)</span>`; }
-    catch (e) { w.innerHTML = esc(e.message); }
-  }
+// ---------- moderation ----------
+const mState = { status: "pending" };
+$("mStatus").querySelectorAll("button").forEach((b) => (b.onclick = () => { $("mStatus").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); mState.status = b.dataset.v; loadModeration(); }));
+async function loadModeration() {
+  const box = $("modList");
   try {
-    const markets = results(await api("/markets/markets/")).filter((m) => m.kind === "binary");
-    list.innerHTML = markets.map((m) => `<div class="panel" data-id="${m.id}">
-      <h3>${esc(m.question)}</h3>
-      <div class="hint">${esc(m.event_label)} · ${esc(m.status)}${m.resolution ? " · resolved " + esc(m.resolution) : ""} · implied YES ${m.yes_price != null ? Math.round(m.yes_price * 100) + "%" : "–"} · volume ${esc(m.volume)}</div>
-      ${m.status === "open" ? `<div class="row" style="margin-top:8px"><select data-f="side"><option value="yes">YES</option><option value="no">NO</option></select>
-        <label>price <input data-f="price" type="number" step="0.01" min="0.01" max="1" value="0.50" style="width:80px"></label>
-        <label>qty <input data-f="qty" type="number" min="1" value="10" style="width:80px"></label>
-        <button class="btn primary" data-f="buy">Buy</button></div>` : ""}
-    </div>`).join("") || `<div class="empty">No markets. Run <code>manage.py seed_markets</code>.</div>`;
-    list.querySelectorAll("[data-f=buy]").forEach((b) => (b.onclick = async () => {
-      const p = b.closest(".panel"), f = (n) => p.querySelector(`[data-f=${n}]`).value;
-      try { await api(`/markets/markets/${p.dataset.id}/order/`, { method: "POST", body: { side: f("side"), price: f("price"), quantity: Number(f("qty")) } }); toast("Order placed"); loadMarkets(); }
+    const posts = results(await api(`/communities/moderation/?status=${mState.status}`));
+    if (!posts.length) { box.innerHTML = `<div class="card empty">${mState.status === "pending" ? "Nothing to moderate. Reported posts appear here." : "Nothing here yet."}</div>`; return; }
+    box.innerHTML = posts.map((p) => `<div class="card task" data-id="${p.id}">
+      <div class="task-head"><b>${esc(p.author_name)}</b><span class="muted">in ${esc(p.community_name)} · posted ${ago(p.created_at)}</span>
+        ${p.reports.length ? `<span class="pill bad">${p.reports.length} report${p.reports.length > 1 ? "s" : ""}</span>` : ""}</div>
+      <p style="white-space:pre-wrap;margin:0 0 8px;font-size:15px" dir="auto">${esc(p.body)}</p>
+      ${p.reports.length ? `<div class="flag warn"><b>Reports</b><ul>${p.reports.map((r) => `<li>${esc(r.reason)}${r.note ? `: ${esc(r.note)}` : ""} <span class="small">(${esc(r.by)}, ${ago(r.at)})</span></li>`).join("")}</ul></div>` : ""}
+      ${p.moderated_at ? `<div class="small muted">${p.status === "removed" ? "Removed" : "Kept"} by ${esc(p.moderated_by_name || "–")} ${ago(p.moderated_at)}${p.moderation_note ? `: “${esc(p.moderation_note)}”` : ""}</div>` : ""}
+      ${mState.status === "pending" ? `<div class="actions"><button class="btn primary" data-mod="keep">Keep (restore)</button><button class="btn danger" data-mod="remove">Remove</button></div>` : ""}
+    </div>`).join("");
+    box.querySelectorAll("[data-mod]").forEach((b) => (b.onclick = async () => {
+      const id = b.closest(".task").dataset.id;
+      const note = b.dataset.mod === "remove" ? prompt("Reason for removing (kept in the record):") : "";
+      if (note === null) return;
+      try { await api(`/communities/moderation/${id}/decide/`, { method: "POST", body: { decision: b.dataset.mod, note } }); toast(b.dataset.mod === "keep" ? "Restored." : "Removed."); loadModeration(); loadDashboard(); }
       catch (e) { toast(e.message); }
     }));
-  } catch (e) { list.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
-  if (S.me) {
-    try {
-      const ps = results(await api("/markets/positions/"));
-      pos.innerHTML = ps.length ? `<table><tr><th>Market</th><th>Side</th><th>Price</th><th>Qty</th><th>Stake</th><th>Status</th></tr>
-        ${ps.map((x) => `<tr><td>${esc(x.question)}</td><td>${esc(x.side)}</td><td>${esc(x.price)}</td><td>${esc(x.quantity)}</td><td>${esc(x.stake)}</td><td>${esc(x.status)}</td></tr>`).join("")}</table>` : `<div class="hint">No positions yet.</div>`;
-    } catch (e) { pos.innerHTML = esc(e.message); }
-  } else pos.innerHTML = "";
+  } catch (e) { box.innerHTML = `<div class="card empty">${esc(e.message)}</div>`; }
+}
+
+// ---------- compare feeds ----------
+const SITU = { newcomer: "newcomer", student: "student", seasonal_worker: "seasonal worker", resident: "resident" };
+async function loadReaders() {
+  if (!S.readers.length) S.readers = await api("/accounts/readers/");
+  if (!S.picked.length) S.picked = S.readers.filter((r) => !r.is_staff).slice(0, 2).map((r) => r.id);
+  $("readers").innerHTML = S.readers.length ? S.readers.map((r) => `<label class="reader-pick ${S.picked.includes(r.id) ? "on" : ""}">
+    <input type="checkbox" value="${r.id}" ${S.picked.includes(r.id) ? "checked" : ""}>
+    <span><b>${esc(r.display_name || r.email)}</b><br><span class="small muted">${esc(lang(r.preferred_language))} · ${esc(SITU[r.reader_situation] || r.reader_situation)}</span></span></label>`).join("")
+    : `<span class="muted">No onboarded readers yet.</span>`;
+  $("readers").querySelectorAll("input").forEach((i) => (i.onchange = () => {
+    const id = Number(i.value);
+    S.picked = i.checked ? [...S.picked, id].slice(-3) : S.picked.filter((x) => x !== id);
+    loadReaders();
+  }));
+  renderCompare();
+}
+function renderCompare() {
+  const cols = $("compareCols");
+  if (!S.picked.length) { cols.innerHTML = `<div class="card empty">Pick readers above.</div>`; return; }
+  cols.innerHTML = S.picked.map((id) => `<div class="card" id="col-${id}"><div class="empty">Loading…</div></div>`).join("");
+  const meter = (l, v, max = 1) => `<div class="meter"><span>${l}</span><i><b style="width:${Math.round((v / max) * 100)}%"></b></i><span>${Math.round(v * 100)}%</span></div>`;
+  for (const id of S.picked) {
+    const r = S.readers.find((x) => x.id === id);
+    api(`/feed/snippets/?as_user=${id}&limit=8`).then((d) => {
+      const cards = results(d);
+      $(`col-${id}`).innerHTML = `<h2 style="margin:0">${esc(r.display_name || r.email)}</h2>
+        <div class="small muted">${esc(lang(r.preferred_language))} · ${esc(SITU[r.reader_situation] || "")}${r.arrival_date ? ` · arrived ${esc(r.arrival_date)}` : ""}</div>
+        <div class="row small" style="margin-top:6px">${(r.profile?.interests || []).map((t) => `<span class="pill">${esc(t)}</span>`).join("")}</div>
+        ${cards.length ? cards.map((c, i) => `<div class="feed-card" dir="auto">
+          <div class="row small muted"><b>#${i + 1}</b><span class="pill">${esc(lang(c.language))}</span>${c.in_your_language ? "" : `<span class="pill bad">not yet in ${esc(lang(c.requested_language))}</span>`}
+            <span>score ${c.ranking?.score?.toFixed(2) ?? "–"} · ${esc(c.ranking?.ranker || "")}</span></div>
+          <h4>${esc(c.headline)}</h4>
+          ${c.for_you ? `<div class="small muted">For you: ${esc(c.for_you.slice(0, 140))}</div>` : ""}
+          ${c.ranking?.jev ? meter("Affects them", c.ranking.jev.affects_reader) + meter("Interests", c.ranking.jev.matches_interests) + meter("Action", c.ranking.jev.needs_action) : ""}
+        </div>`).join("") : `<div class="empty">No published stories in their languages yet.</div>`}`;
+    }).catch((e) => ($(`col-${id}`).innerHTML = `<div class="empty">${esc(e.message)}</div>`));
+  }
 }
 
 // ---------- start ----------
-(async () => {
-  try { S.token = localStorage.getItem("token"); } catch {}
-  await loadMe();
-  loadFeed();
-})();
+if (S.token) start(); else { $("login").hidden = false; }
 </script>
 </body>
 </html>

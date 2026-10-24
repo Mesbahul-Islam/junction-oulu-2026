@@ -13,7 +13,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from apps.editorial.checklist import detect as detect_sensitive
+
 from ..state import NewsroomState
+from ..text import classify_content
 
 # Fallback if apps.editorial.services.STANDARDS_CHECKLIST is not defined.
 LOCAL_STANDARDS_CHECKLIST: list[tuple[str, str]] = [
@@ -84,6 +87,12 @@ def _auto_checks(key: str, state: NewsroomState) -> dict[str, str]:
         checks["privacy_named_persons"] = "fail"
     else:
         checks["privacy_named_persons"] = "note: manual check" if not is_signal else "pass"
+    # JSN 11 / 16: the source must be news, and nothing in the draft may read as opinion or advertising.
+    draft_text = f"{headline}\n{draft.get('summary', '')}"
+    source_type = item.get("content_type") or classify_content(item.get("title", ""), item.get("body", ""), item.get("url", ""))[0]
+    draft_type = classify_content(headline, draft.get("summary", ""))[0]
+    checks["fact_vs_opinion"] = "fail" if "opinion" in (source_type, draft_type) else "pass"
+    checks["editorial_separated_from_ads"] = "fail" if "commercial" in (source_type, draft_type) else "pass"
     checks["ai_disclosure"] = "pass"  # Snippet.ai_generated=True drives the reader-facing disclosure
     sami = [lang for lang, v in translations.items() if v.get("needs_human_translation")]
     machine_sami = [
@@ -106,8 +115,7 @@ ALIASES = {
 }
 # Structural guarantees of the platform for agent-made snippets.
 PLATFORM_GUARANTEES = {
-    "correction_path": "pass",  # public corrections log (editorial.Correction)
-    "editorial_separated_from_ads": "pass",  # agent snippets never contain ads
+    "correction_path": "pass",  # report button + public corrections log (editorial.Correction)
 }
 
 
@@ -122,5 +130,10 @@ def standards(state: NewsroomState) -> dict[str, Any]:
         # Extra agent checks not on the editorial checklist are reported too.
         used = {ALIASES.get(item, item) for item, _ in checklist}
         res.update({k: v for k, v in auto.items() if k not in used})
-        results[key] = {"results": res, "passed": not any(v == "fail" for v in res.values())}
+        # Sensitive topics (crime, right of reply, minors, illness/death): not a failure, but an
+        # editor must confirm each one before publishing (editorial.ChecklistItem).
+        item = next((r for r in state.get("raw_items") or [] if r.get("key") == key), {})
+        draft = state["drafts"][key]
+        text = " ".join([item.get("title", ""), item.get("body", ""), draft.get("headline", ""), draft.get("summary", "")])
+        results[key] = {"results": res, "passed": not any(v == "fail" for v in res.values()), "sensitive": detect_sensitive(text)}
     return {"standards": results}

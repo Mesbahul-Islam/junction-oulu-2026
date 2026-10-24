@@ -31,7 +31,7 @@ class SnippetCardSerializer(serializers.Serializer):
         chain = self.context.get("language_chain") or services.FALLBACK_LANGUAGES
         version = services.pick_version(snippet.versions.all(), chain)
         original = services.pick_version(snippet.versions.all(), [services.Language.FINNISH])
-        user = getattr(self.context.get("request"), "user", None)
+        user = self.context.get("reader") or getattr(self.context.get("request"), "user", None)
         situation = user.reader_situation if user is not None and user.is_authenticated else None
         request = self.context.get("request")
         image_url = None
@@ -86,6 +86,9 @@ class SnippetCardSerializer(serializers.Serializer):
                 "summary": original.summary,
                 "key_facts": original.key_facts,
             },
+            # This reader's own state, for filled heart / bookmark icons.
+            "liked": "like" in self.context.get("mine", {}).get(snippet.pk, ()),
+            "bookmarked": "bookmark" in self.context.get("mine", {}).get(snippet.pk, ()),
             # "Why am I seeing this?": set by recommend.rank() on feed lists only.
             "ranking": getattr(snippet, "ranking", None),
             "community_notes": [

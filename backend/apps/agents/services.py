@@ -113,6 +113,8 @@ def persist_graph_result(run: AgentRun, state: NewsroomState) -> list:
     SnippetVersion = apps.get_model("feed", "SnippetVersion")
     VerificationResult = apps.get_model("editorial", "VerificationResult")
     StandardsCheck = apps.get_model("editorial", "StandardsCheck")
+    ChecklistItem = apps.get_model("editorial", "ChecklistItem")
+    from apps.editorial.checklist import SENSITIVE_CHECKS
     SourceDocument = apps.get_model("feed", "SourceDocument")
     Contribution = apps.get_model("communities", "CommunityContribution")
 
@@ -205,6 +207,10 @@ def persist_graph_result(run: AgentRun, state: NewsroomState) -> list:
                         back_translation=v.get("back_translation", ""),
                     )
                 StandardsCheck.objects.create(snippet=snippet, results=std.get("results", {}), passed=bool(std.get("passed")))
+                # Sensitive topics: the editor must tick each before this snippet can be published.
+                for check_key in std.get("sensitive", []):
+                    check = SENSITIVE_CHECKS[check_key]
+                    ChecklistItem.objects.create(snippet=snippet, key=check_key, label=check["label"], clauses=check["clauses"])
 
                 # Link community contributions this snippet answers / came from.
                 contribution_ids = [item["contribution_id"]] if item.get("contribution_id") else []

@@ -158,12 +158,20 @@ def assignment(state: NewsroomState) -> dict[str, Any]:
     errors: list[dict] = []
     raw = {r["key"]: r for r in state.get("raw_items") or []}
     max_items = int(state.get("max_items") or _default_max_items())
-    ranked = rank(list(raw.values()), community=state.get("community"), audience=state.get("audience_interests"))
-    selected = ranked[:max_items]
+    # JSN clauses 11 and 16: only news becomes a snippet. Opinion (columns, editorials,
+    # reviews) and commercial content are excluded, never rewritten as neutral facts.
+    excluded = [
+        {"key": k, "title": r.get("title", "")[:120], "content_type": r["content_type"], "marker": r.get("content_marker", "")}
+        for k, r in raw.items() if r.get("content_type", "news") != "news"
+    ]
+    news = [r for r in raw.values() if r.get("content_type", "news") == "news"]
+    ranked = rank(news, community=state.get("community"), audience=state.get("audience_interests"))
     now = _now()
 
     assignments: dict[str, dict] = {}
-    for cand in selected:
+    for cand in ranked:
+        if len(assignments) >= max_items:
+            break
         item = raw[cand["key"]]
         text = f"{item.get('title', '')}\n{item.get('body', '')}"
         is_signal = item.get("kind") == "community_signal"
@@ -181,10 +189,16 @@ def assignment(state: NewsroomState) -> dict[str, Any]:
             "Classify this local news item for a Finnish community newsroom.\n"
             "risk_tier: high = residence permits, health, employment, legal, safety; "
             "medium = transport, services, events; low = opening hours, weather.\n"
-            "reader_needs: choose 1-3 of information, understanding, usefulness, emotion, break, community.\n\n"
+            "reader_needs: choose 1-3 of information, understanding, usefulness, emotion, break, community.\n"
+            "content_type: news, or opinion (column, editorial, review, analysis), or commercial (advertising, "
+            "sponsored or paid content).\n\n"
             f"TITLE: {item.get('title', '')}\nTEXT: {truncate(item.get('body', ''), 3000)}"
         )
         proposal = structured_call(prompt, AssignmentProposal, fallback, errors=errors, agent="assignment")
+        if proposal.content_type.strip().lower() in ("opinion", "commercial"):  # the model can only exclude, never include
+            excluded.append({"key": cand["key"], "title": item.get("title", "")[:120],
+                             "content_type": proposal.content_type.strip().lower(), "marker": "model"})
+            continue
 
         risk = max_risk(proposal.risk_tier, h_tier)
         needs = [n for n in proposal.reader_needs if n in VALID_NEEDS] or h_needs or [ReaderNeed.INFORMATION.value]
@@ -204,6 +218,7 @@ def assignment(state: NewsroomState) -> dict[str, Any]:
         }
 
     return {
+        "excluded": excluded,
         "candidates": ranked,
         "assignments": assignments,
         "errors": list(state.get("errors") or []) + errors,

@@ -8,6 +8,7 @@ from .models import (
     FeedbackResponse,
     GlossaryTerm,
     Post,
+    PostFlag,
     SourceFeed,
 )
 
@@ -29,12 +30,21 @@ class CommunityGroupSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     reply_count = serializers.IntegerField(source="replies.count", read_only=True)
+    community_name = serializers.CharField(source="community.name", read_only=True)
+    community_slug = serializers.CharField(source="community.slug", read_only=True)
+    is_mine = serializers.SerializerMethodField()
+    flag_count = serializers.IntegerField(source="flags.count", read_only=True)
 
     class Meta:
         model = Post
-        fields = ["id", "community", "author", "author_name", "kind", "body", "image", "parent",
-                  "reply_count", "created_at", "updated_at"]
-        read_only_fields = ["community", "author", "created_at", "updated_at"]
+        fields = ["id", "community", "community_name", "community_slug", "author", "author_name", "is_mine", "kind",
+                  "body", "image", "parent", "reply_count", "status", "flag_count", "moderation_note",
+                  "created_at", "updated_at"]
+        read_only_fields = ["community", "author", "status", "moderation_note", "created_at", "updated_at"]
+
+    def get_is_mine(self, obj) -> bool:
+        request = self.context.get("request")
+        return bool(request and obj.author_id == request.user.id)
 
     def get_author_name(self, obj) -> str:
         return obj.author.display_name or obj.author.email.split("@")[0]
@@ -92,3 +102,29 @@ class FeedbackResponseSerializer(serializers.ModelSerializer):
         if not attrs.get("useful") and not attrs.get("missing") and attrs.get("rating") is None:
             raise serializers.ValidationError("Provide at least one of useful, missing or rating.")
         return attrs
+
+
+class FlagPostSerializer(serializers.Serializer):
+    reason = serializers.ChoiceField(choices=PostFlag.Reason.choices, default=PostFlag.Reason.OTHER)
+    note = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class ModeratePostSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(choices=["keep", "remove"])
+    note = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class ModerationPostSerializer(PostSerializer):
+    """A post as moderators see it: who reported it and why, and any earlier decision."""
+
+    reports = serializers.SerializerMethodField()
+    moderated_by_name = serializers.CharField(source="moderated_by", read_only=True, default=None)
+
+    class Meta(PostSerializer.Meta):
+        fields = PostSerializer.Meta.fields + ["reports", "moderated_by_name", "moderated_at"]
+
+    def get_reports(self, post) -> list[dict]:
+        return [
+            {"reason": f.get_reason_display(), "note": f.note, "by": str(f.user), "at": f.created_at}
+            for f in post.flags.all()
+        ]

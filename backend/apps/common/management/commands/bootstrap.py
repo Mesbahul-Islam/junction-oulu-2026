@@ -27,6 +27,14 @@ DEMO_READERS = [
 ]
 
 
+DEMO_POSTS = [
+    ("fan@example.com", "Kärpät home game on Saturday: the 18:30 bus 3 from the centre gets very full, take the 18:10 one."),
+    ("newcomer@example.com", "Does anyone know where to get a library card in Oulu? I arrived last week. Thanks!"),
+    ("fan@example.com", "Ice on the Toppilansalmi walking path this morning, careful with strollers and bikes."),
+    ("newcomer@example.com", "Ukrainian-speaking parents in Oulu: we meet at the main library on Sundays at 12, everyone welcome."),
+]
+
+
 class Command(BaseCommand):
     help = "Migrate, load demo data and create the dev admin user (idempotent)."
 
@@ -42,6 +50,7 @@ class Command(BaseCommand):
         self._ensure_admin()
         if not no_seed:
             self._ensure_demo_readers()
+            self._ensure_demo_posts()
             if not no_fantasy and os.environ.get("SEED_FANTASY", "true").lower() not in ("0", "false", "no"):
                 self._ensure_fantasy()
         self.stdout.write(self.style.SUCCESS("Bootstrap complete."))
@@ -83,6 +92,19 @@ class Command(BaseCommand):
             if oulu:
                 Membership.objects.get_or_create(user=user, community=oulu)
             self.stdout.write(f"Created demo reader {email}.")
+
+    def _ensure_demo_posts(self):
+        """A few member posts so the app's Community News tab isn't empty on a fresh database."""
+        from apps.communities.models import CommunityGroup, Post
+
+        oulu = CommunityGroup.objects.filter(slug="oulu").first()
+        User = get_user_model()
+        authors = {u.email: u for u in User.objects.filter(email__in=[r[0] for r in DEMO_READERS])}
+        if not oulu or len(authors) < 2 or Post.objects.filter(community=oulu).exists():
+            return
+        for email, body in DEMO_POSTS:
+            Post.objects.create(community=oulu, author=authors[email], body=body)
+        self.stdout.write(f"Created {len(DEMO_POSTS)} demo community posts.")
 
     def _ensure_admin(self):
         email = os.environ.get("DJANGO_SUPERUSER_EMAIL")

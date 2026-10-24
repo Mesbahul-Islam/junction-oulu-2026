@@ -6,7 +6,7 @@ import unicodedata
 from django.db import transaction
 from django.db.models import F
 
-from .models import CommunityContribution, CommunityGroup, Membership
+from .models import CommunityContribution, CommunityGroup, Membership, Post, PostFlag
 
 # Questions asked this many times become story candidates for editors (FR-3.12).
 RECURRING_QUESTION_THRESHOLD = 3
@@ -101,3 +101,50 @@ def submit_contribution(*, community, author, kind, body, contributor_consent=Fa
         named_persons_consent=named_persons_consent,
     )
     return contribution, True
+
+
+# --- Community posts: moderation (JSN annex: content published by the public) ---------------
+
+MODERATOR_ROLES = ("community_editor", "editor")
+
+
+def can_moderate(user, community) -> bool:
+    """Community editors of this community, editors and admins moderate its posts."""
+    from apps.common.permissions import has_role
+
+    return any(has_role(user, role, community=community.pk) for role in MODERATOR_ROLES)
+
+
+def visible_posts(user, community_ids):
+    """Top-level posts a member may see: never removed ones; hidden (flagged) ones only to their author."""
+    from django.db.models import Q
+
+    return (
+        Post.objects.filter(community_id__in=community_ids, parent__isnull=True)
+        .exclude(status=Post.Status.REMOVED)
+        .filter(Q(status=Post.Status.VISIBLE) | Q(author=user))
+        .select_related("author", "community")
+    )
+
+
+def flag_post(post, user, reason="other", note="") -> bool:
+    """Record a flag; the post is hidden until a moderator decides. Returns True if newly flagged."""
+    _, created = PostFlag.objects.get_or_create(post=post, user=user, defaults={"reason": reason, "note": note})
+    if post.status == Post.Status.VISIBLE:
+        post.status = Post.Status.HIDDEN
+        post.save(update_fields=["status", "updated_at"])
+    return created
+
+
+def moderate_post(post, user, decision: str, note: str = "") -> Post:
+    """keep → visible again (flags cleared); remove → removed for everyone."""
+    from django.utils import timezone
+
+    if decision not in ("keep", "remove"):
+        raise ValueError("decision must be 'keep' or 'remove'")
+    post.status = Post.Status.VISIBLE if decision == "keep" else Post.Status.REMOVED
+    post.moderated_by, post.moderated_at, post.moderation_note = user, timezone.now(), note
+    post.save(update_fields=["status", "moderated_by", "moderated_at", "moderation_note", "updated_at"])
+    if decision == "keep":
+        post.flags.all().delete()
+    return post

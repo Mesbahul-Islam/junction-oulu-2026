@@ -27,9 +27,22 @@ class AgentRunSerializer(serializers.ModelSerializer):
 
 class AgentRunDetailSerializer(AgentRunSerializer):
     steps = AgentStepSerializer(many=True, read_only=True)
+    report = serializers.SerializerMethodField()
+
+    def get_report(self, run) -> dict:
+        """A readable summary of the run for the admin dashboard."""
+        st = run.state or {}
+        return {
+            "fetched": len(st.get("raw_items") or []),
+            "drafted": len(st.get("drafts") or {}),
+            "excluded": st.get("excluded") or [],
+            "errors": (st.get("errors") or [])[:25],
+            "error_count": len(st.get("errors") or []),
+            "languages": st.get("language_targets") or [],
+        }
 
     class Meta(AgentRunSerializer.Meta):
-        fields = AgentRunSerializer.Meta.fields + ["state", "steps"]
+        fields = AgentRunSerializer.Meta.fields + ["state", "steps", "report"]
         read_only_fields = fields
 
 

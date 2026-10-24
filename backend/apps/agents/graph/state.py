@@ -26,6 +26,8 @@ class RawItem(TypedDict, total=False):
     fetched_at: str
     content_hash: str
     version: int
+    content_type: str  # news | opinion | commercial
+    content_marker: str  # what identified it, e.g. "pääkirjoitu", "arvio:"
     # community-signal extras
     contribution_kind: str
     occurrence_count: int
@@ -127,6 +129,7 @@ class NewsroomState(TypedDict, total=False):
     raw_items: list[RawItem]
     signals: list[RawItem]  # community contributions (also in raw_items)
     candidates: list[Candidate]
+    excluded: list[dict[str, Any]]  # opinion / commercial items kept out of the news (JSN 11, 16)
     assignments: dict[str, Assignment]
     drafts: dict[str, Draft]
     translations: dict[str, dict[str, LanguageVersion]]  # key -> lang -> version

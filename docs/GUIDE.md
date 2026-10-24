@@ -44,7 +44,8 @@ Web, worker and beat start only after `setup` succeeds, so they always see a mig
 
 | URL | What |
 |---|---|
-| http://localhost:8000/ | **Dev UI** (`backend/frontend/index.html`): feed, compare two readers, profile, editor queue, AI newsroom, markets. |
+| http://localhost:5173 | **Reader app** (React + Vite, `frontend/`): onboarding, personalised feed in the reader's language, stories with the Finnish original, saved, profile. See `frontend/README.md`. |
+| http://localhost:8000/ | **Newsroom Admin** dashboard (`backend/frontend/index.html`, staff login). It has five sections:<br>• **Overview:** queue counts, checklist items to confirm, reported posts, runs, the schedule with the next run and a "Run now" button, and model status (checked against the Ollama server).<br>• **Editor queue:** stories and translations with the AI's flags and the JSN checklist. Edit text before approving (also how Sámi text is written), approve, request changes, reject, or batch-approve low-risk items.<br>• **Moderation:** reported community posts, with the reasons, and Keep or Remove. Also shows the removed and kept history.<br>• **AI newsroom:** run controls and a runs table. Each run opens a report: fetched, drafted, excluded as not news, errors and agent timings.<br>• **Compare feeds:** up to 3 real readers side by side, exactly as each gets the feed (`/api/feed/snippets/?as_user=<id>`, staff only). |
 | http://localhost:8000/api/docs/ | Interactive API docs (Swagger). Try any endpoint here. |
 | http://localhost:8000/admin/ | Django admin. Log in with `admin@example.com` / `admin`. |
 
@@ -225,7 +226,7 @@ a human counterpart who can overrule it (FR-3.6).
 | 4 | `explainer` | Writer | "What this means for me" per reader situation (newcomer, student…). Background text is copied **only** from human-reviewed `ContextEntry` rows and stored in a separate `background` field. | Editor |
 | 5 | `translator` | Translator | Translates into the community's languages **and every member's profile language**, using the `GlossaryTerm` list (Kela, Migri…). One language per call; each answer is filed under the language that was asked for, never the model's own label. **It never writes Sámi.** For Sámi it creates an empty placeholder that a human must fill. | Native-language reviewer |
 | 6 | `fact_checker` | Fact-checker | Pulls dates, times, numbers and names out of the source, the Finnish draft and every translation, and checks they match. It checks that each translation is really in its language and not just the Finnish copied over. This uses the script, Ukrainian vs Russian letters, and common words, so a confused model can't vouch for itself. It also back-translates each translation and compares it with the draft. Outputs pass/fail, a confidence score and a list of mismatches. | Editor resolving flags |
-| 7 | `standards` | Standards editor | Runs the journalism checklist (`STANDARDS_CHECKLIST` in `apps/editorial/models.py`): sources named, AI role disclosed, correction path, ads separated, privacy. | Standards editor |
+| 7 | `standards` | Standards editor | Runs the JSN-mapped checklist (`STANDARDS_CHECKLIST` in `apps/editorial/models.py`): source named (10), fact vs. opinion (11), no advertising (16), AI role disclosed, correction path (35), privacy (25). Also flags sensitive topics, which an editor must confirm before publishing (§6). | Standards editor |
 | 8 | `tagging` | – | Topic tags, an embedding vector, and a geographic bounding box. | Editor |
 
 **Which stories get picked.** `rank()` in `nodes/assignment.py` scores every candidate by how relevant it is to this community's readers:
@@ -340,13 +341,23 @@ docker compose exec worker python manage.py llm_check --ping    # confirm it ans
 
 ## 6. Editorial rules: who must approve what
 
-All in `apps/editorial/services.py`. The pure rule is `requirements_for(tier, languages)`.
+The newsroom follows the [Journalist's Guidelines](https://jsn.fi/en/journalists-guidelines/) of the Council for Mass Media in Finland (JSN). **A human always decides.** Agents only draft, and nothing reaches readers without these approvals. All in `apps/editorial/services.py`; the pure rule is `requirements_for(tier, languages)`.
 
-| Risk tier | Required approvals before publishing |
+| What | Who must approve |
 |---|---|
-| **High** | 1 editor **and** 1 language reviewer for *each* non-Finnish version |
-| **Medium** | 1 editor |
-| **Low** | 1 editor, via the batch queue (`POST /api/editorial/tasks/batch-approve/`) |
+| The story (Finnish original) | 1 editor, at every risk tier |
+| **Every translated version** | 1 language reviewer **for that language**, at every risk tier: an editor can't vouch for an Arabic text they can't read (FR-3.9, JSN 9) |
+
+The risk tier still sets queue priority, expiry, and whether low-risk stories can be approved in a batch (`POST /api/editorial/tasks/batch-approve/`).
+
+**Gates before anything is drafted or published:**
+
+| Gate | Guideline | How |
+|---|---|---|
+| **News only** | JSN 11 (fact vs. opinion), 16 (hidden advertising) | `classify_content()` in `graph/text.py` recognises reviews ("Arvio:"), columns, editorials, opinion pieces and sponsored or commercial content. These are excluded before drafting, and the run's state lists them under `excluded`. The assignment model can also exclude an item, but never let one back in. The standards check fails any draft that still reads as opinion or advertising. |
+| **Sensitive-topic checklist** | JSN 21–22 (right of reply), 27/32 (minors), 25/28/33 (illness, death, victims), 30–32 (crime) | `apps/editorial/checklist.py` detects these topics in the source and draft (Finnish and English). Each one becomes a `ChecklistItem`. **The editor's approval is refused, and `can_publish()` stays false, until the editor confirms every item** (`approve` with `confirm: [keys]`, optional `notes`). Batch approval skips these stories. Each confirmation is logged with who and when. |
+| **Evidence in the queue** | JSN 9, 12 | Every task in `GET /api/editorial/tasks/` has `flags`: the fact-check result and issues per language, failed standards checks with clause numbers, the checklist, and the source articles. The dev UI's editor queue shows them, with tick boxes for the checklist. |
+| **No silent fallbacks** | JSN 9 | If the AI model fails and a placeholder is used instead of a translation, that version fails verification, so it can't pass as checked. |
 
 - **Escalation:** failed fact-check or confidence < `AGENT_CONFIDENCE_THRESHOLD` (0.7) → treated as High, whatever the original tier.
 - **Per-language publishing:**
@@ -373,7 +384,7 @@ Roles are `UserRole` rows. Grant them in **admin → Users → (user) → User r
 |---|---|
 | `editor` | Approve/reject the whole snippet |
 | `language_reviewer` | Approve a language version (set `language`) |
-| `news_editor`, `standards_editor` | Defined, not yet required by the rules (see §12) |
+| `news_editor`, `standards_editor` | Defined, not yet required by the rules (see §13) |
 | `community_editor` | See their community's queue; veto Sámi content |
 | `admin` | Everything, incl. configuring sources/glossary/context via API |
 
@@ -495,6 +506,12 @@ Google login is wired through django-allauth at `/accounts/google/login/` once `
   - Repeated questions are merged and counted; after 3 repeats one becomes a story candidate.
   - Contributions feed the scout as signals and are **never** published automatically.
 - **Feedback prompts:** "what was useful / missing".
+- **Community News (posts by members, JSN annex):**
+  - Posts appear at once, labelled as not reviewed by editors.
+  - `POST …/posts/<id>/flag/` reports a post. It's hidden from everyone but its author until a moderator decides.
+  - Moderators (community editors of that community, editors, admins) see flagged posts in `GET /api/communities/moderation/` (the dev UI's Moderation tab) and decide with `POST …/moderation/<id>/decide/` `{decision: keep|remove, note}`.
+  - Only moderators can post announcements.
+  - `GET /api/communities/news/` lists the posts from all of a reader's communities.
 
 **Adding a new community, town or language needs no code (FR-3.14).** In admin, or via the admin-only API:
 1. Create a `CommunityGroup` with its slug, map area (`bbox`) and `languages`.
@@ -641,7 +658,7 @@ The same steps work in the Swagger UI at `/api/docs/`: click **Authorize** and p
 | `LLM_MAX_OUTPUT_TOKENS` | `0` | Cap on each call's output (0 = provider default) |
 | `LLM_LANGUAGES_PER_CALL` | `1` | Languages per translation/back-translation call; `0` = all at once (large models only) |
 | `LLM_MAX_RETRIES` | `2` | Retries after a failed call (hosted providers) |
-| `AGENT_SCHEDULE_MINUTES` | `30` | Minutes between automatic newsroom runs |
+| `AGENT_SCHEDULE_MINUTES` | `30` | Minutes between automatic newsroom runs. A community is skipped while its previous run is still going, and runs stuck for over 2 hours are marked failed. |
 | `AGENT_MAX_ITEMS` | `4` | Stories turned into snippets per newsroom run (~5 model calls each) |
 | `AGENT_CONFIDENCE_THRESHOLD` | `0.7` | Below this → escalate to High risk |
 | `GOOGLE_CLIENT_ID/SECRET` | empty | Google login |
@@ -657,7 +674,15 @@ The same steps work in the Swagger UI at `/api/docs/`: click **Authorize** and p
 ## 13. Known gaps and good next tasks
 
 - **Frontend:** none yet. The API is ready.
-- **Standards checklist:** a proposal. Confirm it against the JSN Journalist's Guidelines (FR-3.13).
+- **Remaining JSN gaps** (audited against the 2024 guidelines):
+  - Corrections don't yet reach translations (35).
+  - Expired or reported stories vanish instead of staying reachable with a notice (37).
+  - Cards link the source but don't name the publisher (10).
+  - Headlines are only checked for clickbait (15).
+  - Every story is drafted from a single source (9, 12).
+  - Comments and Community Notes have no moderation or flagging yet (annex L2–L4). Community posts do (§8).
+  - The news-editor and standards-editor sign-offs aren't required yet.
+  - Opinion detection relies on markers in the title, the start of the text or the URL. Kaleva's RSS often has only a one-line teaser, so a column without a marker can slip through to the editor, who is the final check.
 - **`news_editor` and `standards_editor` approvals:** these roles exist but aren't required yet. FR-3.6 wants a news editor to approve the daily plan and a standards editor to give final sign-off; add them to `requirements_for()` if you need them.
 - **Request changes:** "request changes" doesn't yet trigger the agents to redo the draft (TODO in `editorial/services.py`).
 - **Recommendations:** Jev only re-ranks the top 30. The formula that builds that shortlist still uses tag overlap; switch it to embedding similarity (TODO in `recommend.py`). The embeddings are currently a hashing stub (`graph/text.py`).

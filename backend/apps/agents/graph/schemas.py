@@ -10,6 +10,10 @@ class AssignmentProposal(BaseModel):
         description="1-3 of: information, understanding, usefulness, emotion, break, community"
     )
     risk_tier: str = Field(description="high | medium | low")
+    content_type: str = Field(
+        default="news",
+        description="news | opinion (column, editorial, review, analysis) | commercial (ad, sponsored, paid partnership)",
+    )
     rationale: str = Field(default="", description="One sentence why")
 
 

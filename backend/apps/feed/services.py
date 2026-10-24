@@ -24,12 +24,13 @@ def language_chain(preferred) -> list[str]:
     return chain + [lang for lang in FALLBACK_LANGUAGES if lang not in chain]
 
 
-def requester_language(request) -> str:
+def requester_language(request, user=None) -> str:
     """The reader's language, chosen automatically: profile, else the browser's languages.
 
     ``?lang=`` still overrides it (handy for testing and editors previewing a version).
+    ``user`` defaults to the requester (staff previews pass the previewed reader).
     """
-    user = getattr(request, "user", None)
+    user = user or getattr(request, "user", None)
     explicit = request.query_params.get("lang") if hasattr(request, "query_params") else None
     if explicit in SUPPORTED_LANGUAGES:
         return explicit
@@ -132,6 +133,23 @@ def arrival_buckets_to_show(current) -> list[str]:
 # --- interactions -----------------------------------------------------------
 
 INTERACT_KINDS = {"like", "unlike", "bookmark", "unbookmark", "share", "expand", "read_through", "view"}
+
+
+def user_toggles(user, snippet_ids) -> dict[int, set[str]]:
+    """{snippet_id: {"like", "bookmark"}} for this reader (empty for anonymous)."""
+    if not user or not user.is_authenticated or not snippet_ids:
+        return {}
+    out: dict[int, set[str]] = {}
+    rows = Interaction.objects.filter(user=user, snippet_id__in=snippet_ids, kind__in=Interaction.TOGGLE_KINDS)
+    for sid, kind in rows.values_list("snippet_id", "kind"):
+        out.setdefault(sid, set()).add(kind)
+    return out
+
+
+def bookmarked_ids(user) -> list[int]:
+    return list(
+        Interaction.objects.filter(user=user, kind=Interaction.Kind.BOOKMARK).order_by("-created_at").values_list("snippet_id", flat=True)
+    )
 
 
 def interact(user, snippet, kind: str) -> dict:
