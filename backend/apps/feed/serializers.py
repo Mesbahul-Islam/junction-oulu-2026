@@ -62,6 +62,7 @@ class SnippetCardSerializer(serializers.Serializer):
             "source_urls": [d.url for d in snippet.source_documents.all()],
             "author": reviewer or "Newsroom",
             "community": snippet.community.slug if snippet.community_id else None,
+            "community_name": snippet.community.name if snippet.community_id else None,
             "tags": snippet.tags,
             "reader_needs": snippet.reader_needs,
             "published_at": snippet.published_at,

@@ -1,4 +1,4 @@
-import { ChevronLeft, CircleUser, MessageCircleQuestion, Newspaper, Users, Vote } from "lucide-react";
+import { ChevronLeft, CircleUser, ListPlus, MessageCircleQuestion, Newspaper, Users } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { Avatar, Button } from "@/components/ui";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 export const NAV = [
   { to: "/", label: "Today", icon: Newspaper, end: true },
   { to: "/communities", label: "Community", icon: Users },
-  { to: "/vote", label: "Decide", icon: Vote },
+  { to: "/vote", label: "Next stories", icon: ListPlus },
   { to: "/profile", label: "You", icon: CircleUser },
 ];
 
@@ -116,5 +116,55 @@ export function PageHeader({ title, subtitle, back, actions, className }) {
         {subtitle && <p className="max-w-[60ch] text-ui text-muted">{subtitle}</p>}
       </div>
     </header>
+  );
+}
+
+/** Timeline page (Today, Next stories): one surface column, max 680px, left-aligned in the main
+ *  area on desktop and full-bleed on phones, with a sticky header. */
+export function Column({ header, children }) {
+  return (
+    <div className="min-h-dvh lg:ps-8 xl:ps-12">
+      <div className="min-h-dvh w-full max-w-[680px] bg-surface md:border-x md:border-line">
+        <header className="sticky top-0 z-20 border-b border-line bg-surface/90 backdrop-blur-md">{header}</header>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Title row for a Column header. `aside` sits at the end (a status, a count). */
+export function ColumnTitle({ title, subtitle, aside }) {
+  return (
+    <div className="flex items-end justify-between gap-4 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:pt-8">
+      <div className="min-w-0">
+        <h1 className="text-headline lg:text-display">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-meta text-muted first-letter:uppercase">{subtitle}</p>}
+      </div>
+      {aside && <div className="flex shrink-0 items-center gap-3 pb-0.5 text-meta text-muted">{aside}</div>}
+    </div>
+  );
+}
+
+/** A filter in a Column header (topics, communities). Selected is ink: the reader's own choice. */
+export function FilterChip({ active, onClick, icon: Icon, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "focus-ring inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill border px-3 text-meta transition-colors [@media(pointer:coarse)]:h-10",
+        active ? "border-ink bg-ink text-on-ink" : "border-line text-muted hover:border-ink/25 hover:text-ink",
+      )}
+    >
+      {Icon && <Icon size={14} />}{children}
+    </button>
+  );
+}
+
+/** Horizontal, scrollable row of FilterChips under a ColumnTitle. */
+export function FilterBar({ label, children }) {
+  return (
+    <nav aria-label={label} className="-mb-px flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:px-6">{children}</nav>
   );
 }

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import { getCoach, getSquadNews } from "@/features/fantasy/api";
 import { useT } from "../lib/lamariText";
-import { Spinner } from "@/shared/components/Spinner";
+import { Spinner } from "@/components/ui";
 import { Pager, Wording } from "./util";
 
 const TIP_ICON = { captain: Crown, lineup: Shirt, transfer: ArrowLeftRight };

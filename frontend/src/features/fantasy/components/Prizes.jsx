@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { getSquadHistory, getVouchers } from "@/features/fantasy/api";
 import { useT } from "../lib/lamariText";
-import { Spinner } from "@/shared/components/Spinner";
+import { Spinner } from "@/components/ui";
 import { PlayerToken } from "./Rink";
 import { countdown, Pager, placeText, TierBadge, TierIcon, useNow } from "./util";
 

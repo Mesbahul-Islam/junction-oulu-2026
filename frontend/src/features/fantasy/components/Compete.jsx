@@ -2,7 +2,7 @@ import { Copy, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { createLeague, getLeaderboard, inviteToLeague, joinLeague, searchManagers } from "@/features/fantasy/api";
-import { Spinner } from "@/shared/components/Spinner";
+import { Spinner } from "@/components/ui";
 import { MEDAL, Pager, prizeFor, TierBadge } from "./util";
 import { useT } from "../lib/lamariText";
 import { forget } from "../lib/fantasyPreload";
@@ -123,7 +123,7 @@ function Leagues({ leagues, setLeagues, me }) {
           <input placeholder={t("inviteCode")} value={code} maxLength={12} onChange={(e) => setCode(e.target.value.toUpperCase())} />
           <button type="button" disabled={code.trim().length < 4} onClick={() => run(() => joinLeague(code.trim()))}>{t("join")}</button>
         </div>
-        {error && <div className="error">{error}</div>}
+        {error && <div className="fx-error">{error}</div>}
       </div>
       
       {leagues.map((l) => {

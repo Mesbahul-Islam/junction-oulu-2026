@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import NewsCard from "../components/NewsCard";
-import { Spinner } from "@/shared/components/Spinner";
+import { Spinner } from "@/components/ui";
 import { getArrival } from "../api";
 import { useFeed } from "../hooks/useFeed";
 import { getInterests } from "@/features/account/api";

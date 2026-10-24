@@ -1,205 +1,144 @@
-import { BarChart3, Bookmark, Hash, MessageCircle, MoreHorizontal, Search, Sparkles, TrendingUp } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { MessageCircleQuestion, Newspaper } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { Avatar, Button } from "@/components/ui";
-import { QueryBoundary, Wordmark } from "@/components/patterns";
-import { Spinner } from "@/shared/components/Spinner";
+import { Button, Spinner } from "@/components/ui";
+import { Column, ColumnTitle, EmptyState, FilterBar, FilterChip, QueryBoundary, SidePeek, useCanPeek } from "@/components/patterns";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { languageName, timeAgo } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
-import { getFeed } from "../api";
-import { TimelineItem } from "../components/TimelineItem";
+import { getCommunityNews } from "@/features/communities/api";
+import { useShortlist } from "@/features/shortlist/hooks/useShortlist";
+import { languageName, topicIcon, topicLabel } from "@/lib/i18n";
+import { StoryRow } from "../components/StoryRow";
+import { StoryView } from "../components/StoryView";
+import { ArrivalBlock, CommunityPostRow, NextStoryRow } from "../components/TimelineExtras";
+import { useArrival, useTimeline } from "../hooks/useFeed";
 
-const TABS = [
-  { id: "foryou", label: "For you" },
-  { id: "trending", label: "Trending" },
-  { id: "news", label: "News" },
-];
-
-const cache = { foryou: null, trending: null, news: null, scroll: 0 };
-
-const TRENDING = [
-  { tag: "#OuluWinter", posts: "1.2K stories" },
-  { tag: "#HousingFinland", posts: "842 stories" },
-  { tag: "#UkrainianInFinland", posts: "634 stories" },
-  { tag: "#PublicTransport", posts: "421 stories" },
-];
+/** Story cards with community posts and one open proposal mixed in at fixed slots. */
+function mix(stories, posts, proposal, complete) {
+  const extras = [
+    [1, posts[0] && { post: posts[0] }],
+    [3, proposal && { proposal }],
+    [6, posts[1] && { post: posts[1] }],
+    [10, posts[2] && { post: posts[2] }],
+  ].filter(([, x]) => x);
+  const rows = [];
+  stories.forEach((story, i) => {
+    rows.push({ story });
+    extras.filter(([at]) => at === i).forEach(([, x]) => rows.push(x));
+  });
+  // A short feed still shows the first community post and the proposal, at the end.
+  if (complete) extras.filter(([at]) => at >= stories.length).slice(0, 2).forEach(([, x]) => rows.push(x));
+  return rows;
+}
 
 export default function Feed() {
   const { me } = useAuth();
+  const lang = me?.preferred_language;
   const [params, setParams] = useSearchParams();
-  const tab = ["trending", "news"].includes(params.get("tab")) ? params.get("tab") : "foryou";
-  const [items, setItems] = useState(cache[tab]);
-  const [error, setError] = useState("");
-  const listRef = useRef(null);
+  const tag = params.get("tag");
+  const peekId = params.get("story");
+  const canPeek = useCanPeek();
 
+  const timeline = useTimeline(tag);
+  const arrival = useArrival(!!me?.arrival_date && !tag);
+  const news = useQuery({ queryKey: ["community-news"], queryFn: getCommunityNews, enabled: !tag });
+  const shortlist = useShortlist();
+
+  const stories = timeline.data || [];
+  const posts = tag ? [] : (news.data?.results ?? news.data ?? []).filter((p) => !p.parent && p.status === "visible" && !p.is_mine).slice(0, 3);
+  const open = tag ? [] : shortlist.data?.open || [];
+  const proposal = open.find((x) => !x.voted) || open[0];
+  const rows = mix(stories, posts, proposal, !timeline.hasNextPage);
+
+  const [peekCard, setPeekCard] = useState(null);
+  const setParam = (key, value) => setParams((p) => {
+    const next = new URLSearchParams(p);
+    if (value) next.set(key, value); else next.delete(key);
+    return next;
+  }, { replace: key === "tag" });
+  const openStory = canPeek ? (card) => { setPeekCard(card); setParam("story", card.id); } : undefined;
+  const closePeek = () => setParam("story", null);
+  const peekCardFor = peekCard?.id === Number(peekId) ? peekCard : stories.find((s) => s.id === Number(peekId));
+
+  // Load the next page when the end of the list comes into view.
+  const endRef = useRef(null);
   useEffect(() => {
-    setError("");
-    if (cache[tab]) {
-      setItems(cache[tab]);
-      return;
-    }
-    setItems(null);
-    getFeed({ limit: 40 })
-      .then((d) => {
-        const results = d.results || d || [];
-        cache[tab] = results;
-        setItems(results);
-      })
-      .catch((e) => setError(e.message));
-  }, [tab]);
+    if (!endRef.current || !timeline.hasNextPage) return;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && !timeline.isFetchingNextPage && timeline.fetchNextPage(), { rootMargin: "600px" });
+    io.observe(endRef.current);
+    return () => io.disconnect();
+  }, [timeline]);
 
-  useLayoutEffect(() => {
-    if (tab === "foryou" && items && listRef.current && cache.scroll) {
-      listRef.current.scrollTo({ top: cache.scroll, behavior: "instant" });
-    }
-  }, [tab, items]);
+  const today = new Date().toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "long" });
+  const interests = me?.profile?.interests || [];
+  const arrivalData = arrival.data?.results?.length ? arrival.data : null;
 
   return (
-    <div className="min-h-dvh bg-paper">
-      <div className="mx-auto grid w-full max-w-[1260px] grid-cols-1 lg:grid-cols-[280px_minmax(0,600px)_340px]">
-        <aside className="sticky top-0 hidden h-dvh flex-col px-6 py-3 lg:flex">
-          <div className="flex h-16 items-center">
-            <Wordmark />
-          </div>
-          <nav className="mt-2 flex flex-col gap-1">
-            {[{ label: "Home", active: true, icon: Sparkles }, { label: "Explore", to: "/explore", icon: Search }, { label: "Communities", to: "/communities", icon: Hash }, { label: "Decide", to: "/vote", icon: BarChart3 }, { label: "Bookmarks", to: "/saved", icon: Bookmark }, { label: "Profile", to: "/profile", icon: Avatar }].map((item) => {
-              const Icon = item.icon === Avatar ? null : item.icon;
-              if (item.to) {
-                return (
-                  <Link
-                    key={item.label}
-                    to={item.to}
-                    className="focus-ring flex items-center gap-4 rounded-full px-4 py-3 text-title transition-colors hover:bg-ink/5"
-                  >
-                    {Icon ? <Icon size={24} /> : <Avatar name={me?.username || me?.email} size="sm" />}
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              }
-              return (
-                <button key={item.label} className="flex items-center gap-4 rounded-full px-4 py-3 text-title transition-colors hover:bg-ink/5">
-                  <Icon size={24} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-          <Button size="lg" className="mt-4 rounded-full">Post a tip</Button>
-          <Link to="/profile" className="focus-ring mt-auto mb-4 flex items-center gap-3 rounded-full p-3 hover:bg-ink/5">
-            <Avatar name={me?.username || me?.email} size="md" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-ui font-medium">@{me?.username || "reader"}</p>
-              <p className="truncate text-meta text-muted">{languageName(me?.preferred_language)}</p>
-            </div>
-            <MoreHorizontal size={18} className="text-muted" />
-          </Link>
-        </aside>
-
-        <main className="min-w-0 border-x border-line">
-          <header className="sticky top-0 z-20 border-b border-line bg-paper/80 backdrop-blur-xl">
-            <div className="flex h-14 items-center justify-between px-4 sm:h-[53px] sm:px-6 lg:px-4">
-              <h1 className="text-title">Home</h1>
-              <button type="button" className="focus-ring rounded-full p-2 text-muted hover:bg-ink/5 hover:text-ink">
-                <Sparkles size={20} />
-              </button>
-            </div>
-            <nav className="flex" role="tablist">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  role="tab"
-                  aria-selected={tab === t.id}
-                  onClick={() => setParams(t.id === "foryou" ? {} : { tab: t.id }, { replace: true })}
-                  className="group relative flex flex-1 items-center justify-center px-4 py-3"
-                >
-                  <span className={cn("text-ui", tab === t.id ? "font-medium text-ink" : "text-muted group-hover:text-ink")}>
-                    {t.label}
-                  </span>
-                  {tab === t.id && <span className="absolute bottom-0 h-[4px] w-14 rounded-full bg-newsroom" />}
-                </button>
+    <Column
+      header={
+        <>
+          <ColumnTitle
+            title="Today"
+            subtitle={today}
+            aside={
+              <>
+                {lang && <span className="hidden sm:inline lg:pb-0.5">Reading in {languageName(lang)}</span>}
+                {/* The sidebar has Ask on desktop; phones and tablets get it here. */}
+                <Button asChild variant="secondary" size="sm" className="lg:hidden">
+                  <Link to="/create"><MessageCircleQuestion size={15} />Ask</Link>
+                </Button>
+              </>
+            }
+          />
+          {interests.length > 0 && (
+            <FilterBar label="Topics">
+              <FilterChip active={!tag} onClick={() => setParam("tag", null)}>All</FilterChip>
+              {interests.map((t) => (
+                <FilterChip key={t} active={tag === t} icon={topicIcon(t)} onClick={() => setParam("tag", tag === t ? null : t)}>{topicLabel(t)}</FilterChip>
               ))}
-            </nav>
-          </header>
+            </FilterBar>
+          )}
+        </>
+      }
+    >
 
-          <div className="hidden border-b border-line px-4 py-3 lg:flex lg:items-start lg:gap-3 lg:px-4">
-            <Avatar name={me?.username || me?.email} size="md" />
-            <div className="flex-1">
-              <textarea
-                rows={1}
-                placeholder="Send a tip to the newsroom..."
-                className="w-full resize-none bg-transparent py-2 text-title placeholder:text-muted focus:outline-none"
-              />
-              <div className="flex items-center justify-between border-t border-line pt-2">
-                <div className="flex items-center gap-1 text-newsroom">
-                  <button type="button" className="focus-ring rounded-full p-1.5 hover:bg-newsroom/5"><MessageCircle size={18} /></button>
-                </div>
-                <Button size="sm" className="rounded-full px-4">Post</Button>
-              </div>
-            </div>
-          </div>
+      {arrivalData && <ArrivalBlock arrival={arrivalData} onOpen={openStory} />}
 
-          <div
-            ref={listRef}
-            onScroll={(e) => {
-              if (tab === "foryou") cache.scroll = e.currentTarget.scrollTop;
-            }}
+      <QueryBoundary
+        query={timeline}
+        isEmpty={(d) => !d?.length}
+        empty={
+          <EmptyState
+            icon={Newspaper}
+            title={tag ? `No ${topicLabel(tag).toLowerCase()} stories yet` : "No stories yet"}
+            action={tag && <Button variant="secondary" size="sm" onClick={() => setParam("tag", null)}>Show all stories</Button>}
           >
-            <QueryBoundary
-              isLoading={!error && items === null}
-              error={error}
-              isEmpty={Array.isArray(items) && items.length === 0}
-              empty={<div className="px-4 py-12 text-center text-ui text-muted">No stories yet.</div>}
-              loading={<div className="grid place-items-center py-16"><Spinner /></div>}
-            >
-              {Array.isArray(items) && items.map((card) => <TimelineItem key={card.id} card={card} lang={me?.preferred_language} />)}
-            </QueryBoundary>
-          </div>
-        </main>
+            Stories appear here once an editor has checked them.
+          </EmptyState>
+        }
+      >
+        {rows.map((r) =>
+          r.story ? (
+            <StoryRow key={`s${r.story.id}`} card={r.story} lang={lang} onOpen={openStory} active={String(r.story.id) === peekId} />
+          ) : r.post ? (
+            <CommunityPostRow key={`p${r.post.id}`} post={r.post} lang={lang} />
+          ) : (
+            <NextStoryRow key={`v${r.proposal.id}`} item={r.proposal} total={open.length} canVote={shortlist.data?.member} />
+          ),
+        )}
+        <div ref={endRef} className="grid place-items-center py-10">
+          {timeline.isFetchingNextPage ? <Spinner /> : !timeline.hasNextPage && stories.length > 0 && (
+            <p className="text-meta text-muted">You're up to date.</p>
+          )}
+        </div>
+      </QueryBoundary>
 
-        <aside className="sticky top-0 hidden h-dvh flex-col gap-4 px-6 py-3 xl:flex">
-          <div className="mt-1 flex items-center gap-2 rounded-full border border-line bg-sunk/40 px-4 py-2.5">
-            <Search size={18} className="text-muted" />
-            <input type="search" placeholder="Search Oulu News" className="w-full bg-transparent text-ui placeholder:text-muted focus:outline-none" />
-          </div>
-          <div className="overflow-hidden rounded-card border border-line">
-            <div className="flex items-center justify-between px-4 py-3">
-              <h2 className="text-title">What's happening</h2>
-              <TrendingUp size={18} className="text-muted" />
-            </div>
-            <div className="divide-y divide-line">
-              {TRENDING.map((t) => (
-                <button key={t.tag} className="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left hover:bg-ink/[0.01]">
-                  <span className="text-caption text-muted">Trending in Oulu</span>
-                  <span className="text-ui font-medium">{t.tag}</span>
-                  <span className="text-caption text-muted">{t.posts}</span>
-                </button>
-              ))}
-            </div>
-            <button className="w-full px-4 py-2.5 text-left text-meta text-newsroom hover:bg-ink/[0.01]">Show more</button>
-          </div>
-          <div className="overflow-hidden rounded-card border border-line">
-            <div className="px-4 py-3">
-              <h2 className="text-title">Who to follow</h2>
-            </div>
-            <div className="divide-y divide-line">
-              {["Oulu City News", "Kela Finland", "Newcomers Oulu"].map((name) => (
-                <div key={name} className="flex items-center gap-3 px-4 py-2.5">
-                  <Avatar name={name} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-ui font-medium">{name}</p>
-                    <p className="truncate text-meta text-muted">@{name.toLowerCase().replace(/\s+/g, "_")}</p>
-                  </div>
-                  <Button size="sm" variant="secondary" className="rounded-full">Follow</Button>
-                </div>
-              ))}
-            </div>
-            <button className="w-full px-4 py-2.5 text-left text-meta text-newsroom hover:bg-ink/[0.01]">Show more</button>
-          </div>
-          <p className="px-2 text-caption text-muted">Terms · Privacy · About · © 2026 Oulu News</p>
-        </aside>
-      </div>
-    </div>
+      {canPeek && peekId && (
+        <SidePeek id={peekId} label="Story" href={`/story/${peekId}`} state={peekCardFor} onClose={closePeek}>
+          <StoryView id={peekId} card={peekCardFor} ranking={peekCardFor?.ranking} lang={lang} onReported={closePeek} />
+        </SidePeek>
+      )}
+    </Column>
   );
 }

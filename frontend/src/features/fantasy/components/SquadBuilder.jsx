@@ -112,9 +112,9 @@ export default function SquadBuilder({ season, players, onCreated }) {
 
       {picked.length === SQUAD_SIZE && (
         <div className="fx-save">
-          {error && <div className="error">{error}</div>}
+          {error && <div className="fx-error">{error}</div>}
           <input placeholder={t("teamName")} maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
-          <button type="button" className="btn-primary" style={{ marginTop: 10 }} onClick={save} disabled={saving}>{saving ? t("saving") : t("createTeam")}</button>
+          <button type="button" className="fx-primary" style={{ marginTop: 10 }} onClick={save} disabled={saving}>{saving ? t("saving") : t("createTeam")}</button>
         </div>
       )}
     </section>

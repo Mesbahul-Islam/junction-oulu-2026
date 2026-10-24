@@ -12,11 +12,12 @@ import Splash from "../components/Splash";
 import Transfers from "../components/Transfers";
 import SquadBuilder from "../components/SquadBuilder";
 import { countdown, finnishTime, TierBadge, useNow } from "../components/util";
-import { Spinner } from "@/shared/components/Spinner";
+import { Spinner } from "@/components/ui";
 import { getFantasyTeams, getFixtures, getLineup, getSquadHistory, setLineup } from "@/features/fantasy/api";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useT } from "../lib/lamariText";
 import { cached, forget, loadFantasy, photoOf, warmPhotos } from "../lib/fantasyPreload";
+import "../fantasy.css";
 
 const SPLASH_MS = 3000;
 const SPLASH_KEY = "lamari-splash-seen";
@@ -214,7 +215,7 @@ export default function Fantasy() {
       </header>
 
       <div className="fx-body">
-        {error && <div className="error">{error}</div>}
+        {error && <div className="fx-error">{error}</div>}
         {!ready ? <Spinner /> : (
           <>
             <div className="fx-section-head"><h3>{t("gameweek", { n: season.next_deadline_gameweek })}</h3>{locks && <span className="fx-lock">{t("locksIn", { left: locks })}</span>}</div>

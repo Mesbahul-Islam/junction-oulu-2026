@@ -3,7 +3,7 @@ import { Fragment, useEffect, useState } from "react";
 
 import { getAnalysis, getFixtures } from "@/features/fantasy/api";
 import { useT } from "../lib/lamariText";
-import { Spinner } from "@/shared/components/Spinner";
+import { Spinner } from "@/components/ui";
 import { finnishTime, Wording } from "./util";
 
 const seg = (value, set, options) => (
