@@ -110,7 +110,7 @@ class DashboardView(APIView):
         ChecklistItem = django_apps.get_model("editorial", "ChecklistItem")
         Snippet = django_apps.get_model("feed", "Snippet")
         Post = django_apps.get_model("communities", "Post")
-        CommunityGroup = django_apps.get_model("communities", "CommunityGroup")
+
         open_tasks = ReviewTask.objects.filter(active=True, status="open")
 
         minutes = settings.AGENT_SCHEDULE_MINUTES
@@ -146,7 +146,7 @@ class DashboardView(APIView):
             },
             "running": AgentRunSerializer(AgentRun.objects.filter(status__in=["queued", "running"]), many=True).data,
             "llm": self._llm_status(llm),
-            # Only communities with their own feeds can be run (topic communities have none).
+            # The newsroom runs for one community; the Kaleva feed is fixed in wire.py.
             "communities": [{"id": c.pk, "name": c.name, "slug": c.slug}
-                            for c in CommunityGroup.objects.filter(is_active=True, source_feeds__is_active=True).distinct()],
+                            for c in [services.newsroom_community()] if c],
         })

@@ -37,7 +37,7 @@ docker compose up --build -d
 
 That's all. On every start, a one-shot `setup` container runs `manage.py bootstrap`, then exits:
 1. It migrates the database.
-2. It loads the demo data (Oulu and 6 topic communities, Kaleva feeds, markets, demo readers, and 20 Community News posts by six neighbours in Finnish, English, Swedish, Ukrainian and Arabic, with replies, likes and shares: `DEMO_POSTS` and `DEMO_REPLIES` in `bootstrap.py`; missing ones are added on every start) and creates an admin user.
+2. It loads the demo data (Oulu and 6 topic communities, markets, demo readers, and 20 Community News posts by six neighbours in Finnish, English, Swedish, Ukrainian and Arabic, with replies, likes and shares: `DEMO_POSTS` and `DEMO_REPLIES` in `bootstrap.py`; missing ones are added on every start) and creates an admin user.
 3. **On the first start only**, it imports the Liiga season from the Liiga API and creates the Fantasy Liiga demo managers and leagues. This needs internet and takes about 3 minutes. Later starts skip it, taking a couple of seconds. Set `SEED_FANTASY=false` in `.env` to skip it entirely.
 
 Web, worker and beat start only after `setup` succeeds, so they always see a migrated, seeded database. Follow the first start with `docker compose logs -f setup`.
@@ -189,7 +189,7 @@ flowchart TD
 Step by step, with the code location (`backend/apps/agents/newsroom/`):
 
 1. **Start.** Every `AGENT_SCHEDULE_MINUTES` (30) `beat` starts a run with `AGENT_MAX_ITEMS` stories; or press **Run now** on the dashboard's AI newsroom page and choose how many; or `manage.py run_pipeline --stories 3`. Only one run goes at a time. Each run is an `AgentRun` (`tasks.run_newsroom` → `runner.run_newsroom`).
-2. **Wire desk** (`wire.py`) fetches the community's Kaleva feeds (`SourceFeed`, seeded by `seed_demo`). New or changed articles become `SourceDocument`s (duplicates skipped by content hash). Candidates are the last 48 h of stored articles nothing was written from yet, minus opinion pieces and paid content (JSN 11/16).
+2. **Wire desk** (`wire.py`) fetches one fixed feed, Kaleva's free articles (`KALEVA_FEED_URL` in `wire.py`: `https://www.kaleva.fi/feedit/rss/managed-listing/rss-maksuttomat/`). It is not read from the database. New or changed articles become `SourceDocument`s (duplicates skipped by content hash). Each gets a lead picture, `SourceDocument.image_url`: the RSS entry's own image (enclosure, `media:` tags or an `<img>` in its HTML), else the article page's `og:image`/`twitter:image`. Pictures are hotlinked, not copied. The reader app shows them on the For You feed, story page and cards (a picture an editor uploads to `Snippet.image` wins). For stories made before this, run `manage.py backfill_images`. Candidates are the last 48 h of stored articles nothing was written from yet, minus opinion pieces and paid content (JSN 11/16).
 3. **News editor** (`news_editor.py`) asks **Jev** about every candidate (see below) and keeps the top N. Each pick becomes a `RunStory` with its Jev score and reasons.
 4. **Each story goes desk by desk** through a small LangGraph (`runner.story_graph`): reporter → explainer → translator → fact-checker → standards editor → copy desk (`desks.py`, `copy_desk.py`). Every desk records where it is (`RunStory.stage`, e.g. "translator: Ukrainian (3 of 7)") and what it did (`AgentStep`). That is what the dashboard shows live. A story that breaks is marked failed; the others go on.
 5. **Copy desk** saves the `Snippet` and one `SnippetVersion` per language, the check results the editor queue shows, any JSN checklist items, and opens the `ReviewTask`s. It sets the **verdict** (`Snippet.review_level`, with `review_reasons`):
@@ -511,13 +511,13 @@ Google login is wired through django-allauth at `/accounts/google/login/` once `
 
 **Adding a new community, town or language needs no code (FR-3.14).** In admin, or via the admin-only API:
 1. Create a `CommunityGroup` with its slug, map area (`bbox`) and `languages`. For it to be recommended, also fill `description`, `interests` and `audiences` (empty `audiences` = anyone).
-2. Add its `SourceFeed`s (RSS URLs). Topic communities need none.
+2. Nothing to add for news: the newsroom always reads the fixed Kaleva feed in `wire.py` (`SourceFeed` rows are ignored).
 3. Add `GlossaryTerm`s and `ContextEntry`s (background articles that a human wrote and reviewed).
 4. Give reviewers `UserRole`s scoped to it.
 
 The next scheduled run picks it up.
 
-The seed (`manage.py seed_demo`) creates Oulu and 6 topic communities in Oulu (`TOPIC_COMMUNITIES`), 7 Kaleva RSS feeds, 10 interests, 4 QR onboarding codes, 6 glossary terms and 3 placeholder context entries.
+The seed (`manage.py seed_demo`) creates Oulu and 6 topic communities in Oulu (`TOPIC_COMMUNITIES`), 10 interests, 4 QR onboarding codes, 6 glossary terms and 3 placeholder context entries.
 
 ---
 

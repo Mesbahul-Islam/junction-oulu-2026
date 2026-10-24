@@ -81,7 +81,7 @@ export default function Story() {
             <Heart size={20} fill={card.liked ? "currentColor" : "none"} />
           </button>
         </div>
-        {card.image_url ? <img src={card.image_url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        {card.image_url ? <img src={card.image_url} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           : <Icon size={72} strokeWidth={1.2} style={{ opacity: 0.5, position: "absolute" }} />}
         <PlayButton listen={listen} />
       </div>

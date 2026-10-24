@@ -35,8 +35,10 @@ class SnippetCardSerializer(serializers.Serializer):
         situation = user.reader_situation if user is not None and user.is_authenticated else None
         request = self.context.get("request")
         image_url = None
-        if snippet.image:
+        if snippet.image:  # a picture uploaded by an editor wins
             image_url = request.build_absolute_uri(snippet.image.url) if request else snippet.image.url
+        else:  # else the lead picture of the source article (already an absolute URL)
+            image_url = next((d.image_url for d in snippet.source_documents.all() if d.image_url), None)
         reviewer = _display(version.approved_by) if version else None
         corrections = sorted(snippet.corrections.all(), key=lambda c: c.created_at, reverse=True)
         latest = next((c for c in corrections if c.published_at), None)

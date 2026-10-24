@@ -408,7 +408,7 @@ function renderRun(r) {
   // Wire desk and Jev
   const w = r.state?.wire, ne = r.state?.news_editor;
   $("nrWire").classList.toggle("muted", !w);
-  $("nrWire").innerHTML = w ? `<p style="margin:0 0 6px">${w.feeds} Kaleva feeds · ${w.fetched} articles read · <b>${w.new}</b> new · <b>${w.candidates}</b> candidates</p>
+  $("nrWire").innerHTML = w ? `<p style="margin:0 0 6px">${w.feeds ? w.feeds + " Kaleva feeds" : "Kaleva free-articles feed"} · ${w.fetched} articles read · <b>${w.new}</b> new · <b>${w.candidates}</b> candidates</p>
     ${w.errors.length ? `<div class="flag bad">Could not fetch: ${esc(w.errors.join(", "))}</div>` : ""}
     ${w.excluded_count ? `<div class="flag warn"><b>Not news, left out (JSN 11/16): ${w.excluded_count}</b><ul>${w.excluded.slice(0, 6).map((e) => `<li>${esc(e.type)}: ${esc(e.title)}</li>`).join("")}</ul></div>` : ""}` : "–";
   $("nrJev").classList.toggle("muted", !ne);

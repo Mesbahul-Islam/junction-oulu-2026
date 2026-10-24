@@ -24,10 +24,15 @@ AGENT_NAME = "newsroom"
 
 
 def newsroom_community():
-    """The community whose Kaleva feeds the newsroom reads (the first one with active feeds)."""
+    """The community the newsroom writes for: Oulu, else the first active geographic community.
+
+    The Kaleva feed itself is fixed in ``newsroom/wire.py``; the community only decides the
+    audience (languages, readers) the stories are written and ranked for.
+    """
     CommunityGroup = apps.get_model("communities", "CommunityGroup")
-    return (CommunityGroup.objects.filter(is_active=True, source_feeds__is_active=True)
-            .distinct().order_by("pk").first())
+    active = CommunityGroup.objects.filter(is_active=True)
+    return (active.filter(slug="oulu").first()
+            or active.filter(kind=CommunityGroup.Kind.GEO).order_by("pk").first())
 
 
 def busy() -> bool:
@@ -37,7 +42,7 @@ def busy() -> bool:
 def create_run(trigger: str, max_stories: int | None = None) -> AgentRun:
     community = newsroom_community()
     if community is None:
-        raise ValidationError("No community has an active RSS feed. Run `manage.py seed_demo` first.")
+        raise ValidationError("No active community to write for. Run `manage.py seed_demo` first.")
     return AgentRun.objects.create(
         community=community, trigger=trigger, max_stories=max_stories or settings.AGENT_MAX_ITEMS,
     )

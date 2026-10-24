@@ -11,7 +11,7 @@ export default function NewsCard({ card, index = 0 }) {
   return (
     <Link to={`/story/${card.id}`} state={card} className="news-card" dir="auto">
       <div className={`media${index % 2 ? " alt" : ""}`}>
-        {card.image_url ? <img src={card.image_url} alt="" /> : <Icon size={54} strokeWidth={1.3} />}
+        {card.image_url ? <img src={card.image_url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : <Icon size={54} strokeWidth={1.3} />}
         <span className="chip">{timeAgo(card.published_at, me?.preferred_language)}</span>
         <span className="chip right"><Ellipsis size={16} /></span>
       </div>

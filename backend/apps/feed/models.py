@@ -16,6 +16,8 @@ class SourceDocument(TimeStampedModel):
     title = models.CharField(max_length=500, blank=True)
     body = models.TextField(blank=True)
     publisher = models.CharField(max_length=200, blank=True)
+    # Lead picture of the article (from the RSS entry, else the article page's og:image). Hotlinked, not copied.
+    image_url = models.URLField(max_length=1500, blank=True)
     fetched_at = models.DateTimeField(null=True, blank=True)
     content_hash = models.CharField(max_length=64, db_index=True)
     version = models.PositiveIntegerField(default=1)

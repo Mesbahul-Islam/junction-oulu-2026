@@ -1,4 +1,6 @@
-"""Idempotent demo seed: Oulu community and topic communities, interests, onboarding links, Kaleva RSS feeds, glossary, context.
+"""Idempotent demo seed: Oulu community and topic communities, interests, onboarding links, glossary, context.
+
+The Kaleva RSS feed is not seeded: it is fixed in apps/agents/newsroom/wire.py.
 
 Usage: python manage.py seed_demo
 """
@@ -10,18 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import Interest, OnboardingLink
-from apps.communities.models import CommunityGroup, ContextEntry, FeedbackPrompt, GlossaryTerm, SourceFeed
-
-KALEVA_RSS = "https://kaleva.fi/feedit/rss/managed-listing/{}/"
-KALEVA_FEEDS = [
-    ("rss-uusimmat", "Kaleva – Uusimmat"),
-    ("oulun-seutu", "Kaleva – Oulun seutu"),
-    ("pohjois-suomi", "Kaleva – Pohjois-Suomi"),
-    ("kotimaa", "Kaleva – Kotimaa"),
-    ("ulkomaat", "Kaleva – Ulkomaat"),
-    ("kulttuuri", "Kaleva – Kulttuuri"),
-    ("jaakiekko", "Kaleva – Jääkiekko"),
-]
+from apps.communities.models import CommunityGroup, ContextEntry, FeedbackPrompt, GlossaryTerm
 
 INTERESTS = [
     ("housing", "Housing"),
@@ -128,10 +119,6 @@ class Command(BaseCommand):
                 code=code, defaults={"community": oulu, "language": lang, "default_arrival_offset_days": offset}
             )
 
-        for path, name in KALEVA_FEEDS:
-            SourceFeed.objects.get_or_create(
-                community=oulu, url=KALEVA_RSS.format(path), defaults={"name": name, "kind": SourceFeed.Kind.RSS}
-            )
 
         for term_fi, term, note in GLOSSARY_EN:
             GlossaryTerm.objects.get_or_create(
@@ -155,6 +142,6 @@ class Command(BaseCommand):
             return
         self.stdout.write(self.style.SUCCESS(
             f"Seeded: communities={CommunityGroup.objects.count()}, interests={Interest.objects.count()}, "
-            f"onboarding_links={OnboardingLink.objects.count()}, feeds={oulu.source_feeds.count()}, "
+            f"onboarding_links={OnboardingLink.objects.count()}, "
             f"glossary={GlossaryTerm.objects.count()}, context={ContextEntry.objects.count()}"
         ))

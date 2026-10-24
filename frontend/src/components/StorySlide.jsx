@@ -65,7 +65,7 @@ export default function StorySlide({ card: initial, index }) {
 
   return (
     <section ref={ref} className="tt-slide" style={{ background: card.image_url ? "#000" : BACKDROPS[index % BACKDROPS.length] }} dir="auto">
-      {card.image_url ? <img className="tt-bg-img" src={card.image_url} alt="" /> : <Icon className="tt-bg-icon" size={220} strokeWidth={0.8} />}
+      {card.image_url ? <img className="tt-bg-img" src={card.image_url} alt="" referrerPolicy="no-referrer" loading={index < 2 ? "eager" : "lazy"} onError={(e) => { e.currentTarget.style.display = "none"; }} /> : <Icon className="tt-bg-icon" size={220} strokeWidth={0.8} />}
       <div className="tt-shade" />
 
       <Rail>
