@@ -128,11 +128,15 @@ export function StoryRow({ card, lang, situation, onOpen, active }) {
         >
           <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1 rounded-control text-meta font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
             <ChevronRight size={15} className="transition-transform group-open/facts:rotate-90 rtl:rotate-180 rtl:group-open/facts:rotate-90" />
-            {facts.length} key {facts.length === 1 ? "fact" : "facts"}
+            {facts.length === 1 ? "Key facts" : `${facts.length} key facts`}
           </summary>
-          <ul className="mt-2 flex flex-col gap-1.5 ps-5">
-            {facts.map((f) => <li key={f} className="list-disc text-meta text-ink/90 marker:text-muted">{f}</li>)}
-          </ul>
+          {facts.length === 1 ? (
+            <p className="mt-2 text-meta text-ink/90">{facts[0]}</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1.5 ps-5">
+              {facts.map((f) => <li key={f} className="list-disc text-meta text-ink/90 marker:text-muted">{f}</li>)}
+            </ul>
+          )}
         </details>
       )}
 
