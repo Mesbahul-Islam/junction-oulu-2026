@@ -19,12 +19,25 @@ class CommunityNoteViewSet(
     serializer_class = CommunityNoteSerializer
     filterset_fields = ["snippet", "post", "status"]
 
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
     def get_queryset(self):
-        # TODO: hide notes on members-only posts from non-members.
-        return CommunityNote.objects.all()
+        from django.db.models import Q
+
+        qs = CommunityNote.objects.prefetch_related("ratings").order_by("-created_at")
+        user = self.request.user
+        # Notes on members-only posts are for members of that community.
+        members = Q(post__community__memberships__user=user) if user.is_authenticated else Q(pk__in=[])
+        return qs.filter(Q(post__isnull=True) | members).distinct()
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        data = dict(serializer.validated_data)
+        try:
+            serializer.instance = services.create_note(author=self.request.user, **data)
+        except ValueError as e:
+            raise exceptions.PermissionDenied(str(e))
+        except Exception as e:  # model validation (e.g. citation URLs)
+            raise exceptions.ValidationError(getattr(e, "messages", [str(e)]))
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
     def rate(self, request, pk=None):

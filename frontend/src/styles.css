@@ -28,16 +28,25 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 input, select { font: inherit; color: inherit; }
 a { color: inherit; text-decoration: none; }
 
-/* The app is a phone-width column; on desktop it sits centred like a device. */
+/* The app is a phone screen. On a phone it fills the screen. On a computer it is laid out at
+   a real phone's size (390 x 844, an iPhone-sized screen) and the whole phone is scaled down to
+   fit the window (--phone-scale, set in main.jsx), so it looks exactly as on a phone.
+   Pages scroll inside .app-scroll; the transform makes .app the frame for the fixed bottom bar. */
 .app {
-  position: relative; max-width: 440px; min-height: 100vh; margin: 0 auto; overflow-x: hidden;
-  background: var(--hero); background-attachment: fixed; color: #fff;
+  position: relative; width: 100%; height: 100dvh; margin: 0 auto; overflow: hidden; transform: translateZ(0);
+  display: flex; flex-direction: column; background: var(--hero); color: #fff;
 }
+.app-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 @media (min-width: 600px) {
-  .app { margin: 24px auto; min-height: calc(100vh - 48px); border-radius: 44px; box-shadow: 0 30px 80px rgba(14, 47, 47, 0.25); }
+  body { height: 100dvh; overflow: hidden; }
+  .app {
+    position: absolute; top: 50%; left: 50%; width: 390px; height: 844px; margin: 0;
+    transform: translate(-50%, -50%) scale(var(--phone-scale, 1));
+    border-radius: 44px; box-shadow: 0 30px 80px rgba(14, 47, 47, 0.25);
+  }
 }
 .screen { padding: 20px 20px 120px; padding-top: max(20px, env(safe-area-inset-top)); }
-.screen.light { background: #f6f4f1; color: var(--text); min-height: 100vh; }
+.screen.light { background: #f6f4f1; color: var(--text); min-height: 100%; }
 
 /* ---------- headers ---------- */
 .avatar {
@@ -181,19 +190,18 @@ a { color: inherit; text-decoration: none; }
 
 
 /* ================= TikTok-style feed ================= */
-.tt-feed-wrap { position: relative; height: 100dvh; background: #000; color: #fff; overflow: hidden; }
-@media (min-width: 600px) { .tt-feed-wrap { height: calc(100vh - 48px); border-radius: 44px; } }
+.tt-feed-wrap { position: relative; height: 100%; background: #000; color: #fff; overflow: hidden; }
 .tt-feed { height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; overscroll-behavior: contain; }
 .tt-feed::-webkit-scrollbar { display: none; }
 .tt-slide { position: relative; height: 100%; scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; }
 .tt-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .tt-bg-icon { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); color: rgba(255, 255, 255, 0.13); pointer-events: none; }
 .tt-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.78) 100%); pointer-events: none; }
-/* Home overview: two photo cards per screen, snapping pair by pair (space for the tabs and bottom nav). */
-.tt-pair { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; gap: 12px; padding: 60px 12px 92px; }
-.tt-pair .news-card { flex: 1; min-height: 0; display: flex; flex-direction: column; width: 100%; text-align: left; font: inherit; border: 0; padding: 0; cursor: pointer; }
-.tt-pair .news-card .media { flex: 1; height: auto; min-height: 0; }
-.tt-back { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 12px; z-index: 6; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: rgba(0, 0, 0, 0.35); backdrop-filter: blur(8px); }
+/* Home, For You: one continuous list like an RSS reader (room for the tabs and the bottom nav). */
+.rss-feed { height: 100%; overflow-y: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 14px; padding: 64px 12px 96px; scrollbar-width: none; }
+.rss-feed::-webkit-scrollbar { display: none; }
+.rss-feed .news-card { flex-shrink: 0; }
 .tt-post { background: linear-gradient(165deg, #1a1a2e 0%, #23395b 50%, #0e2f2f 100%); }
 
 .tt-tabs { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; z-index: 5; display: flex; justify-content: center; gap: 22px; pointer-events: none; }
@@ -227,11 +235,10 @@ a { color: inherit; text-decoration: none; }
 
 /* Bottom bar (replaces the floating pill) */
 .tt-nav {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: min(440px, 100%); z-index: 10;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
   display: flex; justify-content: space-around; align-items: center; padding: 8px 6px max(10px, env(safe-area-inset-bottom));
   background: rgba(0, 0, 0, 0.92); backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,0.08);
 }
-@media (min-width: 600px) { .tt-nav { bottom: 24px; border-radius: 0 0 44px 44px; } }
 .tt-nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; color: rgba(255,255,255,0.6); font-size: 11px; min-width: 56px; }
 .tt-nav-item.active { color: #fff; }
 .tt-plus {
@@ -554,7 +561,8 @@ a { color: inherit; text-decoration: none; }
 .fx-seg.small button { padding: 5px; font-size: 12px; }
 
 /* Ask Lämäri */
-.fx-chat-fab { position: fixed; right: max(16px, calc(50vw - 204px)); bottom: 96px; z-index: 20; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--lb-navy, #0a2a66); color: #fff; box-shadow: 0 6px 18px rgba(10,42,102,0.35); }
+/* Fixed inside .app (its transform makes the phone frame the containing block). */
+.fx-chat-fab { position: fixed; right: 16px; bottom: max(24px, env(safe-area-inset-bottom)); z-index: 20; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--lb-navy, #0a2a66); color: #fff; box-shadow: 0 6px 18px rgba(10,42,102,0.35); }
 .fx-chat { position: fixed; inset: 0; z-index: 40; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; background: #fff; color: var(--lb-ink, #0d1b33); }
 .fx-chat-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top)); background: var(--lb-navy, #0a2a66); color: #fff; font-size: 16px; }
 .fx-chat-head button { margin-left: auto; color: #fff; }
@@ -578,3 +586,55 @@ a { color: inherit; text-decoration: none; }
 .fx-chat-input input:focus { border-color: var(--lb-blue, #1d5bc4); }
 .fx-chat-input button { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--lb-blue, #1d5bc4); color: #fff; flex: none; }
 .fx-chat-input button:disabled { opacity: 0.4; }
+/* ---------- Community Notes on posts (like X) ---------- */
+.tt-hot { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 8px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: linear-gradient(90deg, #ff7a3d, #e8833a); color: #fff; box-shadow: 0 2px 10px rgba(232, 131, 58, 0.45); }
+.tt-note { display: block; width: 100%; text-align: left; margin-top: 12px; padding: 12px 14px; border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.28); backdrop-filter: blur(14px); color: #fff; }
+.tt-note-head { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; }
+.tt-note-text { margin: 6px 0 0; font-size: 14px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.tt-note-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tt-note-links span { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); }
+.tt-note-foot { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.18); font-size: 11.5px; opacity: 0.8; }
+.tt-misleading { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 8px 12px; border-radius: 12px; font-size: 13px; color: #ffd9a8;
+  background: rgba(162, 83, 28, 0.35); border: 1px solid rgba(255, 190, 120, 0.45); backdrop-filter: blur(10px); }
+.tt-misleading b { color: #fff; }
+.notes-rail.due .tt-rail-icon { color: #ffb36b; }
+.notes-rail.due .tt-rail-label { color: #ffb36b; }
+
+.notes-sheet { max-height: 80%; display: flex; flex-direction: column; padding-bottom: 84px; }
+.note-intro { margin: 0 0 8px !important; font-size: 12.5px !important; }
+.notes-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 60px; }
+.note-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.note-top { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+.note-status { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+.note-status.shown { background: #e8f5ec; color: #2f7d4f; }
+.note-status.pending { background: #fff4e0; color: #a2531c; }
+.note-status.hidden { background: #f1eeea; color: var(--muted); }
+.note-mine { color: var(--teal-800); font-weight: 600; }
+.note-count { margin-left: auto; color: var(--muted); }
+.note-claim { margin: 8px 0 2px; font-weight: 700; font-size: 14.5px; }
+.note-context { margin: 0; font-size: 14px; line-height: 1.45; color: var(--text); }
+.note-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.note-links a, .note-links button { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--teal-700); }
+.note-rated { margin-top: 8px; font-size: 12px; color: var(--muted); }
+.note-rate { margin-top: 10px; padding: 10px 12px; border-radius: 14px; background: #f6f4f1; }
+.note-q { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+.note-q.small { font-weight: 600; font-size: 12px; color: var(--muted); margin: 10px 0 6px; }
+.note-choices { display: flex; gap: 8px; }
+.note-choices button { flex: 1; display: inline-flex; justify-content: center; align-items: center; gap: 5px; padding: 8px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+.note-choices button.on { background: var(--teal-800); border-color: var(--teal-800); color: #fff; }
+.note-choices button.on.no { background: #b42318; border-color: #b42318; }
+.note-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.note-tags button { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font-size: 12px; }
+.note-tags button.on { border-color: var(--orange-400); background: var(--peach-50); color: #a2531c; font-weight: 600; }
+.note-submit { margin-top: 10px; padding: 9px 18px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 600; }
+.note-submit:disabled { opacity: 0.4; }
+.note-write { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 12px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 600; }
+.note-form { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.note-form label { font-size: 12.5px; font-weight: 700; margin-top: 4px; }
+.note-form input, .note-form textarea { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font: inherit; outline: none; resize: vertical; }
+.note-form input:focus, .note-form textarea:focus { border-color: var(--orange-400); }
+.note-hint { margin: 2px 0 0 !important; font-size: 12px !important; }
+.note-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.note-cancel { margin-top: 10px; padding: 9px 16px; border-radius: 999px; background: #f1eeea; font-weight: 600; }

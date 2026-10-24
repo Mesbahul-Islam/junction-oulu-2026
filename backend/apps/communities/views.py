@@ -137,7 +137,9 @@ class PostViewSet(viewsets.ModelViewSet):
         ser = FlagPostSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         services.flag_post(self.get_object(), request.user, **ser.validated_data)
-        return Response({"detail": "Thanks. The post is hidden until a moderator reviews it."})
+        if ser.validated_data.get("reason") in services.CONTEXT_REASONS:
+            return Response({"detail": "Thanks. Members will be asked to add a note with context.", "hidden": False})
+        return Response({"detail": "Thanks. The post is hidden until a moderator reviews it.", "hidden": True})
 
 
 class CommunityNewsView(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -151,7 +153,8 @@ class CommunityNewsView(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     def get_queryset(self):
         ids = self.request.user.memberships.values_list("community_id", flat=True)
-        qs = services.visible_posts(self.request.user, ids).select_related("question__linked_snippet").prefetch_related("translations")
+        qs = (services.visible_posts(self.request.user, ids).select_related("question__linked_snippet")
+              .prefetch_related("translations", "flags", "community_notes__ratings"))
         return services.with_engagement(qs, self.request.user)
 
     @action(detail=True, methods=["post"])

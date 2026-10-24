@@ -57,6 +57,9 @@ class CommunityNote(TimeStampedModel):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.NEEDS_MORE_RATINGS, db_index=True
     )
+    language = models.CharField(max_length=5, blank=True)  # detected language of the note
+    # Machine translations of a shown note, {language: {"claim_summary": ..., "context": ...}}.
+    translations = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

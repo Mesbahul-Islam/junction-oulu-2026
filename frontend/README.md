@@ -46,6 +46,7 @@ src/
     StorySlide        one full-screen For You story + right-hand action rail
     PostSlide         one full-screen community post (labelled): Like, Comments, Share (with counts), Report
     CommentsSheet     a post's replies (translated, likeable) and a box to add one
+    NotesSheet        Community Notes on a post: read, rate (helpful? + reasons) and write one
     CommunityCard     a community with why it's suggested and a Join / Leave button
     BottomNav         TikTok-style bar: Home, Discover, +, Saved, Profile
     NewsCard          list card (Discover, Saved); ListenPlayer (read-aloud); Spinner
@@ -53,7 +54,7 @@ src/
     Welcome           sign up / log in / demo accounts
     Onboarding        language → categories → situation + arrival date → communities to join (also "Edit preferences")
     Communities       your communities, suggested ones (with why) and the rest; Join / Leave
-    Feed              home: "Community News | For You" tabs over snap-scrolling slides
+    Feed              home: For You = one continuous list of story cards (tap opens the story); Community News = full-screen swipe of member posts
     Create            "+": post to your community, or send a tip / question to the newsroom
     Story             full story: for-you text, key facts, Finnish original, why ranked, report
     Explore           "Discover": topics + the newcomer "first week" sequence
@@ -96,6 +97,7 @@ http://localhost:8000/api/docs/.
 
 ## Notes for changes
 
+- **Phone frame:** on a phone the app fills the screen. On a computer it is laid out at a real phone's size (390 x 844) and the whole phone is scaled down to fit the window (`--phone-scale`, set in `main.jsx`; `.app` in `styles.css`). Pages scroll inside `.app-scroll`, not the browser window.
 - **Colours, spacing, radius:** CSS variables at the top of `styles.css`.
 - **Topic icons and blurbs:** `TOPICS` in `src/lib/i18n.js` (keys are the interest slugs from the API).
 - **Images:** stories have no photos yet, so cards show a gradient with the topic icon. When the API returns `image_url`, it's shown automatically.
