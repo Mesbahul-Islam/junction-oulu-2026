@@ -114,10 +114,12 @@ All facts come from Liiga data: results, standings computed the Liiga way (3 / 2
 
 - **Coach tab:** your last gameweek reviewed, and picks for the next one: captain, start or bench, one transfer, each with the reason in numbers.
 - **Matches tab:** one gameweek per page. Tap a game for the context beyond the score, or a preview. Choose **Fan** or **New to hockey** (which explains the rules that game depends on), and **Short** or **Full**.
-- **Coach chat:**
-  - Answers only questions about winning with Liiga data.
-  - Anything else gets "Sorry, I can only help with sports data". Asking again straight away gets a firm stop.
+- **Coach chat:** two steps, so the answering model never sees anything off-topic.
+  1. **Gate** (`services/chat_gate.py`): the message and the last few lines of the conversation are classified, as text, with one yes/no question: is this about ice hockey, Liiga or the Lämäri game? Jev answers it (about 0.3 s). If Jev is unavailable, the AI model answers the same yes/no question. If neither is available, a word check refuses only obvious off-topic requests.
+  2. **Coach** (`services/chat.py`), only on a yes: answers from Liiga data (captain, start or bench, transfers, players to watch, the leaderboard, last week, prizes, deadlines, any player or team). Follow-ups such as "are you sure?" use the previous answer. The AI may word the reply but only sees the checked facts, never the question.
+  - Off-topic gets "Sorry, I can only help with sports data". Two clearly off-topic messages in a row get a firm stop.
   - Limits: 8 messages a minute and 120 a day per reader.
+  - `manage.py check_coach` runs 31 fixed questions (on-topic and off-topic, English and Finnish, one follow-up) and reports the pass rate.
 
 ## 7. Sports desk agent
 

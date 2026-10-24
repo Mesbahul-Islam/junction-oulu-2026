@@ -30,6 +30,7 @@ export const getCoach = () => api("/fantasy/squad/coach/");
 export const getSquadNews = (offset = 0, limit = 5) => api(`/fantasy/squad/news/?offset=${offset}&limit=${limit}`);
 export const getAnalysis = (fixtureId, detail = "short", reader = "fan") =>
   api(`/fantasy/fixtures/${fixtureId}/analysis/?detail=${detail}&reader=${reader}`);
-export const askLamari = (message) => api("/fantasy/chat/", { method: "POST", body: { message } });
+// history: the last few lines of the conversation, so the coach understands follow-ups.
+export const askLamari = (message, history = []) => api("/fantasy/chat/", { method: "POST", body: { message, history } });
 export const makeTransfers = (outIds, inIds) => api("/fantasy/squad/transfers/", { method: "POST", body: { out: outIds, in: inIds } });
 export const shakeUp = (maxPoints) => api("/fantasy/squad/transfers/shake-up/", { method: "POST", body: { max_points: maxPoints } });

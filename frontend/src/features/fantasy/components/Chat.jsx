@@ -33,7 +33,7 @@ export default function Chat({ startOpen = false }) {
     setMessages((m) => [...m, { from: "me", text: message }]);
     setBusy(true);
     try {
-      const r = await askLamari(message);
+      const r = await askLamari(message, messages.slice(-4).map((m) => m.text));
       setMessages((m) => [...m, { from: "bot", text: r.answer, ai: r.source === "ai", suggestions: r.suggestions }]);
     } catch (e) {
       setMessages((m) => [...m, { from: "bot", text: e.message }]);

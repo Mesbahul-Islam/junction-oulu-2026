@@ -464,17 +464,21 @@ class ChatView(APIView):
             season = current_season()
         except FantasyError as exc:
             return _error(exc)
-        squad = Squad.objects.filter(user=request.user, season=season).first()
-        lang = lang_of(request.user)
-        answer = chat.reply(message, squad, season, lang)
-        # Off-topic twice in a row (within 30 minutes): a firm reply, no suggestions.
         from django.core.cache import cache
 
-        strikes_key = f"fx-chat-off:{uid}"
-        if answer.get("refused"):
+        history = request.data.get("history") or []
+        recent = [str(h)[:300] for h in history if isinstance(h, str)][-4:]
+        squad = Squad.objects.filter(user=request.user, season=season).first()
+        lang = lang_of(request.user)
+        ctx_key, strikes_key = f"fx-chat-ctx:{uid}", f"fx-chat-off:{uid}"
+        answer = chat.reply(message, squad, season, lang, recent=recent, context=cache.get(ctx_key))
+        cache.set(ctx_key, answer.pop("context", None), 1800)
+        # The firm reply only after two *clearly* off-topic messages in a row (30 minutes apart at most).
+        if answer.get("clearly_off"):
             cache.add(strikes_key, 0, 1800)
             if cache.incr(strikes_key) >= 2:
-                answer = {"answer": chat.INSIST[lang], "source": "data", "suggestions": [], "refused": True}
+                answer = {**answer, "answer": chat.INSIST[lang], "suggestions": []}
         else:
             cache.delete(strikes_key)
+        answer.pop("gate", None)
         return Response(answer)
