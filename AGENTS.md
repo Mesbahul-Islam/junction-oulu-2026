@@ -40,7 +40,7 @@ full-width button on desktop, or a bottom tab bar on desktop is a bug.
 │──────────────│─────────────────────────────────────────────────│  side peek   │
 │ 🔍 Search    │                                                 │  (story,     │
 │ ⌂ Today      │   Page title                                     │   replies,  │
-│ ◉ Decide     │   properties · · ·                               │   notes)    │
+│ ◉ Next stories│   properties · · ·                               │   notes)    │
 │ ✎ Ask        │                                                 │              │
 │              │   content column, max 720px, left-aligned       │  480–560px   │
 │ COMMUNITIES  │   inside the main area (full width for          │  opens over  │
@@ -67,7 +67,7 @@ full-height overlay panel.
 │                           │
 │───────────────────────────│
 │  ⌂     👥     ◉     ✎    │  bottom bar ONLY on mobile: Today, Community,
-└───────────────────────────┘  Decide, Ask (Notion mobile: Home/Search/Inbox/New)
+└───────────────────────────┘  Next stories, Ask (Notion mobile: Home/Search/Inbox/New)
 ```
 Sticky bottom CTAs are allowed only on mobile, only for single-task flows (onboarding, compose).
 
@@ -80,7 +80,7 @@ Sticky bottom CTAs are allowed only on mobile, only for single-task flows (onboa
 | Today (feed) | See what affects me, in my language | **X/Twitter timeline** | Left sidebar + centred timeline (max ~680px), dividers, composer/filters optional, click story → full page or side panel | Full-width timeline rows, tap → story page, bottom nav |
 | Story | Understand it, trust it, act | Reading page | Spacious reading column (max ~720px) with provenance, trust blocks, sources, actions | Single column, clear hierarchy, sticky/share actions as appropriate |
 | Community | Ask, answer, help | Timeline/feed of posts | Left sidebar + timeline; post thread in side panel or full page | Full-width posts, thread on full page |
-| Decide (vote) | Choose what gets covered | List of proposals | Clean list with vote actions, Meter, clear states | List with vote buttons, clear states |
+| Next stories (vote) | Choose what gets covered | List of proposals | Clean list with vote actions, Meter, clear states | List with vote buttons, clear states |
 | Notes | Rate community notes credibly | Threaded notes | Clean list/thread with badges and rating | Full page/thread |
 | You | Preferences, saved, communities | Settings list | Clean settings with sections | Full-page settings |
 | Ask / Create | Send a tip/question to the newsroom | Compose form | Centred form/dialog as fits | Full page with sticky Send |

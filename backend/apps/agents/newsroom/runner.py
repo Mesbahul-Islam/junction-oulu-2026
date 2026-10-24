@@ -1,7 +1,7 @@
 """Runs one newsroom shift.
 
     wire desk -> news editor (Jev + members' votes) -> for each picked story:
-        reporter -> explainer -> translator -> fact-checker -> standards editor -> copy desk
+        brief and explanation -> translator -> fact-checker -> standards editor -> copy desk
     -> community vote (next shortlist) -> human editors (Ready to send / Needs review)
 
 The run-level desks work on all articles at once; each picked story then goes through
@@ -113,7 +113,6 @@ def _file(state: StoryState, story: RunStory) -> dict:
 def story_graph():
     g = StateGraph(StoryState)
     steps = [
-        ("reporter", lambda s, _: desks.reporter(s)),
         ("explainer", lambda s, _: desks.explainer(s)),
         ("translator", _translate),
         ("fact_checker", lambda s, _: desks.fact_checker(s)),

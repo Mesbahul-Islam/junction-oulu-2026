@@ -55,7 +55,7 @@ class StubLLM:
 
 
 
-AGENTS = ("reporter", "explainer", "translator")  # the newsroom desks that call a model
+AGENTS = ("explainer", "translator")  # the newsroom desks that call a model
 
 # Friendly names -> LangChain provider ids.
 PROVIDER_ALIASES = {

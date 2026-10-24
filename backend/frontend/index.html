@@ -1,638 +1,117 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Newsroom Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --teal-900: #0e2f2f; --teal-800: #123b3a; --teal-700: #1c4a47; --orange: #e8833a; --orange-soft: #fdf1ea;
-    --bg: #f6f4f1; --card: #fff; --ink: #1c2524; --muted: #6b7472; --line: #e8e3de;
-    --green: #2f7d4f; --green-soft: #e8f5ec; --red: #b42318; --red-soft: #fde8e6; --amber: #a2531c; --amber-soft: #fff4e0;
-    --blue: #1d3561; --blue-soft: #eef4ff; --radius: 14px; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 18px rgba(14,47,47,.06);
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.5 Inter, system-ui, sans-serif; color: var(--ink); background: var(--bg); }
-  button, input, select, textarea { font: inherit; color: inherit; }
-  a { color: var(--teal-700); }
-  .layout { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
-  aside { background: var(--teal-900); color: #dfe9e7; padding: 22px 14px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; }
-  .brand { font-weight: 700; font-size: 17px; color: #fff; padding: 0 10px 18px; display: flex; gap: 10px; align-items: center; }
-  .brand span { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: linear-gradient(140deg, var(--teal-700), var(--orange)); }
-  .nav { display: flex; justify-content: space-between; align-items: center; border: 0; background: none; text-align: left; padding: 9px 12px; border-radius: 10px; color: #c9d8d5; cursor: pointer; }
-  .nav:hover { background: rgba(255,255,255,.06); }
-  .nav.on { background: rgba(255,255,255,.12); color: #fff; font-weight: 600; }
-  .nav .badge { background: var(--orange); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 8px; min-width: 20px; text-align: center; }
-  .nav .badge[data-zero] { display: none; }
-  aside .links { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 12px 10px 0; border-top: 1px solid rgba(255,255,255,.1); font-size: 13px; }
-  aside .links a { color: #b9cbc7; text-decoration: none; }
-  aside .who { font-size: 12px; color: #9fb4b0; padding: 10px; }
-  main { padding: 26px 32px 60px; max-width: 1280px; width: 100%; }
-  header.page { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-  header.page h1 { margin: 0; font-size: 22px; }
-  header.page p { margin: 4px 0 0; color: var(--muted); }
-  section.view { display: none; } section.view.on { display: block; }
-  .grid { display: grid; gap: 14px; }
-  .stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 18px; }
-  .two { grid-template-columns: 1.2fr 1fr; }
-  @media (max-width: 1000px) { .two { grid-template-columns: 1fr; } .layout { grid-template-columns: 1fr; } aside { position: static; height: auto; } }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
-  .card h2 { margin: 0 0 12px; font-size: 15px; }
-  .stat { cursor: pointer; }
-  .stat .v { font-size: 28px; font-weight: 700; line-height: 1.1; }
-  .stat .l { color: var(--muted); font-size: 13px; }
-  .stat.warn .v { color: var(--orange); }
-  .stat.bad .v { color: var(--red); }
-  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .spread { justify-content: space-between; }
-  .btn { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 7px 14px; cursor: pointer; font-weight: 500; }
-  .btn:hover { border-color: #c9c2bb; }
-  .btn.primary { background: var(--teal-800); border-color: var(--teal-800); color: #fff; }
-  .btn.accent { background: var(--orange); border-color: var(--orange); color: #fff; }
-  .btn.danger { color: var(--red); }
-  .btn:disabled { opacity: .5; cursor: default; }
-  input, select, textarea { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; background: #fff; }
-  textarea { width: 100%; resize: vertical; }
-  .pill { display: inline-block; font-size: 12px; padding: 1px 9px; border-radius: 999px; background: #f1eeea; color: #4b5553; white-space: nowrap; }
-  .pill.high { background: var(--red-soft); color: var(--red); } .pill.medium { background: var(--amber-soft); color: var(--amber); } .pill.low { background: var(--green-soft); color: var(--green); }
-  .pill.ok { background: var(--green-soft); color: var(--green); } .pill.bad { background: var(--red-soft); color: var(--red); } .pill.run { background: var(--blue-soft); color: var(--blue); }
-  .muted { color: var(--muted); } .small { font-size: 12.5px; }
-  .seg { display: inline-flex; background: #ece8e3; border-radius: 10px; padding: 3px; }
-  .seg button { border: 0; background: none; padding: 5px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); }
-  .seg button.on { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
-  tr.click { cursor: pointer; } tr.click:hover td { background: #faf8f6; }
-  .task { margin-bottom: 14px; }
-  .task-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
-  .version { border-left: 3px solid var(--line); padding: 2px 0 2px 12px; margin: 8px 0; }
-  .version b { font-size: 15px; }
-  .flag { border-radius: 10px; padding: 9px 12px; margin: 8px 0; font-size: 13px; }
-  .flag ul { margin: 4px 0 0; padding-left: 18px; }
-  .flag.bad { background: var(--red-soft); color: #7f1d16; } .flag.warn { background: var(--amber-soft); color: #7a4a0c; } .flag.check { background: var(--blue-soft); color: var(--blue); }
-  .check-row { display: flex; gap: 8px; align-items: flex-start; margin-top: 6px; }
-  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-  .edit-box { display: none; background: #faf8f6; border-radius: 10px; padding: 10px; margin-top: 8px; }
-  .edit-box.on { display: block; }
-  .edit-box label { display: block; font-size: 12px; font-weight: 600; margin: 6px 0 2px; }
-  .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
-  .cols { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-  .feed-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; background: #fff; }
-  .feed-card h4 { margin: 2px 0 4px; font-size: 14px; }
-  .meter { display: grid; grid-template-columns: 92px 1fr 34px; gap: 6px; align-items: center; font-size: 11.5px; color: var(--muted); }
-  .meter i { display: block; height: 5px; border-radius: 4px; background: #ece6e1; overflow: hidden; }
-  .meter i b { display: block; height: 100%; background: linear-gradient(90deg, var(--teal-700), var(--orange)); }
-  .reader-pick { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; }
-  .reader-pick.on { border-color: var(--orange); background: var(--orange-soft); }
-  .login { max-width: 380px; margin: 12vh auto; }
-  .login .card { padding: 26px; }
-  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-  .field label { font-weight: 600; font-size: 13px; }
-  .bar { height: 8px; border-radius: 6px; background: linear-gradient(90deg, var(--teal-700), var(--orange)); }
-  /* AI newsroom live view */
-  .desks { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
-  .desk-arrow { align-self: center; color: #c3bbb3; }
-  .desk { width: 150px; border: 1px solid var(--line); border-left-width: 4px; border-radius: 12px; padding: 8px 10px; background: #fff; font-size: 12px; }
-  .desk .st { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-  .desk .nm { font-weight: 700; font-size: 13.5px; margin: 1px 0; }
-  .desk .who { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
-  .desk .pr { margin-top: 5px; }
-  .desk.done { border-left-color: var(--green); } .desk.done .st { color: var(--green); }
-  .desk.failed { border-left-color: var(--red); background: var(--red-soft); } .desk.failed .st { color: var(--red); }
-  .desk.waiting { border-style: dashed; border-left-style: solid; opacity: .6; }
-  .desk.active { border-color: var(--orange); background: var(--orange-soft); animation: deskpulse 1.4s ease-in-out infinite; } .desk.active .st { color: var(--orange); }
-  .desk.human { border-left-color: var(--blue); } .desk.human .st { color: var(--blue); }
-  @keyframes deskpulse { 50% { box-shadow: 0 0 0 4px rgba(232,131,58,.25); } }
-  .stages { display: flex; gap: 3px; margin: 3px 0; }
-  .stages i { width: 18px; height: 6px; border-radius: 3px; background: #ece6e1; }
-  .stages i.done { background: var(--green); } .stages i.now { background: var(--orange); } .stages i.bad { background: var(--red); }
-  .verdict { display: inline-block; font-weight: 700; font-size: 12px; padding: 2px 10px; border-radius: 999px; }
-  .verdict.ready { background: var(--green-soft); color: var(--green); } .verdict.needs_review { background: var(--amber-soft); color: var(--amber); }
-  .verdict.published { background: var(--blue-soft); color: var(--blue); }
-  .reasons { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
-  .reasons li.note { color: var(--muted); }
-  .jev { display: inline-block; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--teal-700), var(--orange)); vertical-align: middle; }
-  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 10px; display: none; z-index: 20; max-width: 90vw; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Newsroom · Oulu News</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/newsroom/admin.css">
+  <script src="/static/newsroom/admin.js" defer></script>
 </head>
 <body>
-<div id="login" class="login" hidden>
-  <div class="card">
-    <h2 style="margin:0 0 4px">Newsroom Admin</h2>
-    <p class="muted" style="margin:0 0 18px">Staff only. Every story is approved by a person before readers see it.</p>
-    <form id="loginForm">
-      <div class="field"><label for="email">Email</label><input id="email" type="email" required autocomplete="username"></div>
-      <div class="field"><label for="password">Password</label><input id="password" type="password" required autocomplete="current-password"></div>
-      <div id="loginError" class="flag bad" hidden></div>
-      <button class="btn primary" style="width:100%;padding:10px">Log in</button>
-      <div style="display:flex;align-items:center;gap:10px;margin:12px 0;color:var(--muted);font-size:12px;text-transform:uppercase"><span style="flex:1;height:1px;background:var(--line)"></span><span>or</span><span style="flex:1;height:1px;background:var(--line)"></span></div>
-      <a href="/accounts/google/login/?next=/accounts/oauth/callback/?next=admin" class="btn" style="width:100%;padding:9px;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;font-weight:500;box-sizing:border-box">
-        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-        Continue with Google
-      </a>
-      <p class="small muted" style="margin:12px 0 0">Local dev account: admin@example.com / admin</p>
-    </form>
-  </div>
-</div>
-
-<div id="app" class="layout" hidden>
-  <aside>
-    <div class="brand"><span>N</span> Newsroom Admin</div>
-    <button class="nav on" data-view="overview">Overview</button>
-    <button class="nav" data-view="queue">Editor queue <span class="badge" id="b-queue" data-zero></span></button>
-    <button class="nav" data-view="moderation">Community <span class="badge" id="b-mod" data-zero></span></button>
-    <button class="nav" data-view="newsroom">AI newsroom <span class="badge" id="b-run" data-zero></span></button>
-    <button class="nav" data-view="compare">Compare feeds</button>
-    <div class="links">
-      <a href="http://localhost:5173" target="_blank">Reader app ↗</a>
-      <a href="/fantasy/" target="_blank">Fantasy Liiga ↗</a>
-      <a href="/admin/" target="_blank">Django admin ↗</a>
-      <a href="/api/docs/" target="_blank">API docs ↗</a>
-      <a href="#" id="logout">Log out</a>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div id="bootState" class="empty" role="status">Opening the newsroom…</div>
+  <div id="login" class="login" hidden>
+    <a class="wordmark" href="http://localhost:5173"><span class="brand-symbol" aria-hidden="true">O</span>Oulu News<span class="wordmark-dot" aria-hidden="true"></span></a>
+    <div class="login-panel">
+      <p class="eyebrow">The newsroom workspace</p>
+      <h1>Good journalism.<br>A human behind it.</h1>
+      <p class="login-intro">Follow the agents. Check the facts. Decide what reaches your readers.</p>
+      <a href="/accounts/google/login/?next=/accounts/oauth/callback/?next=admin" class="btn google-login">Continue with Google <span aria-hidden="true">↗</span></a>
+      <div class="separator">or sign in with email</div>
+      <form id="loginForm">
+        <div class="field"><label for="email">Email address</label><input id="email" type="email" required autocomplete="username" placeholder="you@newsroom.fi"></div>
+        <div class="field"><label for="password">Password</label><input id="password" type="password" required autocomplete="current-password"></div>
+        <div id="loginError" class="flag bad" role="alert" hidden></div>
+        <button class="btn primary full-width" type="submit">Sign in to the newsroom <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="small muted login-help">Staff access only. Local demo: admin@example.com / admin</p>
     </div>
-    <div class="who" id="who"></div>
-  </aside>
+    <p class="login-footer">AI helps make the news. People stand behind it.</p>
+  </div>
 
-  <main>
-    <!-- Overview -->
-    <section class="view on" id="v-overview">
-      <header class="page"><div><h1>Overview</h1><p>Today in the newsroom. Refreshes every 30 seconds.</p></div></header>
-      <div class="grid stats" id="stats"></div>
-      <div class="grid two">
-        <div class="card">
-          <div class="row spread"><h2 style="margin:0">AI newsroom schedule</h2><span id="schedState"></span></div>
-          <p id="schedText" class="muted"></p>
-          <div class="row">
-            <label class="small muted">stories <input id="ovMax" type="number" min="1" max="20" value="4" style="width:64px"></label>
-            <button class="btn accent" id="ovRun">Run now</button>
+  <div id="app" class="layout" hidden>
+    <aside id="sidebar" aria-label="Workspace navigation">
+      <div class="sidebar-brand"><a class="wordmark" href="#overview"><span class="brand-symbol" aria-hidden="true">O</span>Oulu News<span class="wordmark-dot" aria-hidden="true"></span></a><button class="icon-btn drawer-close" id="closeMenu" aria-label="Close navigation">×</button></div>
+      <p class="workspace-label">Newsroom workspace</p>
+      <nav aria-label="Newsroom">
+        <button class="nav on" data-view="overview" aria-current="page"><span><span class="nav-icon" aria-hidden="true">⌂</span>Overview</span></button>
+        <button class="nav" data-view="queue"><span><span class="nav-icon" aria-hidden="true">▤</span>Editor queue</span><span class="badge" id="b-queue" data-zero></span></button>
+        <button class="nav" data-view="moderation"><span><span class="nav-icon" aria-hidden="true">◎</span>Community</span><span class="badge" id="b-mod" data-zero></span></button>
+        <button class="nav" data-view="newsroom"><span><span class="nav-icon" aria-hidden="true">◇</span>AI newsroom</span><span class="badge" id="b-run" data-zero></span></button>
+        <button class="nav" data-view="compare"><span><span class="nav-icon" aria-hidden="true">⇄</span>Compare feeds</span></button>
+        <button class="nav" data-view="settings"><span><span class="nav-icon" aria-hidden="true">⚙</span>Settings</span></button>
+      </nav>
+      <div class="sidebar-note"><span class="provenance-dot" aria-hidden="true"></span><div><b>People make the call.</b><p>Every story needs a human before it reaches readers.</p></div></div>
+      <div class="links">
+        <a href="http://localhost:5173" target="_blank" rel="noopener">Open reader app <span aria-hidden="true">↗</span></a>
+        <a href="http://localhost:5173/design" target="_blank" rel="noopener">Kajo design system <span aria-hidden="true">↗</span></a>
+        <a href="/admin/" target="_blank" rel="noopener">Manage data <span aria-hidden="true">↗</span></a>
+        <a href="/api/docs/" target="_blank" rel="noopener">API documentation <span aria-hidden="true">↗</span></a>
+        <a href="/fantasy/" target="_blank" rel="noopener">Fantasy Liiga <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="account"><div class="account-avatar" aria-hidden="true">N</div><div><b>Staff workspace</b><div class="who" id="who"></div></div><button class="icon-btn" id="logout" aria-label="Log out" title="Log out">↪</button></div>
+    </aside>
+    <button id="menuBackdrop" class="menu-backdrop" aria-label="Close navigation" hidden></button>
+    <div class="workspace">
+      <header class="topbar"><div class="row"><button id="openMenu" class="icon-btn menu-toggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button><span class="muted">Newsroom</span><span class="breadcrumb-slash" aria-hidden="true">/</span><span id="currentView">Overview</span></div><div class="row"><span class="workspace-mode">Editorial workspace</span><label class="theme-picker"><span class="sr-only">Colour theme</span><select id="theme"><option value="system">System theme</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header>
+      <main id="main" tabindex="-1">
+        <div id="pageError" class="flag bad" role="alert" hidden><span id="pageErrorText"></span><button class="btn" id="retryPage">Try again</button></div>
+        <section class="view on" id="v-overview" aria-labelledby="title-overview">
+          <header class="page"><div><p class="eyebrow">Your editorial pulse</p><h1 id="title-overview">Overview</h1><p>What needs your attention, and what the newsroom is working on.</p></div><div class="row"><span id="lastUpdated" class="small muted" role="status">Connecting…</span><button class="btn" id="refreshDashboard">Refresh <span aria-hidden="true">↻</span></button></div></header>
+          <div class="stats" id="stats" aria-label="Newsroom metrics"><div class="empty">Loading newsroom metrics…</div></div>
+          <div class="grid overview-grid">
+            <div class="card shift-card">
+              <div class="row spread"><div><p class="eyebrow">Agent operations</p><h2>Next newsroom shift</h2></div><span id="schedState"></span></div>
+              <p id="schedText" class="muted"></p>
+              <div class="run-controls"><label for="ovMax">Stories per shift</label><div class="row"><input id="ovMax" type="number" min="1" max="20" value="4"><button class="btn primary" id="ovRun">Start a shift <span aria-hidden="true">→</span></button></div></div>
+              <div class="section-heading"><h2>Recent shifts</h2><a href="#newsroom" class="text-link">View newsroom →</a></div>
+              <div id="ovRuns" class="table-wrap" role="region" aria-label="Recent shifts" tabindex="0"><div class="empty">Loading recent shifts…</div></div>
+            </div>
+            <div class="overview-aside">
+              <div class="card"><p class="eyebrow">Behind the work</p><h2>Models on the desk</h2><div id="models"><div class="empty">Loading models…</div></div><p class="small muted model-note">Model availability is checked when this view refreshes. Generated work still needs editorial review.</p></div>
+              <div class="trust-panel"><span class="provenance-dot" aria-hidden="true"></span><div><h2>Human review, always.</h2><p>A completed shift creates drafts. Editors check stories and language reviewers check translations before publication.</p><a href="#queue" class="text-link">Open the editor queue →</a></div></div>
+            </div>
           </div>
-          <h2 style="margin:18px 0 8px">Recent runs</h2>
-          <div id="ovRuns"></div>
-        </div>
-        <div class="card">
-          <h2>AI models</h2>
-          <div id="models"></div>
-          <p class="small muted" style="margin:10px 0 0">Set in <code>.env</code>: LLM_PROVIDER, LLM_MODEL, LLM_API_KEY. Agents without a working model use an offline stub, and their output fails verification.</p>
-        </div>
-      </div>
-    </section>
+        </section>
 
-    <!-- Editor queue -->
-    <section class="view" id="v-queue">
-      <header class="page">
-        <div><h1>Editor queue</h1><p>Nothing is published until a person approves it. Translations need a reviewer for that language.</p></div>
-        <div class="row">
-          <div class="seg" id="qType"><button data-v="editor" class="on">Stories</button><button data-v="language_reviewer">Translations</button><button data-v="">All</button></div>
-          <select id="qReason"><option value="">All reasons</option><option value="report">Reader report</option><option value="flagged_verification">Failed fact-check</option><option value="failed_standards">Failed standards</option><option value="low_confidence">Low confidence</option><option value="new">New</option><option value="batch_low_risk">Low risk (batch)</option><option value="refresh">Refresh</option></select>
-          <button class="btn" id="qBatch" title="Approve every low-risk story without a checklist">Batch-approve low risk</button>
-        </div>
-      </header>
-      <div id="queue"></div>
-    </section>
+        <section class="view" id="v-queue" aria-labelledby="title-queue">
+          <header class="page"><div><p class="eyebrow">The human checkpoint</p><h1 id="title-queue">Editor queue</h1><p>Check the source, refine the story, and make the call.</p></div></header>
+          <div class="toolbar"><div class="seg" id="qType" role="group" aria-label="Review type"><button data-v="editor" class="on" aria-pressed="true">Stories <span class="badge" id="qStoriesCount" data-zero></span></button><button data-v="language_reviewer" aria-pressed="false">Translations <span class="badge" id="qTranslationsCount" data-zero></span></button><button data-v="" aria-pressed="false">All <span class="badge" id="qAllCount" data-zero></span></button></div><label><span class="sr-only">Filter by review reason</span><select id="qReason"><option value="">All reasons</option><option value="report">Reader report</option><option value="flagged_verification">Failed fact-check</option><option value="failed_standards">Failed standards</option><option value="low_confidence">Low confidence</option><option value="new">New</option><option value="batch_low_risk">Low risk (batch)</option><option value="refresh">Refresh</option></select></label><button class="btn" id="qBatch">Approve low-risk batch</button></div>
+          <div id="queue" aria-label="Review tasks"></div>
+        </section>
 
-    <!-- Moderation -->
-    <section class="view" id="v-moderation">
-      <header class="page">
-        <div><h1>Community</h1><p>Reported posts stay hidden until you decide. Questions members ask can be answered with a newsroom story.</p></div>
-        <div class="seg" id="mStatus"><button data-v="pending" class="on">Reported</button><button data-v="photos">Photos</button><button data-v="questions">Unanswered questions</button><button data-v="removed">Removed</button><button data-v="kept">Kept</button></div>
-      </header>
-      <div id="modList"></div>
-    </section>
+        <section class="view" id="v-moderation" aria-labelledby="title-moderation">
+          <header class="page"><div><p class="eyebrow">Listen to your readers</p><h1 id="title-moderation">Community</h1><p>Review reported posts and connect readers’ questions to newsroom answers.</p></div></header>
+          <div class="toolbar"><div class="seg" id="mStatus" role="group" aria-label="Community posts"><button data-v="pending" class="on" aria-pressed="true">Reported</button><button data-v="photos" aria-pressed="false">Photos</button><button data-v="questions" aria-pressed="false">Questions</button><button data-v="removed" aria-pressed="false">Removed</button><button data-v="kept" aria-pressed="false">Kept</button></div><span class="small muted">Reported posts stay hidden until reviewed.</span></div>
+          <div id="modList" aria-label="Community posts"></div>
+        </section>
 
-    <!-- Newsroom -->
-    <section class="view" id="v-newsroom">
-      <header class="page">
-        <div><h1>AI newsroom</h1><p id="nrSched"></p></div>
-        <div class="row">
-          <select id="nrPick" title="Show another run"></select>
-          <label class="small muted">stories <input id="nrMax" type="number" min="1" max="20" value="4" style="width:64px"></label>
-          <button class="btn accent" id="nrRun">Run now</button>
-        </div>
-      </header>
-      <div class="card" style="margin-bottom:14px">
-        <div class="row spread"><h2 style="margin:0" id="nrTitle">Newsroom</h2><span id="nrState"></span></div>
-        <p class="small muted" style="margin:4px 0 10px">Wire desk and news editor work on all articles; then each picked story goes desk by desk. Nothing reaches readers until a person sends it.</p>
-        <div id="desks" class="desks"><div class="muted">No runs yet. Press Run now.</div></div>
-      </div>
-      <div class="card" style="margin-bottom:14px">
-        <div class="row spread"><h2 style="margin:0">Stories</h2><button class="btn accent" id="sendAll" disabled>Send all ready</button></div>
-        <p class="small muted" style="margin:4px 0 10px"><span class="verdict ready">Ready to send</span> passed every check and touches nothing sensitive: one click publishes it in your name. <span class="verdict needs_review">Needs review</span> has something a person must read first (listed); open it in the Editor queue.</p>
-        <div id="stories"></div>
-      </div>
-      <div class="grid two">
-        <div class="card"><h2>Wire desk</h2><div id="nrWire" class="muted">–</div></div>
-        <div class="card"><h2>News editor: Jev + members' votes</h2><div id="nrJev" class="muted">–</div></div>
-      </div>
-    </section>
+        <section class="view" id="v-newsroom" aria-labelledby="title-newsroom">
+          <header class="page"><div><p class="eyebrow">From source to story</p><h1 id="title-newsroom">AI newsroom</h1><p id="nrSched"></p></div><div class="row"><label><span class="sr-only">Select newsroom shift</span><select id="nrPick"></select></label><label class="run-count" for="nrMax">Stories <input id="nrMax" type="number" min="1" max="20" value="4"></label><button class="btn primary" id="nrRun">Start a shift →</button></div></header>
+          <div class="card panel-gap"><div class="row spread"><h2 id="nrTitle">Newsroom workflow</h2><span id="nrState"></span></div><p class="small muted">Agents select, draft and translate. People decide what gets published.</p><div id="desks" class="desks"><div class="empty">No shifts yet. Start a shift to follow the work.</div></div></div>
+          <div class="card panel-gap"><div class="row spread"><h2>Stories in this shift</h2><button class="btn primary" id="sendAll" disabled>Send all ready</button></div><p class="small muted">“Ready to send” means no blocking issues were detected. Review the source and checks before publishing in your name.</p><div id="stories" class="table-wrap" role="region" aria-label="Shift stories" tabindex="0"></div></div>
+          <div class="grid two"><div class="card"><p class="eyebrow">Evidence in</p><h2>Wire desk</h2><div id="nrWire" class="muted">No source report yet.</div></div><div class="card"><p class="eyebrow">Community-led selection</p><h2>Jev + members’ votes</h2><div id="nrJev" class="table-wrap muted" role="region" aria-label="Selection scores" tabindex="0">No selection report yet.</div></div></div>
+        </section>
 
-    <!-- Compare -->
-    <section class="view" id="v-compare">
-      <header class="page"><div><h1>Compare feeds</h1><p>See the For You feed exactly as each reader gets it: their language, ranking and Jev's reasons. Pick up to 3.</p></div></header>
-      <div class="card" style="margin-bottom:14px"><div class="row" id="readers"></div></div>
-      <div class="cols" id="compareCols"></div>
-    </section>
-  </main>
-</div>
-<div id="toast"></div>
-
-<script>
-const API = "/api";
-const $ = (id) => document.getElementById(id);
-const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const results = (d) => (Array.isArray(d) ? d : d?.results ?? []);
-const LANG = { fi: "Finnish", en: "English", sv: "Swedish", uk: "Ukrainian", ru: "Russian", ar: "Arabic", so: "Somali", et: "Estonian", se: "Northern Sámi", smn: "Inari Sámi", sms: "Skolt Sámi" };
-const lang = (c) => LANG[c] || c;
-const S = { token: localStorage.getItem("admin-token"), me: null, view: "overview", dash: null, readers: [], picked: [] };
-
-function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => (t.style.display = "none"), 3800); }
-function ago(iso) {
-  if (!iso) return "–";
-  const s = (Date.now() - new Date(iso)) / 1000, f = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-  for (const [u, n] of [["day", 86400], ["hour", 3600], ["minute", 60]]) if (Math.abs(s) >= n) return f.format(-Math.round(s / n), u);
-  return "just now";
-}
-const clock = (d) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-async function api(path, { method = "GET", body } = {}) {
-  const headers = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (S.token) headers.Authorization = "Bearer " + S.token;
-  const res = await fetch(API + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-  const text = await res.text(), data = text ? JSON.parse(text) : null;
-  if (res.status === 401) { logout(); throw new Error("Please log in again."); }
-  if (!res.ok) throw new Error(data?.detail || (Array.isArray(data) ? data[0] : data && Object.values(data).flat()[0]) || res.statusText);
-  return data;
-}
-
-// ---------- auth ----------
-$("loginForm").onsubmit = async (e) => {
-  e.preventDefault();
-  try {
-    S.token = (await api("/auth/token/", { method: "POST", body: { email: $("email").value, password: $("password").value } })).access;
-    localStorage.setItem("admin-token", S.token);
-    await start();
-  } catch (err) { $("loginError").hidden = false; $("loginError").textContent = err.message; }
-};
-function logout() { S.token = null; localStorage.removeItem("admin-token"); $("app").hidden = true; $("login").hidden = false; }
-$("logout").onclick = (e) => { e.preventDefault(); logout(); };
-
-let refresher;
-async function start() {
-  try { S.me = await api("/accounts/me/"); } catch { return logout(); }
-  if (!S.me.is_staff) { logout(); $("loginError").hidden = false; $("loginError").textContent = "This account isn't staff. Use an editor or admin account."; return; }
-  $("login").hidden = true; $("app").hidden = false;
-  $("who").textContent = `Signed in as ${S.me.email}`;
-  await loadDashboard();
-  show(location.hash.slice(1) || "overview");
-  clearInterval(refresher);
-  refresher = setInterval(async () => { await loadDashboard(); if (S.view === "overview") renderOverview(); }, 30000);
-}
-
-// ---------- navigation ----------
-document.querySelectorAll(".nav").forEach((b) => (b.onclick = () => { location.hash = b.dataset.view; }));
-window.addEventListener("hashchange", () => show(location.hash.slice(1)));
-function show(view) {
-  if (!$("v-" + view)) view = "overview";
-  S.view = view;
-  document.querySelectorAll(".nav").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
-  document.querySelectorAll("section.view").forEach((s) => s.classList.toggle("on", s.id === "v-" + view));
-  ({ overview: renderOverview, queue: loadQueue, moderation: loadModeration, newsroom: loadNewsroom, compare: loadReaders }[view])();
-}
-
-// ---------- dashboard data ----------
-async function loadDashboard() {
-  S.dash = await api("/agents/dashboard/");
-  const c = S.dash.counts;
-  const badge = (id, n) => { $(id).textContent = n || ""; n ? $(id).removeAttribute("data-zero") : $(id).setAttribute("data-zero", ""); };
-  badge("b-queue", c.editor_tasks + c.translation_tasks); badge("b-mod", c.flagged_posts); badge("b-run", S.dash.running.length);
-  const sch = S.dash.schedule, next = sch.next_run_at ? new Date(sch.next_run_at) : null;
-  const txt = `Fetches the Kaleva RSS feeds every ${sch.every_minutes} minutes and covers the ${sch.max_stories_per_run} stories Jev ranks highest. ` +
-    (next ? (next > new Date() ? `Next run at ${clock(next)}.` : "Next run due now.") : "Waiting for the first scheduled run.");
-  $("schedText").textContent = txt; $("nrSched").textContent = txt;
-}
-
-function renderOverview() {
-  const d = S.dash; if (!d) return;
-  const c = d.counts;
-  const card = (v, l, go, cls = "") => `<div class="card stat ${cls}" data-go="${go}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
-  $("stats").innerHTML = [
-    card(c.editor_tasks, "Stories to review", "queue", c.editor_tasks ? "warn" : ""),
-    card(c.translation_tasks, "Translations to review", "queue"),
-    card(c.checklist_pending, "Checklist items to confirm", "queue", c.checklist_pending ? "warn" : ""),
-    card(c.flagged_posts, "Reported community posts", "moderation", c.flagged_posts ? "bad" : ""),
-    card(c.published_24h, "Published in 24 h", "compare"),
-    card(`${c.runs_24h}${c.failed_runs_24h ? ` <span class="small" style="color:var(--red)">${c.failed_runs_24h} failed</span>` : ""}`, "Newsroom runs in 24 h", "newsroom"),
-  ].join("");
-  $("stats").querySelectorAll("[data-go]").forEach((el) => (el.onclick = () => (location.hash = el.dataset.go)));
-  $("schedState").innerHTML = d.running.length ? `<span class="pill run">Running now</span>` : `<span class="pill ok">Idle</span>`;
-  $("models").innerHTML = `<table>${d.llm.map((m) => `<tr><td>${esc(m.agent)}</td><td class="small">${esc(m.spec)}</td>
-    <td>${m.stub_reason ? `<span class="pill bad">offline stub</span><div class="small muted">${esc(m.stub_reason)}</div>` : `<span class="pill ok">ready</span>`}</td></tr>`).join("")}</table>`;
-  api("/agents/runs/").then((r) => {
-    $("ovRuns").innerHTML = runsTable(results(r).slice(0, 5), true);
-    $("ovRuns").querySelectorAll("[data-run]").forEach((tr) => (tr.onclick = () => { S.nrRun = tr.dataset.run; location.hash = "newsroom"; }));
-  });
-}
-
-// ---------- newsroom ----------
-function runsTable(runs, clickable) {
-  if (!runs.length) return `<div class="empty">No runs yet.</div>`;
-  const badge = (s) => `<span class="pill ${s === "succeeded" ? "ok" : s === "failed" ? "bad" : "run"}">${s}</span>`;
-  const dur = (r) => (r.started_at && r.finished_at ? Math.round((new Date(r.finished_at) - new Date(r.started_at)) / 1000) + " s" : "–");
-  return `<table><tr><th>Run</th><th>Status</th><th>Stories</th><th>Ready</th><th>Needs review</th><th>Started</th><th>Took</th></tr>
-    ${runs.map((r) => `<tr class="${clickable ? "click" : ""}" data-run="${r.id}"><td>#${r.id}</td><td>${badge(r.status)}</td>
-      <td>${r.counts.stories}</td><td>${r.counts.ready}</td><td>${r.counts.needs_review}</td><td>${ago(r.started_at || r.created_at)}</td><td>${dur(r)}</td></tr>`).join("")}</table>`;
-}
-
-const STORY_DESKS = ["reporter", "explainer", "translator", "fact_checker", "standards", "copy_desk"];
-let nrPoll;
-async function loadNewsroom() {
-  clearTimeout(nrPoll);
-  const runs = results(await api("/agents/runs/"));
-  $("nrPick").innerHTML = runs.slice(0, 30).map((r) => `<option value="${r.id}">Run #${r.id} · ${esc(r.status)} · ${ago(r.created_at)}</option>`).join("");
-  if (!runs.length) return;
-  const id = S.nrRun && runs.some((r) => String(r.id) === String(S.nrRun)) ? S.nrRun : runs[0].id;
-  $("nrPick").value = id;
-  const r = await api(`/agents/runs/${id}/`);
-  renderRun(r);
-  if (["queued", "running"].includes(r.status) && S.view === "newsroom" && !document.hidden) nrPoll = setTimeout(loadNewsroom, 2000);
-}
-$("nrPick").onchange = () => { S.nrRun = $("nrPick").value; loadNewsroom(); };
-
-function renderRun(r) {
-  const live = ["queued", "running"].includes(r.status);
-  $("nrTitle").textContent = `Run #${r.id} · up to ${r.max_stories} stories`;
-  $("nrState").innerHTML = `<span class="pill ${r.status === "failed" ? "bad" : r.status === "succeeded" ? "ok" : "run"}">${esc(r.status)}${r.status === "queued" ? " (waiting for the worker)" : ""}</span>`
-    + (r.started_at ? ` <span class="small muted">${live ? "started" : "ran"} ${ago(r.started_at)}${r.finished_at ? `, took ${Math.round((new Date(r.finished_at) - new Date(r.started_at)) / 1000)} s` : ""}</span>` : "");
-  const st = { done: "Done", active: "Working now", waiting: "Waiting", failed: "Failed" };
-  const desk = (d) => `<div class="desk ${d.status}" title="${esc(d.does)}"><div class="st">${st[d.status]}</div><div class="nm">${esc(d.label)}</div><div class="who">${esc(d.who)}</div>
-      <div class="pr">${d.total > 1 || !["wire", "news_editor", "community_vote"].includes(d.key) ? `${d.done} of ${d.total} stories` : ""}${d.seconds ? ` <span class="muted">· ${d.seconds} s</span>` : ""}</div>
-      ${d.working_on ? `<div class="pr"><b>#${d.working_on.rank}</b> ${esc(d.working_on.title.slice(0, 50))}…${d.working_on.detail ? `<div class="muted">${esc(d.working_on.detail)}</div>` : ""}</div>` : ""}</div>`;
-  const c = r.counts;
-  const human = `<div class="desk human"><div class="st">${c.ready + c.needs_review ? `${c.ready + c.needs_review} waiting` : "Nothing waiting"}</div><div class="nm">Editors (people)</div>
-      <div class="who">Send ready stories, review the rest</div><div class="pr">${c.ready} ready · ${c.needs_review} need review · ${c.published} published</div></div>`;
-  $("desks").innerHTML = r.desks.map(desk).join('<span class="desk-arrow">→</span>') + '<span class="desk-arrow">→</span>' + human
-    + (r.error ? `<div class="flag bad" style="width:100%">${esc(r.error)}</div>` : "");
-
-  // Stories
-  const stageBar = (s) => STORY_DESKS.map((k) => {
-    const i = STORY_DESKS.indexOf(k), at = STORY_DESKS.indexOf(s.stage);
-    const cls = s.stage === "failed" ? "bad" : s.stage === "done" || i < at ? "done" : i === at ? "now" : "";
-    return `<i class="${cls}" title="${esc(k.replace("_", " "))}"></i>`;
-  }).join("");
-  const stageText = (s) => s.stage === "done" ? "With the editors" : s.stage === "failed" ? "Failed" : s.stage === "picked" ? "Waiting for the reporter"
-    : `${s.stage.replace("_", " ")}${s.detail ? ": " + s.detail : ""}…`;
-  const verdict = (s) => {
-    if (s.published_at) return `<span class="verdict published">Published</span>`;
-    if (!s.verdict) return s.error ? `<span class="pill bad">failed</span><div class="small" style="color:var(--red)">${esc(s.error.slice(0, 160))}</div>` : `<span class="muted small">being written</span>`;
-    const block = s.reasons.filter((x) => x.blocking), notes = s.reasons.filter((x) => !x.blocking);
-    return `<span class="verdict ${s.verdict}">${s.verdict === "ready" ? "Ready to send" : "Needs review"}</span>
-      ${block.length || notes.length ? `<ul class="reasons">${block.map((x) => `<li>${esc(x.text)}</li>`).join("")}${notes.map((x) => `<li class="note">Note: ${esc(x.text)}</li>`).join("")}</ul>` : ""}`;
-  };
-  const action = (s) => s.published_at ? "" : s.verdict === "ready" ? `<button class="btn accent" data-send="${s.snippet}">Send</button>`
-    : s.verdict === "needs_review" ? `<a class="btn" href="#queue">Review</a>` : "";
-  $("stories").innerHTML = r.stories.length ? `<table><tr><th>#</th><th>Jev</th><th>Story</th><th>Progress</th><th>Verdict</th><th></th></tr>
-    ${r.stories.map((s) => `<tr><td>${s.rank}</td>
-      <td style="width:120px"><span class="jev" style="width:${Math.round((s.jev_score || 0) * 60)}px"></span> <b>${(s.jev_score ?? 0).toFixed(2)}</b>
-        <div class="small muted">${s.ranked_by === "jev" ? "Jev" : "heuristic"}${s.pick_reasons.length ? ": " + esc(s.pick_reasons.join(", ")) : ""}</div></td>
-      <td><div dir="auto"><b>${esc(s.headline || s.title)}</b></div><div class="small muted">${s.headline ? `Kaleva: <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title.slice(0, 80))}</a>` : `<a href="${esc(s.url)}" target="_blank" rel="noopener">source</a>`} · ${esc(s.section)}${s.languages.length ? ` · ${s.languages.length} languages` : ""}</div></td>
-      <td style="width:170px"><div class="stages">${stageBar(s)}</div><div class="small muted">${esc(stageText(s))}</div></td>
-      <td style="max-width:360px">${verdict(s)}</td><td>${action(s)}</td></tr>`).join("")}</table>`
-    : `<div class="empty">${live ? "The wire desk and news editor are choosing stories…" : "No stories in this run."}</div>`;
-  $("stories").querySelectorAll("[data-send]").forEach((b) => (b.onclick = () => sendStories(r.id, { snippets: [Number(b.dataset.send)] })));
-  $("sendAll").disabled = !c.ready;
-  $("sendAll").textContent = c.ready ? `Send all ${c.ready} ready` : "Send all ready";
-  $("sendAll").onclick = () => sendStories(r.id, { all_ready: true });
-
-  // Wire desk and Jev
-  const w = r.state?.wire, ne = r.state?.news_editor;
-  $("nrWire").classList.toggle("muted", !w);
-  $("nrWire").innerHTML = w ? `<p style="margin:0 0 6px">${w.feeds ? w.feeds + " Kaleva feeds" : "Kaleva free-articles feed"} · ${w.fetched} articles read · <b>${w.new}</b> new · <b>${w.candidates}</b> candidates</p>
-    ${w.errors.length ? `<div class="flag bad">Could not fetch: ${esc(w.errors.join(", "))}</div>` : ""}
-    ${w.excluded_count ? `<div class="flag warn"><b>Not news, left out (JSN 11/16): ${w.excluded_count}</b><ul>${w.excluded.slice(0, 6).map((e) => `<li>${esc(e.type)}: ${esc(e.title)}</li>`).join("")}</ul></div>` : ""}` : "–";
-  $("nrJev").classList.toggle("muted", !ne);
-  const cv = r.state?.community_vote;
-  $("nrJev").innerHTML = ne ? `<p class="small muted" style="margin:0 0 6px">${ne.considered} articles ranked by ${ne.ranked_by === "jev" ? "Jev" : "the heuristic (no Jev key)"}, plus members' votes from the app's "What should we cover next?"; the top ${ne.picked} were covered.</p>
-    <table><tr><th></th><th>Total</th><th>Jev</th><th>Votes</th><th>Article</th></tr>${ne.top.map((t, i) => `<tr><td class="small">${i + 1}</td><td class="small"><b>${t.score.toFixed(2)}</b></td>
-      <td class="small">${t.jev != null ? t.jev.toFixed(2) : "–"}</td><td class="small">${t.votes ? `<b>${t.votes}</b>` : "–"}</td>
-      <td class="small">${esc(t.title)}${i < ne.picked ? ' <span class="pill ok">covered</span>' : ""}</td></tr>`).join("")}</table>
-    ${cv ? `<p class="small muted" style="margin:10px 0 0">Next shortlist posted for members: <b>${cv.open}</b> stories open for votes (${cv.added} new, titles in ${cv.title_languages.map(lang).join(", ") || "Finnish"}).</p>` : ""}` : "–";
-}
-
-async function sendStories(runId, body) {
-  try {
-    const res = await api(`/agents/runs/${runId}/send/`, { method: "POST", body });
-    toast(res.sent.length ? `Published ${res.sent.length} ${res.sent.length === 1 ? "story" : "stories"}.` : "Nothing was published.");
-    loadNewsroom(); loadDashboard();
-  } catch (e) { toast(e.message); }
-}
-
-async function runNow(max) {
-  try {
-    const run = await api("/agents/runs/", { method: "POST", body: { max_stories: Number(max) } });
-    toast(`Run #${run.id} started.`);
-    S.nrRun = run.id;
-    await loadDashboard();
-    if (S.view === "newsroom") loadNewsroom(); else location.hash = "newsroom";
-  } catch (e) { toast(e.message); }
-}
-$("ovRun").onclick = () => runNow($("ovMax").value);
-$("nrRun").onclick = () => runNow($("nrMax").value);
-
-// ---------- editor queue ----------
-const qState = { role: "editor" };
-$("qType").querySelectorAll("button").forEach((b) => (b.onclick = () => { $("qType").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); qState.role = b.dataset.v; loadQueue(); }));
-$("qReason").onchange = loadQueue;
-
-function flagsHtml(t) {
-  const f = t.flags || {}, out = [];
-  (f.sources || []).forEach((s) => out.push(`<div class="small muted">Source: <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || s.url)}</a> · ${esc(s.publisher)}</div>`));
-  (f.verification || []).filter((v) => !v.passed || v.issues.length).forEach((v) => out.push(`<div class="flag ${v.passed ? "warn" : "bad"}"><b>Fact-check ${esc(lang(v.language))}: ${v.passed ? "passed with notes" : "failed"}</b> · confidence ${v.confidence}
-    <ul>${v.issues.map((i) => `<li>${esc(i.kind)}${i.value ? ` “${esc(i.value)}”` : ""}: ${esc(i.issue)}</li>`).join("")}</ul></div>`));
-  if (f.standards?.failed?.length) out.push(`<div class="flag bad"><b>Standards check failed</b><ul>${f.standards.failed.map((x) => `<li>${esc(x.label)}</li>`).join("")}</ul></div>`);
-  if (f.checklist?.length) out.push(`<div class="flag check"><b>Editorial checklist (JSN): confirm each before approving</b>
-    ${f.checklist.map((c) => `<label class="check-row"><input type="checkbox" data-check="${esc(c.key)}" ${c.confirmed ? "checked disabled" : ""}><span>${esc(c.label)} <span class="small">(clauses ${esc(c.clauses)})${c.confirmed ? ` · confirmed by ${esc(c.confirmed_by)}` : ""}</span></span></label>`).join("")}</div>`);
-  return out.join("");
-}
-
-async function loadQueue() {
-  const box = $("queue");
-  box.innerHTML = `<div class="empty">Loading…</div>`;
-  const q = new URLSearchParams({ page_size: 100 });
-  if (qState.role) q.set("role", qState.role);
-  if ($("qReason").value) q.set("reason", $("qReason").value);
-  try {
-    const tasks = results(await api(`/editorial/tasks/?${q}`));
-    if (!tasks.length) { box.innerHTML = `<div class="card empty">The queue is empty. New stories arrive after each newsroom run.</div>`; return; }
-    box.innerHTML = tasks.map((t) => {
-      const v = (t.versions || [])[0] || {};
-      const editLang = t.language || "fi";
-      return `<div class="card task" data-id="${t.id}">
-        <div class="task-head"><b>Story #${t.snippet}</b>
-          <span class="pill ${esc(t.risk_tier)}">${esc(t.risk_tier)} risk</span>
-          <span class="pill">${esc(t.reason.replace(/_/g, " "))}</span>
-          <span class="pill">${t.language ? "Translation: " + esc(lang(t.language)) : "Story (Finnish)"}</span>
-          ${t.review_level ? `<span class="verdict ${esc(t.review_level)}">${t.review_level === "ready" ? "Ready to send" : "Needs review"}</span>` : ""}
-          <span class="small muted">needs ${esc(t.required_role.replace("_", " "))} · confidence ${(t.confidence ?? 0).toFixed(2)} · ${ago(t.created_at)}</span></div>
-        ${!t.language && (t.review_reasons || []).some((x) => x.blocking) ? `<div class="flag warn"><b>Why the newsroom wants a person to read this</b><ul>${t.review_reasons.filter((x) => x.blocking).map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>` : ""}
-        ${(t.language ? t.versions : (t.versions || []).filter((x) => x.language === "fi")).map((x) => `<div class="version"><span class="pill">${esc(lang(x.language))}${x.is_machine_translated ? " · machine-translated" : ""}</span>
-          <div dir="auto"><b>${esc(x.headline) || "<i>Empty: write the translation with Edit text</i>"}</b></div><div class="muted" dir="auto">${esc(x.summary)}</div>
-          ${(x.key_facts || []).length ? `<ul class="small">${x.key_facts.map((k) => `<li dir="auto">${esc(k)}</li>`).join("")}</ul>` : ""}</div>`).join("")}
-        ${!t.language && t.versions.length > 1 ? `<div class="small muted">${t.versions.length - 1} translation(s) are reviewed separately by language reviewers (Translations tab).</div>` : ""}
-        ${flagsHtml(t)}
-        <div class="edit-box" dir="auto">
-          <label>Headline (${esc(lang(editLang))})</label><input data-e="headline" style="width:100%" value="${esc(v.headline)}">
-          <label>Summary</label><textarea data-e="summary" rows="3">${esc(v.summary)}</textarea>
-          <label>Key facts (one per line)</label><textarea data-e="key_facts" rows="3">${esc((v.key_facts || []).join("\n"))}</textarea>
-        </div>
-        <div class="actions">
-          <button class="btn primary" data-do="approve">Approve</button>
-          <button class="btn" data-do="edit">Edit text</button>
-          <button class="btn" data-do="changes">Request changes</button>
-          <button class="btn danger" data-do="reject">Reject</button>
-        </div></div>`;
-    }).join("");
-    box.querySelectorAll("[data-do]").forEach((b) => (b.onclick = () => taskAction(b)));
-  } catch (e) { box.innerHTML = `<div class="card empty">${esc(e.message)}</div>`; }
-}
-
-async function taskAction(b) {
-  const card = b.closest(".task"), id = card.dataset.id, act = b.dataset.do;
-  const editBox = card.querySelector(".edit-box");
-  try {
-    if (act === "edit") { editBox.classList.toggle("on"); b.textContent = editBox.classList.contains("on") ? "Cancel edit" : "Edit text"; return; }
-    if (act === "approve") {
-      const open = [...card.querySelectorAll("[data-check]:not(:disabled)")];
-      if (open.some((c) => !c.checked)) return toast("Tick every checklist item first: the story can't be published until an editor confirms them.");
-      const body = { confirm: open.map((c) => c.dataset.check) };
-      if (editBox.classList.contains("on")) {
-        const val = (k) => card.querySelector(`[data-e="${k}"]`).value;
-        body.edits = { headline: val("headline").trim(), summary: val("summary").trim(), key_facts: val("key_facts").split("\n").map((s) => s.trim()).filter(Boolean) };
-      }
-      await api(`/editorial/tasks/${id}/approve/`, { method: "POST", body });
-      toast("Approved.");
-    } else {
-      const comment = prompt(act === "reject" ? "Why are you rejecting this?" : "What should change?");
-      if (!comment) return;
-      await api(`/editorial/tasks/${id}/${act === "reject" ? "reject" : "request-changes"}/`, { method: "POST", body: { comment } });
-      toast(act === "reject" ? "Rejected." : "Changes requested.");
-    }
-    card.remove(); loadDashboard();
-  } catch (e) { toast(e.message); }
-}
-
-$("qBatch").onclick = async () => {
-  const tasks = results(await api("/editorial/tasks/?page_size=200&reason=batch_low_risk"));
-  if (!tasks.length) return toast("No low-risk items waiting.");
-  if (!confirm(`Approve ${tasks.length} low-risk item(s)? Items with an editorial checklist are skipped.`)) return;
-  const res = await api("/editorial/tasks/batch-approve/", { method: "POST", body: { task_ids: tasks.map((t) => t.id) } });
-  toast(`Approved ${res.approved.length}, skipped ${res.skipped.length}.`); loadQueue(); loadDashboard();
-};
-
-// ---------- moderation ----------
-const mState = { status: "pending" };
-$("mStatus").querySelectorAll("button").forEach((b) => (b.onclick = () => { $("mStatus").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); mState.status = b.dataset.v; loadModeration(); }));
-async function loadPhotos(box) {
-  const photos = await api("/communities/photos/");
-  if (!photos.length) { box.innerHTML = `<div class="card empty">No photos waiting. Faces in new photos are blurred on upload; check them here before others see them.</div>`; return; }
-  box.innerHTML = photos.map((p) => `<div class="card task" data-id="${p.id}">
-    <div class="task-head"><b>${esc(p.author_name)}</b><span class="muted">in ${esc(p.community_name)} · posted ${ago(p.created_at)}</span>
-      <span class="pill">${p.faces_blurred} face${p.faces_blurred === 1 ? "" : "s"} blurred</span></div>
-    <img src="${esc(p.image)}" alt="" style="display:block;max-width:100%;max-height:420px;border-radius:10px;margin:0 0 8px">
-    ${p.notes.length ? `<div class="flag warn"><b>Check</b><ul>${p.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
-    <p style="white-space:pre-wrap;margin:0 0 8px" dir="auto">${esc(p.body)}</p>
-    <p class="small muted">Approve only if every face is unrecognisable and nothing else identifies a person (name tags, number plates, home addresses).</p>
-    <div class="actions"><button class="btn primary" data-photo="approve">Approve photo</button><button class="btn danger" data-photo="reject">Reject photo (keep the text)</button></div>
-  </div>`).join("");
-  box.querySelectorAll("[data-photo]").forEach((b) => (b.onclick = async () => {
-    const id = b.closest(".task").dataset.id;
-    try { await api(`/communities/photos/${id}/decide/`, { method: "POST", body: { decision: b.dataset.photo } }); toast(b.dataset.photo === "approve" ? "Photo approved." : "Photo removed."); loadModeration(); }
-    catch (e) { toast(e.message); }
-  }));
-}
-
-async function loadModeration() {
-  const box = $("modList");
-  if (mState.status === "photos") { try { await loadPhotos(box); } catch (e) { box.innerHTML = `<div class="card empty">${esc(e.message)}</div>`; } return; }
-  try {
-    const posts = results(await api(`/communities/moderation/?status=${mState.status}`));
-    if (!posts.length) { box.innerHTML = `<div class="card empty">${{ pending: "Nothing to moderate. Reported posts appear here.", questions: "No unanswered questions. Questions members post in Community News appear here." }[mState.status] || "Nothing here yet."}</div>`; return; }
-    box.innerHTML = posts.map((p) => `<div class="card task" data-id="${p.id}">
-      <div class="task-head"><b>${esc(p.author_name)}</b><span class="muted">in ${esc(p.community_name)} · posted ${ago(p.created_at)}</span>
-        ${p.reports.length ? `<span class="pill bad">${p.reports.length} report${p.reports.length > 1 ? "s" : ""}</span>` : ""}</div>
-      <p style="white-space:pre-wrap;margin:0 0 8px;font-size:15px" dir="auto">${esc(p.body)}</p>
-      ${p.reports.length ? `<div class="flag warn"><b>Reports</b><ul>${p.reports.map((r) => `<li>${esc(r.reason)}${r.note ? `: ${esc(r.note)}` : ""} <span class="small">(${esc(r.by)}, ${ago(r.at)})</span></li>`).join("")}</ul></div>` : ""}
-      ${p.moderated_at ? `<div class="small muted">${p.status === "removed" ? "Removed" : "Kept"} by ${esc(p.moderated_by_name || "–")} ${ago(p.moderated_at)}${p.moderation_note ? `: “${esc(p.moderation_note)}”` : ""}</div>` : ""}
-      ${mState.status === "pending" ? `<div class="actions"><button class="btn primary" data-mod="keep">Keep (restore)</button><button class="btn danger" data-mod="remove">Remove</button></div>` : ""}
-      ${mState.status === "questions" ? `<div class="actions"><label class="small muted">Answered by story # <input data-answer type="number" min="1" style="width:90px"></label>
-        <button class="btn primary" data-link="1">Link answer</button><span class="small muted">The post then shows "Answered by the newsroom" with a link.</span></div>` : ""}
-    </div>`).join("");
-    box.querySelectorAll("[data-link]").forEach((b) => (b.onclick = async () => {
-      const card = b.closest(".task"), story = card.querySelector("[data-answer]").value;
-      if (!story) return toast("Enter the number of the story that answers this question.");
-      try { await api(`/communities/news/${card.dataset.id}/answer/`, { method: "POST", body: { snippet: Number(story) } }); toast("Answer linked."); loadModeration(); }
-      catch (e) { toast(e.message); }
-    }));
-    box.querySelectorAll("[data-mod]").forEach((b) => (b.onclick = async () => {
-      const id = b.closest(".task").dataset.id;
-      const note = b.dataset.mod === "remove" ? prompt("Reason for removing (kept in the record):") : "";
-      if (note === null) return;
-      try { await api(`/communities/moderation/${id}/decide/`, { method: "POST", body: { decision: b.dataset.mod, note } }); toast(b.dataset.mod === "keep" ? "Restored." : "Removed."); loadModeration(); loadDashboard(); }
-      catch (e) { toast(e.message); }
-    }));
-  } catch (e) { box.innerHTML = `<div class="card empty">${esc(e.message)}</div>`; }
-}
-
-// ---------- compare feeds ----------
-const SITU = { newcomer: "newcomer", student: "student", seasonal_worker: "seasonal worker", resident: "resident" };
-async function loadReaders() {
-  if (!S.readers.length) S.readers = await api("/accounts/readers/");
-  if (!S.picked.length) S.picked = S.readers.filter((r) => !r.is_staff).slice(0, 2).map((r) => r.id);
-  $("readers").innerHTML = S.readers.length ? S.readers.map((r) => `<label class="reader-pick ${S.picked.includes(r.id) ? "on" : ""}">
-    <input type="checkbox" value="${r.id}" ${S.picked.includes(r.id) ? "checked" : ""}>
-    <span><b>${esc(r.display_name || r.email)}</b><br><span class="small muted">${esc(lang(r.preferred_language))} · ${esc(SITU[r.reader_situation] || r.reader_situation)}</span></span></label>`).join("")
-    : `<span class="muted">No onboarded readers yet.</span>`;
-  $("readers").querySelectorAll("input").forEach((i) => (i.onchange = () => {
-    const id = Number(i.value);
-    S.picked = i.checked ? [...S.picked, id].slice(-3) : S.picked.filter((x) => x !== id);
-    loadReaders();
-  }));
-  renderCompare();
-}
-function renderCompare() {
-  const cols = $("compareCols");
-  if (!S.picked.length) { cols.innerHTML = `<div class="card empty">Pick readers above.</div>`; return; }
-  cols.innerHTML = S.picked.map((id) => `<div class="card" id="col-${id}"><div class="empty">Loading…</div></div>`).join("");
-  const meter = (l, v, max = 1) => `<div class="meter"><span>${l}</span><i><b style="width:${Math.round((v / max) * 100)}%"></b></i><span>${Math.round(v * 100)}%</span></div>`;
-  for (const id of S.picked) {
-    const r = S.readers.find((x) => x.id === id);
-    api(`/feed/snippets/?as_user=${id}&limit=8`).then((d) => {
-      const cards = results(d);
-      $(`col-${id}`).innerHTML = `<h2 style="margin:0">${esc(r.display_name || r.email)}</h2>
-        <div class="small muted">${esc(lang(r.preferred_language))} · ${esc(SITU[r.reader_situation] || "")}${r.arrival_date ? ` · arrived ${esc(r.arrival_date)}` : ""}</div>
-        <div class="row small" style="margin-top:6px">${(r.profile?.interests || []).map((t) => `<span class="pill">${esc(t)}</span>`).join("")}</div>
-        ${cards.length ? cards.map((c, i) => `<div class="feed-card" dir="auto">
-          <div class="row small muted"><b>#${i + 1}</b><span class="pill">${esc(lang(c.language))}</span>${c.in_your_language ? "" : `<span class="pill bad">not yet in ${esc(lang(c.requested_language))}</span>`}
-            <span>score ${c.ranking?.score?.toFixed(2) ?? "–"} · ${esc(c.ranking?.ranker || "")}</span></div>
-          <h4>${esc(c.headline)}</h4>
-          ${c.for_you ? `<div class="small muted">For you: ${esc(c.for_you.slice(0, 140))}</div>` : ""}
-          ${c.ranking?.jev ? meter("Affects them", c.ranking.jev.affects_reader) + meter("Interests", c.ranking.jev.matches_interests) + meter("Action", c.ranking.jev.needs_action) : ""}
-        </div>`).join("") : `<div class="empty">No published stories in their languages yet.</div>`}`;
-    }).catch((e) => ($(`col-${id}`).innerHTML = `<div class="empty">${esc(e.message)}</div>`));
-  }
-}
-
-// ---------- start ----------
-if (location.hash.includes("token=")) {
-  const t = new URLSearchParams(location.hash.slice(1)).get("token");
-  if (t) {
-    S.token = t;
-    try { localStorage.setItem("admin-token", t); } catch {}
-    history.replaceState(null, "", location.pathname);
-  }
-}
-if (S.token) start(); else { $("login").hidden = false; }
-</script>
+        <section class="view" id="v-compare" aria-labelledby="title-compare">
+          <header class="page"><div><p class="eyebrow">Different readers, different needs</p><h1 id="title-compare">Compare feeds</h1><p>See how language, situation and interests shape each reader’s feed. Choose up to three readers.</p></div></header>
+          <div class="card panel-gap"><div class="row" id="readers" aria-label="Readers to compare"></div></div><div class="cols" id="compareCols"></div>
+        </section>
+        <section class="view" id="v-settings" aria-labelledby="title-settings">
+          <header class="page"><div><p class="eyebrow">How your newsroom runs</p><h1 id="title-settings">Settings</h1><p>Current configuration for this workspace. Values refresh every 30 seconds.</p></div><button class="btn" id="refreshSettings">Refresh settings ↻</button></header>
+          <div class="settings-notice"><span class="pill">Read only</span><p>Model and ranking settings come from <code>.env</code>; scheduling is stored in the task scheduler. Environment changes require a service reload.</p></div>
+          <div id="settingsContent" class="settings-grid" aria-label="Newsroom settings"><div class="empty" role="status">Loading settings…</div></div>
+        </section>
+      </main>
+      <footer class="workspace-footer"><span>Oulu News · Newsroom</span><span>Built with the community. Reviewed by people.</span></footer>
+    </div>
+  </div>
+  <dialog id="actionDialog" aria-labelledby="dialogTitle" aria-describedby="dialogDescription"><form id="actionForm"><p class="eyebrow">Editorial decision</p><h2 id="dialogTitle"></h2><p id="dialogDescription" class="muted"></p><div class="field" id="dialogField"><label for="dialogComment">Reason (saved in the record)</label><textarea id="dialogComment" rows="4" required></textarea></div><div class="actions"><button class="btn" id="dialogCancel" type="button">Cancel</button><button class="btn primary" type="submit" id="dialogSubmit">Continue</button></div></form></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <noscript><p class="empty">Enable JavaScript to use the newsroom workspace.</p></noscript>
 </body>
 </html>

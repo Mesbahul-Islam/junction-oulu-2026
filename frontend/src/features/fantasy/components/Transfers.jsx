@@ -66,7 +66,7 @@ export default function Transfers({ squad, players, teams, onDone, onClose }) {
           <button type="button" onClick={onClose} aria-label={t("close")}><X size={20} /></button>
         </div>
         <p className="fx-note"><b>{t("pointsToSpend", { n: available })}</b> {t("costRule")}</p>
-        {error && <div className="error">{error}</div>}
+        {error && <div className="fx-error">{error}</div>}
 
         {saved && !out && !plan && (
           <ul className="fx-swaps">

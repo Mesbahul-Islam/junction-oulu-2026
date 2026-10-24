@@ -3,11 +3,14 @@ import { api } from "@/lib/api";
 
 // Community News: posts written by members (not journalism; can be flagged).
 export const getCommunityNews = () => api("/communities/news/");
+// Cursor-paginated lists hand back an absolute `next` URL; api() wants the path after /api.
+export const getPage = (url) => api(url.slice(url.indexOf("/api/") + 4));
+// One community's top-level posts, newest first (members only).
+export const getGroupPosts = (slug) => api(`/communities/groups/${slug}/posts/`);
 export const getCommunities = async () => {
   const data = await api("/communities/groups/");
   return Array.isArray(data) ? data : data.results || [];
 };
-export const getMyCommunities = async () => (await getCommunities()).filter((g) => g.is_member);
 // Communities matching the reader's profile (situation, topics, place, language), each with `reasons`.
 export const getRecommendedCommunities = () => api("/communities/groups/recommended/");
 export const joinCommunity = (slug) => api(`/communities/groups/${slug}/join/`, { method: "POST" });
@@ -20,6 +23,8 @@ export const createPost = (slug, body, photo) => {
   form.append("image", photo);
   return api(`/communities/groups/${slug}/posts/`, { method: "POST", body: form });
 };
+// Only the post's author may delete it.
+export const deletePost = (slug, id) => api(`/communities/groups/${slug}/posts/${id}/`, { method: "DELETE" });
 export const likePost = (slug, id, liked) =>
   api(`/communities/groups/${slug}/posts/${id}/like/`, { method: liked ? "POST" : "DELETE" });
 export const sharePost = (slug, id) => api(`/communities/groups/${slug}/posts/${id}/share/`, { method: "POST" });
@@ -33,3 +38,5 @@ export const flagPost = (slug, id, reason, note = "") =>
 // Tips, questions and topic ideas go to the newsroom (never published automatically).
 export const sendContribution = (community, kind, body) =>
   api("/communities/contributions/", { method: "POST", body: { community, kind, body, contributor_consent: true } });
+// The reader's own questions, tips and ideas, newest first, with where each one stands.
+export const getContributions = () => api("/communities/contributions/");

@@ -56,9 +56,9 @@
 </section>
 
 <section class="slide" aria-labelledby="s7">
-<p class="eyebrow">06 / Reporter and explainer</p><h2 id="s7">AI writes a Finnish draft and reader context</h2>
-<div class="split"><div><h3>Reporter</h3><p>The model writes a headline, a short summary, and key facts.</p><p>The instructions permit only facts from the supplied source.</p><p>If the model fails, the system uses the source title and first sentences. This fallback requires review.</p></div><div><h3>Explainer</h3><p>The model explains the effect on newcomers, seasonal workers, students, and residents.</p><p>If this step fails, the draft continues without these explanations.</p><p class="muted">The system passes each selected story through these desks in sequence.</p></div></div>
-<p class="source"><a href="../apps/agents/newsroom/desks.py">newsroom/desks.py: reporter(), explainer()</a><a href="../apps/agents/newsroom/runner.py">newsroom/runner.py: story_graph()</a></p>
+<p class="eyebrow">06 / Brief and explanation</p><h2 id="s7">One source-grounded draft and reader context</h2>
+<div class="split"><div><h3>Brief</h3><p>One model call receives the original RSS title and description and writes a Finnish headline, concise summary, and supported facts. A short source does not require extra sentences or facts.</p></div><div><h3>Reader context</h3><p>The same call explains supported implications for newcomers, seasonal workers, students, and residents. When evidence is insufficient, it says so.</p><p>If the call fails or returns malformed data, the system preserves source text, omits explanations, and requires human review.</p></div></div>
+<p class="source"><a href="../apps/agents/newsroom/desks.py">newsroom/desks.py: explainer()</a><a href="../apps/agents/newsroom/runner.py">newsroom/runner.py: story_graph()</a></p>
 </section>
 
 <section class="slide" aria-labelledby="s8">
