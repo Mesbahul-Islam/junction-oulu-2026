@@ -627,6 +627,46 @@ After that, Celery keeps the data current:
 
 **Local leaderboards:** the `community` scope ranks members of a `CommunityGroup`. Kärpät is linked to Oulu (`TEAM_COMMUNITIES` in `services/liiga.py`).
 
+### Lämäri: prizes, analysis and the sports desk
+
+In the reader app, the fantasy game is branded **Lämäri** (Profile > Fantasy mode > Lämäri fantasy).
+
+**Brand prizes:**
+- Brands fund prizes for leaderboard places (`Sponsor`, `Reward`). When a gameweek is final, everyone inside a weekly prize's range gets a `Voucher` with a code (`services/rewards.py`). Season prizes are awarded after the final.
+- `manage.py seed_sponsors` creates the demo partners from the logos in `backend/media/fantasy/`. Bootstrap runs it automatically.
+- Managers get a tier from their season rank: Diamond (the leader, plus the top 1%), Gold (top 10%), Silver (top 35%) and Bronze.
+
+**Analysis and coaching** (`services/analysis.py`):
+- Every sentence is built from Liiga data: results, standings computed the Liiga way (3/2/1 points), form, head-to-head, fantasy points.
+- An AI model may reword the notes, but its version is kept only when it contains no number missing from the data.
+- Readers never wait for a model. `services/reports.py` returns the data version at once and queues a background job to store an AI-worded one for the next visit.
+
+**Sports desk agent** (`services/sports_desk.py`): every 30 minutes, Celery fetches Kaleva's hockey and sports RSS feeds once. Then each player in someone's team gets his own task, which:
+- reads his Liiga game log and writes a form note;
+- checks his Liiga profile for a suspension;
+- stores Kaleva stories that mention him by name, with links.
+
+**Rate limits:**
+- Feeds are fetched once per cycle.
+- Player tasks run at 20 per minute, with 1.5 s between Liiga requests.
+- Model calls are capped at `SPORTS_AI_PER_MINUTE` (default 4) across all workers, counted in Redis.
+- If the model server is down, the wording step is skipped for 5 minutes.
+
+The model for this wording is set with `LLM_MODEL_SPORTS`; without it, the main `LLM_MODEL` is used.
+
+**On the device:** the app keeps sports data in local storage with a time limit per kind (players 6 h, season 30 min, team 2 min). A refresh shows the stored copy instantly and only fetches what has gone stale.
+
+| Endpoint | What |
+|---|---|
+| `GET rewards/` | Sponsored prizes this season |
+| `GET vouchers/` | Vouchers you have won |
+| `GET fixtures/{id}/analysis/?detail=short\|full` | Context beyond the score, or a preview |
+| `GET squad/coach/` | Your last gameweek reviewed, with captain, lineup and transfer suggestions |
+| `GET squad/news/?limit=&offset=` | What the sports desk found about your players |
+| `GET managers/?q=` | Find managers by @username |
+| `POST leagues/{id}/invite/` | Invite a friend by @username |
+| `GET players/{id}/photo/` | 96 px player photo (WebP, cached for a week) |
+
 ---
 
 ## 11. Hands-on: the whole flow with curl

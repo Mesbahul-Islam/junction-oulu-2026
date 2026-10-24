@@ -37,4 +37,4 @@ export async function api(path, { method = "GET", body, auth = true } = {}) {
 }
 
 // Transport only. Endpoints live per feature in @/features/<name>/api.js:
-//   auth · account · feed · communities · shortlist · notes
+//   auth · account · feed · communities · shortlist · notes · fantasy

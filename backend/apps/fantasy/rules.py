@@ -18,7 +18,16 @@ STARTERS = sum(STARTING_COMPOSITION.values())  # 11
 MAX_PER_TEAM = 3
 
 CAPTAIN_MULTIPLIER = 2
-TRANSFER_POINT_COST = 4  # per transfer beyond the free ones
+TRANSFER_POINT_COST = 4  # (legacy) flat cost; transfers now cost by the incoming player's rank, see transfer_cost
+MIN_TRANSFER_COST, MAX_TRANSFER_COST = 1, 8
+
+
+def transfer_cost(percentile: float) -> int:
+    """Points you lose to bring a player in, by his season rank within his position.
+
+    percentile 1.0 is the best player at his position (costs MAX_TRANSFER_COST), 0.0 the lowest
+    (MIN_TRANSFER_COST). Strong players cost more, so a change has to be worth it."""
+    return max(MIN_TRANSFER_COST, min(MAX_TRANSFER_COST, round(MAX_TRANSFER_COST * percentile)))
 MAX_FREE_TRANSFERS = 5  # unused free transfers bank up to this many
 
 # --------------------------------------------------------------------------- points
