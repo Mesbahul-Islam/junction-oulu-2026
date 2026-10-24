@@ -20,5 +20,11 @@ urlpatterns = [
     path("squad/transfers/", views.TransferView.as_view(), name="transfers"),
     path("squad/history/", views.HistoryView.as_view(), name="history"),
     path("leaderboard/", views.LeaderboardView.as_view(), name="leaderboard"),
+    path("managers/", views.ManagerSearchView.as_view(), name="managers"),
+    path("squad/coach/", views.CoachView.as_view(), name="coach"),
+    path("squad/news/", views.SquadNewsView.as_view(), name="squad-news"),
+    path("rewards/", views.RewardsView.as_view(), name="rewards"),
+    path("chat/", views.ChatView.as_view(), name="chat"),
+    path("vouchers/", views.VoucherListView.as_view(), name="vouchers"),
     path("", include(router.urls)),
 ]

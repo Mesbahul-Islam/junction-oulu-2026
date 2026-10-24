@@ -116,4 +116,8 @@ def score_gameweek(gameweek: Gameweek) -> int:
     for squad in squads:
         if score_squad(squad, gameweek, context) is not None:
             n += 1
+    if gameweek.status == Gameweek.Status.FINISHED:
+        from .rewards import award_gameweek  # sponsor vouchers for the gameweek's winners
+
+        award_gameweek(gameweek)
     return n

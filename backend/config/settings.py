@@ -169,7 +169,7 @@ LLM_LANGUAGES_PER_CALL = env.int("LLM_LANGUAGES_PER_CALL", default=1)
 # Advanced, optional: a different model for one agent, as provider:model
 # (e.g. LLM_MODEL_TRANSLATOR=anthropic:claude-haiku-5-5). Its key is read from that
 # provider's own variable below (ANTHROPIC_API_KEY ...) unless it's the main provider.
-LLM_AGENTS = ("reporter", "explainer", "translator")  # LLM_MODEL_REPORTER etc. pick a model per desk
+LLM_AGENTS = ("reporter", "explainer", "translator", "sports")  # LLM_MODEL_REPORTER etc. pick a model per desk
 LLM_AGENT_MODELS = {agent: env(f"LLM_MODEL_{agent.upper()}", default="") for agent in LLM_AGENTS}
 LLM_PROVIDER_KEY_VARS = {
     "google_genai": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
@@ -209,3 +209,6 @@ MARKETS_SIGNUP_GRANT = env.int("MARKETS_SIGNUP_GRANT", default=1000)
 # Fantasy Liiga: Liiga stats API (https://prod.liiga-backend.liiga.fi/stats/swagger-ui)
 LIIGA_API_BASE = env("LIIGA_API_BASE", default="https://prod.liiga-backend.liiga.fi/stats/api/v1")
 LIIGA_API_KEY = env("LIIGAFI_API_KEY", default="")
+# Lämäri AI wording (agent "sports", model via LLM_MODEL_SPORTS): at most this many model calls per minute,
+# shared by all workers, so free tiers (e.g. Gemini's ~5 requests a minute) are never exceeded.
+SPORTS_AI_PER_MINUTE = env.int("SPORTS_AI_PER_MINUTE", default=4)

@@ -106,16 +106,22 @@ class Command(BaseCommand):
 
     def _ensure_fantasy(self):
         """First start only: import the Liiga season, then create demo managers and leagues."""
-        from apps.fantasy.models import Player, Squad
+        from apps.fantasy.models import Player, Sponsor, Squad
 
         if Squad.objects.exists():
             self.stdout.write("Fantasy data already present; skipping Liiga sync (run `manage.py sync_liiga` to update).")
+            if not Sponsor.objects.exists():
+                try:
+                    call_command("seed_sponsors")  # brand partners and prizes, added after the first fantasy release
+                except Exception as exc:
+                    self.stdout.write(self.style.WARNING(f"Brand prizes skipped: {exc}. Run later: manage.py seed_sponsors"))
             return
         try:
             if not Player.objects.exists():
                 self.stdout.write("Importing the Liiga season (first start, needs internet)...")
                 call_command("sync_liiga")
             call_command("seed_fantasy_demo")
+            call_command("seed_sponsors")
         except Exception as exc:  # network down, Liiga API changed ...: the rest of the app still starts
             self.stdout.write(self.style.WARNING(
                 f"Fantasy seed skipped: {type(exc).__name__}: {exc}\n"

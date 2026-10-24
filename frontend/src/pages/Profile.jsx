@@ -1,9 +1,11 @@
-import { AtSign, ChevronRight, Languages, LogOut, Sparkles, Users } from "lucide-react";
-import { useState } from "react";
+import { AtSign, ChevronRight, Languages, LogOut, Sparkles, Trophy, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { updateMe } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useFantasyMode } from "../lib/fantasyMode";
+import { preloadFantasy } from "../lib/fantasyPreload";
 import { languageName, SITUATIONS, topicLabel } from "../lib/i18n";
 
 export default function Profile() {
@@ -23,6 +25,9 @@ export default function Profile() {
     }
   };
   const navigate = useNavigate();
+  const [fantasyMode, setFantasyMode] = useFantasyMode();
+  // Fantasy mode on: fetch the game's data and warm player photos now, before the reader taps in.
+  useEffect(() => { if (fantasyMode) preloadFantasy(); }, [fantasyMode]);
   const initials = (me.display_name || me.username || me.email).slice(0, 2).toUpperCase();
   const situation = SITUATIONS.find((s) => s.value === me.reader_situation)?.label;
 
@@ -64,6 +69,16 @@ export default function Profile() {
         <Link to="/communities" className="row-link" style={{ color: "inherit" }}>
           <span><Users size={16} style={{ verticalAlign: -3 }} /> Communities</span><ChevronRight size={18} />
         </Link>
+        <label className="row-link" style={{ cursor: "pointer" }}>
+          <span><Trophy size={16} style={{ verticalAlign: -3 }} /> Fantasy mode</span>
+          <input type="checkbox" role="switch" className="switch" checked={fantasyMode} onChange={(e) => setFantasyMode(e.target.checked)} />
+        </label>
+        {fantasyMode && (
+          <Link to="/fantasy" className="row-link" style={{ color: "inherit" }}>
+            <span><Trophy size={16} style={{ verticalAlign: -3 }} /> Lämäri fantasy</span>
+            <ChevronRight size={18} />
+          </Link>
+        )}
         <Link to="/onboarding" className="btn-primary" style={{ marginTop: 10 }}>Edit preferences</Link>
       </section>
 

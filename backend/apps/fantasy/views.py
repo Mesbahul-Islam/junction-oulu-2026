@@ -3,6 +3,8 @@
 from datetime import date
 
 from django.db.models import Q
+from django.http import FileResponse, Http404
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, mixins, permissions, status, viewsets
@@ -14,14 +16,18 @@ from rest_framework.settings import api_settings
 from rest_framework.views import APIView
 
 from .auth import DevBypassAuthentication
-from .models import Fixture, Gameweek, League, Player, Squad, Team
+from .models import Fixture, Gameweek, League, Player, PlayerNote, Squad, Team, Voucher
 from .serializers import (
     CreateSquadSerializer,
     FixtureSerializer,
     GameweekScoreSerializer,
     GameweekSerializer,
+    InviteSerializer,
     JoinLeagueSerializer,
     LeagueSerializer,
+    PlayerNoteSerializer,
+    RewardSerializer,
+    VoucherSerializer,
     LineupSerializer,
     PlayerGameStatSerializer,
     PlayerSerializer,
@@ -32,7 +38,8 @@ from .serializers import (
     TransferRequestSerializer,
     TransferSerializer,
 )
-from .services import leaderboards
+from .services import leaderboards, photos, reports, rewards
+from .services.analysis import lang_of
 from .services.squads import (
     FantasyError,
     create_squad,
@@ -124,6 +131,17 @@ class FixtureViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(Q(home_id=team) | Q(away_id=team))
         return qs
 
+    @action(detail=True, methods=["get"])
+    def analysis(self, request, pk=None):
+        """?detail=short|full &reader=fan|new: context beyond the score (or a preview), from Liiga data."""
+        fixture = self.get_object()
+        squad = None
+        if request.user.is_authenticated:
+            squad = Squad.objects.filter(user=request.user, season=fixture.season).first()
+        detail = "full" if request.query_params.get("detail") == "full" else "short"
+        reader = "new" if request.query_params.get("reader") == "new" else "fan"
+        return Response(reports.match_report(fixture, squad, detail, reader, lang_of(request.user)))
+
 
 class PlayerViewSet(viewsets.ReadOnlyModelViewSet):
     """?position=G|D|F &team=<id> &search=<name> &ordering=price|-price|total_points|-total_points"""
@@ -147,6 +165,16 @@ class PlayerViewSet(viewsets.ReadOnlyModelViewSet):
         ).order_by("-fixture__starts_at")
         return Response(PlayerGameStatSerializer(stats, many=True).data)
 
+    @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny])
+    def photo(self, request, pk=None):
+        """96 px WebP thumbnail of the player's Liiga photo (made on first request if missing)."""
+        path = photos.ensure_thumbnail(self.get_object())
+        if path is None:
+            raise Http404("No photo")
+        resp = FileResponse(open(path, "rb"), content_type="image/webp")
+        resp["Cache-Control"] = "public, max-age=604800, immutable"
+        return resp
+
 
 class SquadView(APIView):
     """GET your squad · POST {name, player_ids[15]} to create it."""
@@ -157,7 +185,7 @@ class SquadView(APIView):
 
     def get(self, request):
         try:
-            return Response(SquadSerializer(_my_squad(request)).data)
+            return Response(SquadSerializer(_my_squad(request), context={"request": request}).data)
         except FantasyError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
 
@@ -168,7 +196,7 @@ class SquadView(APIView):
             squad = create_squad(request.user, ser.validated_data["name"], ser.validated_data["player_ids"])
         except FantasyError as exc:
             return _error(exc)
-        return Response(SquadSerializer(squad).data, status=status.HTTP_201_CREATED)
+        return Response(SquadSerializer(squad, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
 class LineupView(APIView):
@@ -226,7 +254,7 @@ class TransferView(APIView):
         squad.refresh_from_db()
         return Response({
             "transfers": TransferSerializer(transfers, many=True).data,
-            "squad": SquadSerializer(squad).data,
+            "squad": SquadSerializer(squad, context={"request": request}).data,
         }, status=status.HTTP_201_CREATED)
 
 
@@ -262,6 +290,7 @@ class LeaderboardView(APIView):
             board = leaderboards.leaderboard(
                 season, p.get("period", "season"), p.get("scope", "global"), day=day, gameweek=gameweek,
                 community=p.get("community"), league=league, limit=min(int(p.get("limit", 100)), 500),
+                offset=max(int(p.get("offset", 0)), 0),
                 user=request.user,
             )
         except (FantasyError, ValueError) as exc:
@@ -289,6 +318,18 @@ class LeagueViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Cre
             return _error(exc)
         return Response(LeagueSerializer(league).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["post"], serializer_class=InviteSerializer)
+    def invite(self, request, pk=None):
+        """Add a friend to this league by @username."""
+        ser = InviteSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        league = self.get_object()
+        try:
+            leaderboards.invite_to_league(league, _my_squad(request), ser.validated_data["username"])
+        except FantasyError as exc:
+            return _error(exc)
+        return Response(LeagueSerializer(league).data)
+
     @action(detail=False, methods=["post"], serializer_class=JoinLeagueSerializer)
     def join(self, request):
         ser = JoinLeagueSerializer(data=request.data)
@@ -298,3 +339,119 @@ class LeagueViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Cre
         except FantasyError as exc:
             return _error(exc)
         return Response(LeagueSerializer(league).data)
+
+
+class ManagerSearchView(APIView):
+    """?q=<username prefix>: managers with a team this season, for inviting friends."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = AUTHENTICATION
+
+    def get(self, request):
+        try:
+            return Response(leaderboards.search_managers(current_season(), request.query_params.get("q", "")))
+        except FantasyError as exc:
+            return _error(exc)
+
+
+class CoachView(APIView):
+    """Your last gameweek reviewed, and suggestions for the next one (captain, lineup, one transfer)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = AUTHENTICATION
+
+    def get(self, request):
+        try:
+            return Response(reports.coach_report(_my_squad(request), lang_of(request.user)))
+        except FantasyError as exc:
+            return _error(exc)
+
+
+class RewardsView(APIView):
+    """Brand-sponsored prizes this season."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        try:
+            season = current_season()
+        except FantasyError as exc:
+            return _error(exc)
+        return Response(RewardSerializer(rewards.current_rewards(season), many=True, context={"request": request}).data)
+
+
+class VoucherListView(APIView):
+    """Vouchers you have won."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = AUTHENTICATION
+
+    def get(self, request):
+        vouchers = Voucher.objects.filter(squad__user=request.user, reward__active=True).select_related("reward__sponsor", "gameweek")
+        return Response(VoucherSerializer(vouchers, many=True, context={"request": request}).data)
+
+
+class SquadNewsView(APIView):
+    """What the sports desk found about your players: form notes, status changes, Kaleva stories.
+    ?limit=&offset= for paging."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = AUTHENTICATION
+
+    def get(self, request):
+        try:
+            squad = _my_squad(request)
+        except FantasyError as exc:
+            return _error(exc)
+        notes = PlayerNote.objects.filter(player__squad_picks__squad=squad).select_related("player__team").distinct()
+        limit, offset = min(int(request.query_params.get("limit", 10)), 50), max(int(request.query_params.get("offset", 0)), 0)
+        page = notes[offset:offset + limit]
+        return Response({"total": notes.count(), "offset": offset, "limit": limit,
+                         "results": PlayerNoteSerializer(page, many=True, context={"request": request}).data})
+
+
+class ChatView(APIView):
+    """POST {"message": "..."}: Ask your Lämäri coach. Hockey and Lämäri only; everything else gets a fixed reply.
+    Limits per reader: CHAT_PER_MINUTE a minute and CHAT_PER_DAY a day."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = AUTHENTICATION
+    CHAT_PER_MINUTE = 8
+    CHAT_PER_DAY = 120
+
+    def _over(self, key: str, limit: int, ttl: int) -> bool:
+        from django.core.cache import cache
+
+        cache.add(key, 0, ttl)
+        return cache.incr(key) > limit
+
+    def post(self, request):
+        from .services import chat
+
+        now = timezone.now()
+        uid = request.user.pk
+        if self._over(f"fx-chat-m:{uid}:{int(now.timestamp() // 60)}", self.CHAT_PER_MINUTE, 90):
+            return Response({"detail": "Slow down a little. Try again in a minute."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        if self._over(f"fx-chat-d:{uid}:{now.date()}", self.CHAT_PER_DAY, 90000):
+            return Response({"detail": "That's today's questions used. Your coach is back tomorrow."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        message = str(request.data.get("message", ""))
+        if not message.strip():
+            return _error(FantasyError("Type a question"))
+        try:
+            season = current_season()
+        except FantasyError as exc:
+            return _error(exc)
+        squad = Squad.objects.filter(user=request.user, season=season).first()
+        lang = lang_of(request.user)
+        answer = chat.reply(message, squad, season, lang)
+        # Off-topic twice in a row (within 30 minutes): a firm reply, no suggestions.
+        from django.core.cache import cache
+
+        strikes_key = f"fx-chat-off:{uid}"
+        if answer.get("refused"):
+            cache.add(strikes_key, 0, 1800)
+            if cache.incr(strikes_key) >= 2:
+                answer = {"answer": chat.INSIST[lang], "source": "data", "suggestions": [], "refused": True}
+        else:
+            cache.delete(strikes_key)
+        return Response(answer)
