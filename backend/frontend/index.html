@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <title>Newsroom · Oulu News</title>
+  <title>Kalevalo Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/newsroom/admin.css">
   <script src="/static/newsroom/admin.js" defer></script>
 </head>
@@ -15,7 +15,7 @@
   <a href="#main" class="skip-link">Skip to content</a>
   <div id="bootState" class="empty" role="status">Opening the newsroom…</div>
   <div id="login" class="login" hidden>
-    <a class="wordmark" href="http://localhost:5173"><span class="brand-symbol" aria-hidden="true">O</span>Oulu News<span class="wordmark-dot" aria-hidden="true"></span></a>
+    <a class="wordmark" href="http://localhost:5173"><span class="brand-symbol" aria-hidden="true">K</span><span class="wordmark-name">Kalevalo</span><span class="wordmark-sub">Admin</span></a>
     <div class="login-panel">
       <p class="eyebrow">The newsroom workspace</p>
       <h1>Good journalism.<br>A human behind it.</h1>
@@ -35,7 +35,7 @@
 
   <div id="app" class="layout" hidden>
     <aside id="sidebar" aria-label="Workspace navigation">
-      <div class="sidebar-brand"><a class="wordmark" href="#overview"><span class="brand-symbol" aria-hidden="true">O</span>Oulu News<span class="wordmark-dot" aria-hidden="true"></span></a><button class="icon-btn drawer-close" id="closeMenu" aria-label="Close navigation">×</button></div>
+      <div class="sidebar-brand"><a class="wordmark" href="#overview"><span class="brand-symbol" aria-hidden="true">K</span><span class="wordmark-name">Kalevalo</span><span class="wordmark-sub">Admin</span></a><button class="icon-btn drawer-close" id="closeMenu" aria-label="Close navigation">×</button></div>
       <p class="workspace-label">Newsroom workspace</p>
       <nav aria-label="Newsroom">
         <button class="nav on" data-view="overview" aria-current="page"><span><span class="nav-icon" aria-hidden="true">⌂</span>Overview</span></button>
@@ -107,7 +107,7 @@
           <div id="settingsContent" class="settings-grid" aria-label="Newsroom settings"><div class="empty" role="status">Loading settings…</div></div>
         </section>
       </main>
-      <footer class="workspace-footer"><span>Oulu News · Newsroom</span><span>Built with the community. Reviewed by people.</span></footer>
+      <footer class="workspace-footer"><span>Kalevalo Admin</span><span>Built with the community. Reviewed by people.</span></footer>
     </div>
   </div>
   <dialog id="actionDialog" aria-labelledby="dialogTitle" aria-describedby="dialogDescription"><form id="actionForm"><p class="eyebrow">Editorial decision</p><h2 id="dialogTitle"></h2><p id="dialogDescription" class="muted"></p><div class="field" id="dialogField"><label for="dialogComment">Reason (saved in the record)</label><textarea id="dialogComment" rows="4" required></textarea></div><div class="actions"><button class="btn" id="dialogCancel" type="button">Cancel</button><button class="btn primary" type="submit" id="dialogSubmit">Continue</button></div></form></dialog>

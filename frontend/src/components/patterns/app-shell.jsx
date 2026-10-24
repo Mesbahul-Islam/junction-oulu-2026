@@ -15,15 +15,15 @@ export const NAV = [
   { to: "/profile", label: "You", icon: CircleUser },
 ];
 
-/** Kajo mark: first light on the horizon. */
+/** Kalevalo (Kaleva + valo, "light"): the Kajo mark, first light on the horizon, and the name in the display face. */
 export function Wordmark({ className }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 text-title font-semibold tracking-tight", className)}>
+    <span className={cn("inline-flex items-center gap-2 font-display text-[21px] leading-none tracking-[-0.02em]", className)}>
       <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M5 16a7 7 0 0 1 14 0Z" fill="currentColor" />
         <path d="M2.5 19.5h19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
-      Oulu News
+      Kalevalo
     </span>
   );
 }

@@ -105,7 +105,7 @@ export default function DesignSystem() {
             Colour tells you who is speaking.
           </h1>
           <p className="max-w-[58ch] text-lead text-muted">
-            Kajo is the design system for Oulu News. The interface is monochrome, ink on snow. Colour appears only to say who
+            Kajo is the design system for Kalevalo. The interface is monochrome, ink on snow. Colour appears only to say who
             stands behind a piece of content: the newsroom, a community member, people who confirmed it, or a correction.
             A reader learns that once and can rely on it on every screen.
           </p>

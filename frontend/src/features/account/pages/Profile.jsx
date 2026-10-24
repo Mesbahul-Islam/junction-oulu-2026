@@ -167,7 +167,7 @@ export default function Profile() {
       <Section title="Rewards and help">
         {[
           { to: "/rewards", icon: Gift, label: "Rewards", hint: "Partner offers for contributing, and the ad-free plan" },
-          { to: "/help", icon: CircleHelp, label: "Help", hint: "How Oulu News works, and answers to common questions" },
+          { to: "/help", icon: CircleHelp, label: "Help", hint: "How Kalevalo works, and answers to common questions" },
         ].map(({ to, icon: Icon, label, hint }) => (
           <Link key={to} to={to} className="focus-ring group flex items-center gap-3 rounded-control py-3.5">
             <Icon size={16} className="shrink-0 text-muted" />

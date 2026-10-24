@@ -1,4 +1,4 @@
-# Agent instructions — Oulu News reader app (`frontend/`)
+# Agent instructions — Kalevalo reader app (`frontend/`)
 
 Read this before touching any UI. It overrides any earlier plan, including `docs/UI_REBUILD_HANDOFF.md`.
 
@@ -36,7 +36,7 @@ full-width button on desktop, or a bottom tab bar on desktop is a bug.
 **Desktop (≥ 1024px)**
 ```
 ┌──────────────┬─────────────────────────────────────────────────┬──────────────┐
-│ Oulu News  ▾ │  Today / Housing                 updated 2h  ⋯ │              │
+│ Kalevalo  ▾ │  Today / Housing                 updated 2h  ⋯ │              │
 │──────────────│─────────────────────────────────────────────────│  side peek   │
 │ 🔍 Search    │                                                 │  (story,     │
 │ ⌂ Today      │   Page title                                     │   replies,  │

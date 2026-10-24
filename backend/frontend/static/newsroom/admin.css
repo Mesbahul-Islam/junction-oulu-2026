@@ -96,6 +96,8 @@ aside { position: sticky; top: 0; height: 100dvh; overflow-y: auto; display: fle
 .wordmark { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 19px; letter-spacing: -.035em; font-weight: 600; white-space: nowrap; }
 .brand-symbol { display: inline-grid; place-items: center; width: 24px; height: 24px; border: 2px solid currentColor; border-radius: 50%; font-size: 0; position: relative; }
 .brand-symbol::after { content: ''; width: 8px; height: 8px; background: currentColor; border-radius: 50%; }
+.wordmark-name { font-family: "Archivo Black", "IBM Plex Sans", system-ui, sans-serif; font-weight: 400; font-size: 21px; letter-spacing: -.02em; }
+.wordmark-sub { align-self: center; margin-inline-start: 2px; padding: 2px 7px; border: 1px solid currentColor; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; line-height: 1.2; opacity: .75; }
 .wordmark-dot, .provenance-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--newsroom); flex-shrink: 0; }
 .workspace-label { margin: 32px 10px 12px; color: var(--muted); font-size: 12px; }
 nav { display: grid; gap: 4px; }

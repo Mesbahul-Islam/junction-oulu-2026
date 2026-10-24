@@ -69,7 +69,7 @@ async function show(view, { load = true } = {}) {
   });
   document.querySelectorAll("section.view").forEach((section) => section.classList.toggle("on", section.id === "v-" + view));
   $("currentView").textContent = $("title-" + view).textContent;
-  document.title = $("currentView").textContent + " · Oulu Newsroom";
+  document.title = $("currentView").textContent + " · Kalevalo Admin";
   if (!load) return;
   try {
     await ({ overview: renderOverview, queue: loadQueue, moderation: loadModeration, newsroom: pollNewsroom, compare: loadReaders, settings: loadSettings }[view])();

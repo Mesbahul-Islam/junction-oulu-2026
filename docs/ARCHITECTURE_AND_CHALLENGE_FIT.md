@@ -9,7 +9,7 @@ How the backend is built, and how it maps to the Junction Oulu 2026 challenge
 
 - **Django 5.2 + Django REST Framework.** The backend is a JSON API under `/api/`.
 - **Two HTML admin pages** are served as plain static files (not Django templates):
-  - `backend/frontend/index.html` — the **AI Newsroom admin** (main dev tool).
+  - `backend/frontend/index.html` — the **Kalevalo Admin** (AI newsroom) (main dev tool).
   - `backend/frontend/fantasy.html` — a small Fantasy Liiga UI.
 - **A separate React phone app** (not in this repo) is the reader-facing product. It calls the same API.
 - **Celery + Redis** run background jobs (newsroom shifts, snippet expiry).

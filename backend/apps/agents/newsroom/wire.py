@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 KALEVA_FEED_URL = "https://www.kaleva.fi/feedit/rss/managed-listing/rss-maksuttomat/"
 KALEVA_FEED_NAME = "Kaleva – Maksuttomat"
-USER_AGENT = "OuluNewsroomBot/1.0 (+hackathon prototype)"
+USER_AGENT = "KalevaloBot/1.0 (+hackathon prototype)"
 MAX_ENTRIES_PER_FEED = 25
 CANDIDATE_HOURS = 48
 MAX_CANDIDATES = 120

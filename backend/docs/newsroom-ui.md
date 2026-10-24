@@ -11,7 +11,7 @@ community moderation and linking answers; comparing up to three readers' persona
 Desktop (1024px and up):
 
     240px sidebar  | breadcrumb                         theme
-    Oulu News     | ----------------------------------------
+    Kalevalo Admin| ----------------------------------------
     Workspace     | Overview                updated / refresh
     Overview      | Six compact metrics, divided by hairlines
     Editor queue  | ----------------------------------------

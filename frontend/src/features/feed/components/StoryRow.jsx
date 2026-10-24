@@ -83,7 +83,7 @@ export function StoryRow({ card, lang, situation, onOpen, active }) {
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-newsroom-weak text-newsroom">
           <ShieldCheck size={13} />
         </span>
-        <span className="font-medium text-ink">Oulu News</span>
+        <span className="font-medium text-ink">Kalevalo</span>
         {card.community_name && <span className="truncate text-muted">{card.community_name}</span>}
         <span className="text-muted" aria-hidden="true">·</span>
         <time dateTime={card.published_at} className="shrink-0 text-muted">{timeAgo(card.published_at, lang)}</time>
