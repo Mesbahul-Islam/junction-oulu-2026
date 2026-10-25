@@ -194,7 +194,8 @@ tr.click:hover td { background: var(--paper); }
 .pill.high, .pill.bad { color: var(--red); background: var(--red-soft); }
 .pill.medium, .pill.low, .pill.ok, .pill.run, .verdict.ready, .verdict.needs_review { color: var(--ink); background: var(--sunk); }
 .verdict.published { color: var(--newsroom); background: var(--newsroom-weak); }
-.task { margin-bottom: 16px; }
+.task { margin-bottom: 16px; transition: opacity .2s ease; }
+.task.leaving { opacity: 0; pointer-events: none; }
 .task-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
 .version { border-inline-start: 2px solid var(--line); padding-inline-start: 16px; margin-block: 16px; max-width: 76ch; }
 .version b { display: block; font-size: 22px; line-height: 28px; font-weight: 600; margin-block: 10px; }

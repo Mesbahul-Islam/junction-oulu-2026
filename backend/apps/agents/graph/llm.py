@@ -184,6 +184,7 @@ class ChatModelLLM:
                 kwargs["num_predict"] = max_out
             # Ollama's own default window is small (2048 tokens on many servers) and silently drops
             # the start of a longer prompt: the reporter's instructions. The window holds prompt + answer.
+            # This is the ceiling; plain calls get a window sized to their prompt (see _sized).
             num_ctx = int(getattr(settings, "LLM_CONTEXT_TOKENS", 0) or 0)
             if num_ctx:
                 kwargs["num_ctx"] = num_ctx
@@ -200,7 +201,25 @@ class ChatModelLLM:
                 kwargs["base_url"] = base_url
         self.provider, self.model_name, self.method = provider, model, method
         self.spec = f"{provider}:{model}"
+        self.max_ctx, self.max_out = int(getattr(settings, "LLM_CONTEXT_TOKENS", 0) or 0), max_out
         self.chat = init_chat_model(model, model_provider=provider, **kwargs)
+
+    def _sized(self, messages):
+        """Ollama only: the chat model with a window and an answer cap fitted to this prompt.
+
+        A small model can fall into a repetition loop (Arabic translations do) and, with no cap,
+        keeps writing until the whole window is full: 20+ minutes on a slow server. The answer is
+        capped at about twice the prompt (a translation is about as long as its source, more
+        tokens in some scripts), and the window is prompt + answer, at most LLM_CONTEXT_TOKENS.
+        """
+        if self.provider != "ollama" or not self.max_ctx:
+            return self.chat
+        prompt = sum(len(str(m.content)) for m in messages) // 3 + 64  # ~3 chars a token, plus chat markup
+        answer = min(max(768, 2 * prompt), 3072)
+        if self.max_out:
+            answer = min(answer, self.max_out)
+        window = min(self.max_ctx, max(2048, -(-(prompt + answer) // 1024) * 1024))
+        return self.chat.model_copy(update={"num_ctx": window, "num_predict": max(256, min(answer, window - prompt))})
 
     def _messages(self, prompt: str):
         from langchain_core.messages import HumanMessage, SystemMessage
@@ -223,14 +242,16 @@ class ChatModelLLM:
         """Plain-text answer (used to translate community posts, which need no JSON)."""
         import re
 
-        content = self.chat.invoke(self._messages(prompt)).content
+        messages = self._messages(prompt)
+        content = self._sized(messages).invoke(messages).content
         if isinstance(content, list):
             content = "".join(c.get("text", "") if isinstance(c, dict) else str(c) for c in content)
         return re.sub(r"<think>.*?</think>", "", content or "", flags=re.S).strip()
 
     def _structured(self, prompt: str, schema: type[T], method: str) -> T:
-        runnable = self.chat.with_structured_output(schema, method=method)
-        result = runnable.invoke(self._messages(prompt))
+        messages = self._messages(prompt)
+        runnable = self._sized(messages).with_structured_output(schema, method=method)
+        result = runnable.invoke(messages)
         if isinstance(result, dict):
             result = schema.model_validate(result)
         return result

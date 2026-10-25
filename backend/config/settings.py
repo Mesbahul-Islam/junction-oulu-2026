@@ -177,8 +177,10 @@ LLM_STRUCTURED_OUTPUT = env("LLM_STRUCTURED_OUTPUT", default="auto")
 # Languages per translation / back-translation call. 1 (default) is reliable even for small
 # local models; 0 = every language in one call (fewer calls, only for large models).
 LLM_LANGUAGES_PER_CALL = env.int("LLM_LANGUAGES_PER_CALL", default=1)
-# Ollama only: context window in tokens (prompt + answer), sent as num_ctx. The reporter's prompt
-# with a long article is about 3,800 tokens. 0 = the server's default (often only 2048).
+# Ollama only: the largest context window in tokens (prompt + answer), sent as num_ctx. Each call
+# gets a window sized to its prompt up to this, and its answer is capped too (graph/llm.py _sized).
+# The reporter's tool calls, whose prompt grows with the article, always get the full window.
+# The reporter's prompt with a long article is about 3,800 tokens. 0 = the server's default (often 2048).
 LLM_CONTEXT_TOKENS = env.int("LLM_CONTEXT_TOKENS", default=8192)
 
 # Advanced, optional: a different model for one agent, as provider:model
@@ -217,6 +219,11 @@ JEV_WEIGHT = env.float("JEV_WEIGHT", default=0.6)  # share of Jev in the blended
 JEV_TIMEOUT = env.float("JEV_TIMEOUT", default=2.0)  # seconds per call
 JEV_CONCURRENCY = env.int("JEV_CONCURRENCY", default=16)
 JEV_CACHE_SECONDS = env.int("JEV_CACHE_SECONDS", default=6 * 3600)
+
+# Listen: stories read aloud by ElevenLabs in the language of the version shown. Empty key: the
+# reader app falls back to the browser's own speech.
+ELEVENLABS_API_KEY = env("ELEVENLABS_API_KEY", default="")
+ELEVENLABS_VOICE = env("ELEVENLABS_VOICE", default="JBFqnCBsd6RMkjVDRZzb")  # one multilingual voice for every language
 
 # Telegram news bot (@BotFather token). Empty: the bot is idle and sends nothing.
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_API", default="")
