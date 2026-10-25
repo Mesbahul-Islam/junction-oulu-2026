@@ -102,12 +102,15 @@
   }
 }
 
-/* Route view transitions (lib/transition.js). The page cross-fades; a story's headline and
-   picture morph from the feed row to the story page and back. Pictures crop while they change
+/* Route view transitions (lib/transition.js). The page cross-fades; the opened item's parts
+   (a story's headline and picture, a post's avatar, text and photo) morph from its row to its
+   page and back. Pictures crop while they change
    shape instead of stretching. Browsers without the API skip all of this. */
 ::view-transition-group(root) { animation-duration: 220ms; }
 ::view-transition-group(story-headline),
-::view-transition-group(story-image) {
+::view-transition-group(story-image),
+::view-transition-group(story-avatar),
+::view-transition-group(story-body) {
   animation-duration: 380ms;
   animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }

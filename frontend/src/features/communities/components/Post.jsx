@@ -1,13 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Flag, Flame, Heart, Image as ImageIcon, Languages, MessageCircle, Newspaper, Share2, ShieldAlert, Trash2, Users } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Avatar, Badge, Button, Dialog, DialogClose, DialogContent, DialogTrigger, RadioCards, toast } from "@/components/ui";
 import { TrustBlock } from "@/components/patterns";
 import TrustBadge from "@/features/trust/components/TrustBadge";
 import { useTrustedVoices } from "@/features/trust/hooks";
 import { languageName, timeAgo } from "@/lib/i18n";
+import { transitionTo } from "@/lib/transition";
 import { cn } from "@/lib/utils";
 import { deletePost, flagPost, likePost, sharePost } from "../api";
 
@@ -31,13 +32,13 @@ export function PostBody({ post, lang, size = "row", onAddContext, link }) {
   const note = post.community_note;
   const noteT = note?.translation && !original ? note.translation : null;
   const text = (
-    <p dir="auto" lang={t ? t.language : post.language} className={cn("whitespace-pre-line text-ink", size === "row" ? "text-ui" : "text-body")}>
+    <p dir="auto" data-story-part="body" lang={t ? t.language : post.language} className={cn("whitespace-pre-line text-ink", size === "row" ? "text-ui" : "text-body")}>
       {t ? t.text : post.body}
     </p>
   );
   return (
-    <div className="flex gap-3">
-      <Avatar name={post.author_name} size={size === "row" ? "md" : "lg"} community />
+    <div data-story={`p${post.id}`} className="flex gap-3">
+      <Avatar name={post.author_name} size={size === "row" ? "md" : "lg"} community data-story-part="avatar" />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta">
           <span className="font-medium text-ink">{post.author_name}</span>
@@ -54,7 +55,7 @@ export function PostBody({ post, lang, size = "row", onAddContext, link }) {
         {link ? <Link {...link} className="focus-ring block rounded-control hover:opacity-80">{text}</Link> : text}
         {post.image && (
           <figure className="flex flex-col gap-1.5">
-            <img src={post.image} alt="" loading="lazy" className={cn("w-full rounded-card border border-line bg-sunk object-cover", size === "row" ? "max-h-72" : "max-h-[28rem]")} />
+            <img src={post.image} alt="" loading="lazy" data-story-part="image" className={cn("w-full rounded-card border border-line bg-sunk object-cover", size === "row" ? "max-h-72" : "max-h-[28rem]")} />
             {(post.image_status === "pending" || post.faces_blurred > 0) && (
               <figcaption className="flex flex-wrap gap-x-3 text-caption text-muted">
                 {post.image_status === "pending" && <span className="text-community">Only you can see this photo until a moderator checks it</span>}
@@ -216,11 +217,15 @@ export function PostActions({ post, onReply, onGone }) {
 
 /** A member's post in the Community timeline. Opens its thread in the side peek (tablet up)
  *  or on its own page. */
+/** A post in the Community timeline. Opening it (the text, Reply, a note to rate) shows the
+ *  thread as a page with a view transition; `onOpen(post)` overrides that. */
 export function PostRow({ post, lang, onOpen, active }) {
+  const navigate = useNavigate();
   const open = (e) => {
-    if (!onOpen || e?.metaKey || e?.ctrlKey) return;
+    if (e?.metaKey || e?.ctrlKey || e?.shiftKey) return;
     e?.preventDefault();
-    onOpen(post);
+    if (onOpen) onOpen(post);
+    else transitionTo(() => navigate(postHref(post), { state: post }), `p${post.id}`);
   };
   return (
     <article className={cn("border-b border-line px-4 py-4 sm:px-6", active && "bg-sunk/60")}>
