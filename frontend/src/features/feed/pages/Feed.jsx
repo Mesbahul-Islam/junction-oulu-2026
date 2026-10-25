@@ -1,17 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircleQuestion, Newspaper } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Compass, Languages, ListPlus, MessageCircleQuestion, Newspaper, Users } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { Button, Spinner } from "@/components/ui";
-import { Column, ColumnTitle, EmptyState, FilterBar, FilterChip, QueryBoundary, SidePeek, useCanPeek } from "@/components/patterns";
+import { Button, Meter, Spinner } from "@/components/ui";
+import { Column, ColumnTitle, EmptyState, FilterBar, FilterChip, QueryBoundary, RailPanel } from "@/components/patterns";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { getCommunityNews } from "@/features/communities/api";
 import { useShortlist } from "@/features/shortlist/hooks/useShortlist";
 import { languageName, topicIcon, topicLabel } from "@/lib/i18n";
 import { StoryRow } from "../components/StoryRow";
-import { StoryView } from "../components/StoryView";
-import { ArrivalBlock, CommunityPostRow, NextStoryRow } from "../components/TimelineExtras";
+import { ProposalRow } from "@/features/shortlist/components/ProposalRow";
+import { ArrivalBlock, ArrivalList, arrivalTitle, CommunityPostList, CommunityPostRow, NextStoryRow } from "../components/TimelineExtras";
 import { useArrival, useTimeline } from "../hooks/useFeed";
 
 /** Story cards with community posts and one open proposal mixed in at fixed slots. */
@@ -24,7 +24,7 @@ function mix(stories, posts, proposal, complete) {
   ].filter(([, x]) => x);
   const rows = [];
   stories.forEach((story, i) => {
-    rows.push({ story });
+    rows.push({ story, i });
     extras.filter(([at]) => at === i).forEach(([, x]) => rows.push(x));
   });
   // A short feed still shows the first community post and the proposal, at the end.
@@ -37,8 +37,6 @@ export default function Feed() {
   const lang = me?.preferred_language;
   const [params, setParams] = useSearchParams();
   const tag = params.get("tag");
-  const peekId = params.get("story");
-  const canPeek = useCanPeek();
 
   const timeline = useTimeline(tag);
   const arrival = useArrival(!!me?.arrival_date && !tag);
@@ -51,15 +49,11 @@ export default function Feed() {
   const proposal = open.find((x) => !x.voted) || open[0];
   const rows = mix(stories, posts, proposal, !timeline.hasNextPage);
 
-  const [peekCard, setPeekCard] = useState(null);
   const setParam = (key, value) => setParams((p) => {
     const next = new URLSearchParams(p);
     if (value) next.set(key, value); else next.delete(key);
     return next;
-  }, { replace: key === "tag" });
-  const openStory = canPeek ? (card) => { setPeekCard(card); setParam("story", card.id); } : undefined;
-  const closePeek = () => setParam("story", null);
-  const peekCardFor = peekCard?.id === Number(peekId) ? peekCard : stories.find((s) => s.id === Number(peekId));
+  }, { replace: true });
 
   // Load the next page when the end of the list comes into view.
   const endRef = useRef(null);
@@ -73,9 +67,41 @@ export default function Feed() {
   const today = new Date().toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "long" });
   const interests = me?.profile?.interests || [];
   const arrivalData = arrival.data?.results?.length ? arrival.data : null;
+  const inYourLanguage = stories.filter((s) => s.in_your_language).length;
+
+  // From 1024px the arrival guide, the open vote and community posts sit beside the timeline
+  // instead of inside it; below that they stay mixed in (the inline copies are lg:hidden).
+  const rail = (
+    <>
+      {lang && stories.length > 0 && (
+        <RailPanel icon={Languages} title={`Reading in ${languageName(lang)}`}>
+          <Meter label={`${inYourLanguage} of ${stories.length} loaded stories`} value={inYourLanguage} max={stories.length} display="" tone="newsroom" />
+          {inYourLanguage < stories.length && (
+            <p className="mt-2 text-caption text-muted">The rest show in the original until an editor approves the translation.</p>
+          )}
+        </RailPanel>
+      )}
+      {arrivalData && (
+        <RailPanel icon={Compass} title={arrivalTitle(arrivalData)}>
+          <ArrivalList arrival={arrivalData} />
+        </RailPanel>
+      )}
+      {proposal && (
+        <RailPanel icon={ListPlus} title="Next stories" action={<Link to="/vote" className="focus-ring rounded-control normal-case tracking-normal hover:text-ink">{open.length > 1 ? `See all ${open.length}` : "See all"}</Link>}>
+          <ProposalRow item={proposal} canVote={shortlist.data?.member} detail={false} stacked />
+        </RailPanel>
+      )}
+      {posts.length > 0 && (
+        <RailPanel icon={Users} title="From your communities" action={<Link to="/communities" className="focus-ring rounded-control normal-case tracking-normal hover:text-ink">Open</Link>}>
+          <CommunityPostList posts={posts} lang={lang} />
+        </RailPanel>
+      )}
+    </>
+  );
 
   return (
     <Column
+      rail={rail}
       header={
         <>
           <ColumnTitle
@@ -83,7 +109,7 @@ export default function Feed() {
             subtitle={today}
             aside={
               <>
-                {lang && <span className="hidden sm:inline lg:pb-0.5">Reading in {languageName(lang)}</span>}
+                {lang && <span className="hidden sm:inline lg:hidden">Reading in {languageName(lang)}</span>}
                 {/* The sidebar has Ask on desktop; phones and tablets get it here. */}
                 <Button asChild variant="secondary" size="sm" className="lg:hidden">
                   <Link to="/create"><MessageCircleQuestion size={15} />Ask</Link>
@@ -103,7 +129,7 @@ export default function Feed() {
       }
     >
 
-      {arrivalData && <ArrivalBlock arrival={arrivalData} onOpen={openStory} />}
+      {arrivalData && <div className="lg:hidden"><ArrivalBlock arrival={arrivalData} /></div>}
 
       <QueryBoundary
         query={timeline}
@@ -120,11 +146,21 @@ export default function Feed() {
       >
         {rows.map((r) =>
           r.story ? (
-            <StoryRow key={`s${r.story.id}`} card={r.story} lang={lang} onOpen={openStory} active={String(r.story.id) === peekId} />
-          ) : r.post ? (
-            <CommunityPostRow key={`p${r.post.id}`} post={r.post} lang={lang} />
+            <StoryRow
+              key={`s${r.story.id}`}
+              card={r.story}
+              lang={lang}
+              lead={r.i === 0}
+              detail={r.i < 3}
+            />
           ) : (
-            <NextStoryRow key={`v${r.proposal.id}`} item={r.proposal} total={open.length} canVote={shortlist.data?.member} />
+            <div key={r.post ? `p${r.post.id}` : `v${r.proposal.id}`} className="lg:hidden">
+              {r.post ? (
+                <CommunityPostRow post={r.post} lang={lang} />
+              ) : (
+                <NextStoryRow item={r.proposal} total={open.length} canVote={shortlist.data?.member} />
+              )}
+            </div>
           ),
         )}
         <div ref={endRef} className="grid place-items-center py-10">
@@ -133,12 +169,6 @@ export default function Feed() {
           )}
         </div>
       </QueryBoundary>
-
-      {canPeek && peekId && (
-        <SidePeek id={peekId} label="Story" href={`/story/${peekId}`} state={peekCardFor} onClose={closePeek}>
-          <StoryView id={peekId} card={peekCardFor} ranking={peekCardFor?.ranking} lang={lang} onReported={closePeek} />
-        </SidePeek>
-      )}
     </Column>
   );
 }

@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bookmark, CircleHelp, Gift, LogOut, Trophy } from "lucide-react";
+import { ArrowRight, Bookmark, ChevronDown, CircleHelp, Gift, LogOut, Trophy } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -17,15 +17,19 @@ import { updateMe } from "../api";
 const selectCls =
   "focus-ring h-9 w-full rounded-control border border-line bg-surface px-2 text-ui text-ink sm:w-60 md:text-[14px] [@media(pointer:coarse)]:h-11";
 
+/** Collapsed by default; native <details> gives keyboard and screen-reader support for free. */
 function Section({ title, action, children }) {
   return (
-    <section className="border-b border-line px-4 py-6 sm:px-6">
-      <div className="flex items-center justify-between gap-3">
+    <details className="group border-b border-line">
+      <summary className="focus-ring flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-5 hover:bg-sunk/50 sm:px-6 [&::-webkit-details-marker]:hidden">
         <h2 className="text-caption font-semibold uppercase tracking-wide text-muted">{title}</h2>
-        {action}
+        <ChevronDown size={16} className="text-muted transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="px-4 pb-6 sm:px-6">
+        {action && <div className="flex justify-end">{action}</div>}
+        <div className="divide-y divide-line">{children}</div>
       </div>
-      <div className="mt-2 divide-y divide-line">{children}</div>
-    </section>
+    </details>
   );
 }
 

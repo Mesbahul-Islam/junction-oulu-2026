@@ -1,0 +1,84 @@
+{% load i18n %}
+<!DOCTYPE html>
+{% comment %}Overrides allauth's unstyled layout so the Google sign-in hand-off (and its error/signup pages)
+look like the Kalevalo reader app. Tokens mirror frontend/src/styles/globals.css (Kajo).{% endcomment %}
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block head_title %}{% endblock head_title %} · Kalevalo</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+        <style>
+            :root {
+                --paper: hsl(200 14% 96%); --surface: hsl(0 0% 100%); --sunk: hsl(204 14% 93%);
+                --ink: hsl(205 36% 12%); --muted: hsl(206 11% 38%); --line: hsl(204 14% 88%);
+                --danger: hsl(8 70% 44%); --danger-weak: hsl(8 80% 95%); --on-ink: hsl(0 0% 100%);
+                color-scheme: light dark;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --paper: hsl(210 30% 7%); --surface: hsl(211 26% 11%); --sunk: hsl(210 22% 15%);
+                    --ink: hsl(204 25% 92%); --muted: hsl(205 10% 62%); --line: hsl(208 20% 19%);
+                    --danger: hsl(8 82% 68%); --danger-weak: hsl(8 45% 17%); --on-ink: hsl(210 30% 7%);
+                }
+            }
+            * { box-sizing: border-box; }
+            body {
+                margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px;
+                background: var(--paper); color: var(--ink); font: 15px/22px "IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, sans-serif;
+                -webkit-font-smoothing: antialiased;
+            }
+            main { width: 100%; max-width: 400px; }
+            .wordmark { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 32px; color: var(--ink); text-decoration: none;
+                        font: 21px/1 "Archivo Black", "IBM Plex Sans", sans-serif; letter-spacing: -0.02em; }
+            .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 28px 24px; }
+            h1 { margin: 0 0 8px; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.012em; }
+            h2 { margin: 24px 0 8px; font-size: 17px; line-height: 23px; font-weight: 600; }
+            p { margin: 0 0 16px; color: var(--muted); }
+            form p { color: var(--ink); }
+            label { display: block; margin-bottom: 6px; font-weight: 500; }
+            input:not([type=checkbox]):not([type=radio]) {
+                width: 100%; min-height: 44px; padding: 0 12px; font: inherit; color: var(--ink);
+                background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+            }
+            button, a.button {
+                display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; margin-top: 8px;
+                padding: 0 16px; font: 500 15px/1 "IBM Plex Sans", system-ui, sans-serif; text-decoration: none;
+                color: var(--on-ink); background: var(--ink); border: 0; border-radius: 8px; cursor: pointer;
+            }
+            button:hover { opacity: 0.9; }
+            a { color: var(--ink); }
+            :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+            ul.errorlist { margin: 0 0 8px; padding: 10px 12px; list-style: none; color: var(--danger); background: var(--danger-weak); border-radius: 8px; }
+            .messages { margin: 0 0 16px; padding: 0; list-style: none; }
+            .messages li { padding: 10px 12px; background: var(--sunk); border-radius: 8px; }
+            .back { display: inline-block; margin-top: 20px; color: var(--muted); font-size: 13px; }
+        </style>
+        {% block extra_head %}{% endblock extra_head %}
+    </head>
+    <body>
+        <main>
+            <a class="wordmark" href="{{ frontend_url }}">
+                <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 16a7 7 0 0 1 14 0Z" fill="currentColor" />
+                    <path d="M2.5 19.5h19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                Kalevalo
+            </a>
+            <div class="card">
+                {% block body %}
+                    {% if messages %}
+                        <ul class="messages">
+                            {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% block content %}{% endblock content %}
+                {% endblock body %}
+            </div>
+            <a class="back" href="{{ frontend_url }}/welcome">{% trans "Back to sign in" %}</a>
+        </main>
+        {% block extra_body %}{% endblock extra_body %}
+    </body>
+</html>

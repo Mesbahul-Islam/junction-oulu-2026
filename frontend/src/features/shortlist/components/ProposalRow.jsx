@@ -3,19 +3,21 @@ import { useState } from "react";
 
 import { Button, Meter } from "@/components/ui";
 import { languageName } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import { useVote } from "../hooks/useShortlist";
 
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 const votesLabel = (n) => (n === 1 ? "1 vote" : `${n} votes`);
 
 /** A story the newsroom hasn't written yet, votable in place. `rank` shows its place on the
- *  list; `maxVotes` scales the meter against the most-wanted proposal. */
-export function ProposalRow({ item, rank, maxVotes = 0, canVote = true, detail = true }) {
+ *  list; `maxVotes` scales the meter against the most-wanted proposal; `stacked` puts the vote
+ *  button under the title (narrow side columns). */
+export function ProposalRow({ item, rank, maxVotes = 0, canVote = true, detail = true, stacked = false }) {
   const vote = useVote();
   const [original, setOriginal] = useState(false);
   const title = original ? item.original_title : item.title;
   return (
-    <div className="flex items-start gap-3 sm:gap-4">
+    <div className={cn("flex items-start gap-3 sm:gap-4", stacked && "flex-col sm:gap-3")}>
       {rank != null && (
         <span className="mt-0.5 w-6 shrink-0 text-end text-title tabular-nums text-muted">{rank}</span>
       )}

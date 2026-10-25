@@ -93,7 +93,7 @@ function Body({ card, ranking, lang, size, onReported }) {
   }, [card.id]);
 
   return (
-    <article dir="auto" className="flex flex-col gap-5">
+    <article dir="auto" data-story={card.id} className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-meta text-muted">
         {card.community_name && <span className="font-medium text-ink">{card.community_name}</span>}
         <time dateTime={card.published_at}>{timeAgo(card.published_at, lang)}</time>
@@ -102,7 +102,7 @@ function Body({ card, ranking, lang, size, onReported }) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <h1 className={cn("text-balance", size === "page" ? "text-display" : "text-headline")}>{card.headline}</h1>
+        <h1 data-story-part="headline" className={cn("text-balance", size === "page" ? "text-display" : "text-headline")}>{card.headline}</h1>
         {card.summary && <p className="text-lead text-ink/85">{card.summary}</p>}
       </div>
 
@@ -120,7 +120,7 @@ function Body({ card, ranking, lang, size, onReported }) {
       </div>
 
       {card.image_url && (
-        <img src={card.image_url} alt="" referrerPolicy="no-referrer" onError={(e) => e.currentTarget.remove()} className="aspect-[16/9] w-full rounded-card bg-sunk object-cover" />
+        <img src={card.image_url} alt="" referrerPolicy="no-referrer" onError={(e) => e.currentTarget.remove()} data-story-part="image" className="aspect-[16/9] w-full rounded-card bg-sunk object-cover" />
       )}
 
       {status?.state === "fallback" && (
