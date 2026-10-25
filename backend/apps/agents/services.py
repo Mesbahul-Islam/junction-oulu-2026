@@ -10,8 +10,10 @@ from datetime import datetime, timedelta
 
 from django.apps import apps
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Count, F, Max
 from django.utils import timezone
 
 from apps.common.choices import SAMI_LANGUAGES, ReviewStatus
@@ -39,8 +41,53 @@ def busy() -> bool:
     return AgentRun.objects.filter(status__in=[AgentRun.Status.QUEUED, AgentRun.Status.RUNNING]).exists()
 
 
-def create_run(trigger: str, max_stories: int | None = None) -> AgentRun:
-    community = newsroom_community()
+def cities():
+    """The towns the newsroom can run for: active geographic communities, oldest run first."""
+    CommunityGroup = apps.get_model("communities", "CommunityGroup")
+    return (CommunityGroup.objects.filter(kind=CommunityGroup.Kind.GEO, is_active=True)
+            .annotate(last_run_at=Max("agent_runs__created_at"), member_count=Count("memberships", distinct=True))
+            .order_by(F("last_run_at").asc(nulls_first=True), "name"))
+
+
+def add_city(municipality_code: str):
+    """Start covering a municipality: a geographic community with its Statistics Finland figures.
+    Its languages start as Oulu's (or the first town's); members' own languages are added per run."""
+    from django.utils.text import slugify
+
+    from apps.communities import demographics, places
+
+    CommunityGroup = apps.get_model("communities", "CommunityGroup")
+    name = places.municipality_name(municipality_code)
+    if not name:
+        raise ValidationError("Unknown municipality.")
+    if CommunityGroup.objects.filter(kind=CommunityGroup.Kind.GEO, municipality__iexact=name).exists():
+        raise ValidationError(f"{name} is already covered.")
+    template = newsroom_community()
+    slug, n = slugify(name) or municipality_code, 2
+    while CommunityGroup.objects.filter(slug=slug).exists():
+        slug, n = f"{slugify(name)}-{n}", n + 1
+    city = CommunityGroup.objects.create(
+        name=name, slug=slug, kind=CommunityGroup.Kind.GEO, municipality=name, municipality_code=municipality_code,
+        languages=list(template.languages) if template else ["fi", "en"],
+        description=f"Local news and neighbours in {name}",
+    )
+    try:
+        demographics.refresh(city)
+    except demographics.DemographicsError:
+        pass  # the town still works; Jev just gets no public figures for it
+    # Readers who live there (until now served by the nearest covered town) get their own town.
+    from apps.communities.services import join_community
+
+    for user in get_user_model().objects.filter(profile__location__municipality__iexact=name):
+        join_community(user, city)
+    return city
+
+
+def create_run(trigger: str, max_stories: int | None = None, community=None) -> AgentRun:
+    """A shift for ``community`` (a town). Scheduled shifts take turns: the town whose last
+    shift is oldest goes next."""
+    if community is None:
+        community = cities().first() if trigger == AgentRun.Trigger.SCHEDULE else newsroom_community()
     if community is None:
         raise ValidationError("No active community to write for. Run `manage.py seed_demo` first.")
     return AgentRun.objects.create(

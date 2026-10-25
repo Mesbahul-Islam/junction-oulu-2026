@@ -12,6 +12,7 @@ from . import services
 from .models import Interest, OnboardingLink, User
 from .serializers import (
     InterestSerializer,
+    LocateSerializer,
     OnboardingLinkSerializer,
     OnboardingSerializer,
     RegisterSerializer,
@@ -60,6 +61,40 @@ class OnboardingView(APIView):
         ser.is_valid(raise_exception=True)
         user = services.complete_onboarding(request.user, ser.validated_data)
         return Response(UserSerializer(user).data)
+
+
+class LocateView(APIView):
+    """POST /api/accounts/locate/ {"lat", "lng"} — which municipality the reader is in, and the
+    newsroom town that serves it. The coordinates are only used for the lookup: not stored or logged."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = LocateSerializer
+
+    def post(self, request):
+        from apps.communities import places
+
+        ser = LocateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        code = places.locate(ser.validated_data["lat"], ser.validated_data["lng"])
+        if code is None:
+            return Response({"detail": "That location isn't in a Finnish municipality."}, status=404)
+        return Response(places.town(code))
+
+
+class MunicipalityListView(APIView):
+    """GET /api/accounts/municipalities/ — every municipality for the town picker, with the ones
+    the newsroom covers marked. GET .../<code>/ — one town, as POST /locate/ returns it."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, code=None):
+        from apps.communities import places
+
+        if code is None:
+            return Response(places.municipalities())
+        if not places.municipality_name(code):
+            return Response({"detail": "Unknown municipality."}, status=404)
+        return Response(places.town(code))
 
 
 class InterestViewSet(viewsets.ReadOnlyModelViewSet):

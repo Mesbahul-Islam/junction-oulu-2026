@@ -21,7 +21,9 @@ class FeedPagination(LimitOffsetPagination):
 
 
 class SnippetViewSet(viewsets.GenericViewSet):
-    """GET /api/feed/snippets/ (?community=, ?tag=, ?lang=, ?limit=&offset=), GET /snippets/{id}/."""
+    """GET /api/feed/snippets/ (?community=, ?tag=, ?lang=, ?limit=&offset=), GET /snippets/{id}/.
+
+    The list is the reader's town (services.reader_area) plus regional and national stories."""
 
     serializer_class = SnippetCardSerializer
     pagination_class = FeedPagination
@@ -54,12 +56,17 @@ class SnippetViewSet(viewsets.GenericViewSet):
 
     def list(self, request):
         """FR-2.1/FR-2.3: candidate window → score → paginate."""
+        area = services.reader_area(self.reader)
         candidates = services.feed_candidates(
-            self._chain(), community=request.query_params.get("community"), tag=request.query_params.get("tag")
+            self._chain(), community=request.query_params.get("community"), tag=request.query_params.get("tag"),
+            area=area,
         )
         ranked = recommend.rank(candidates, self.reader, chain=self._chain())
         page = self.paginate_queryset(ranked)
-        return self.get_paginated_response(self._cards(page))
+        response = self.get_paginated_response(self._cards(page))
+        # Which town this feed is for, for the header: {"town", "news_from": [...], "local"}.
+        response.data["area"] = {k: v for k, v in area.items() if k != "community_ids"} if area else None
+        return response
 
     def retrieve(self, request, pk=None):
         return Response(self._cards([self.get_object()])[0])

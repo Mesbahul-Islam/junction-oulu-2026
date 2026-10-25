@@ -86,6 +86,8 @@ class OnboardingSerializer(serializers.Serializer):
     postal_code = serializers.CharField(required=False, allow_blank=True, max_length=10)
     lat = serializers.FloatField(required=False, min_value=-90, max_value=90)
     lng = serializers.FloatField(required=False, min_value=-180, max_value=180)
+    # Statistics Finland's three-digit code, from POST /api/accounts/locate/ or the town picker.
+    municipality_code = serializers.RegexField(r"^\d{3}$", required=False)
     preferred_language = serializers.ChoiceField(choices=Language.choices, required=False)
     reader_situation = serializers.ChoiceField(choices=ReaderSituation.choices)
     arrival_date = serializers.DateField(required=False, allow_null=True)
@@ -97,7 +99,20 @@ class OnboardingSerializer(serializers.Serializer):
         code = attrs.get("onboarding_code")
         if code and not OnboardingLink.objects.filter(code=code).exists():
             raise serializers.ValidationError({"onboarding_code": "Unknown code."})
+        town = attrs.get("municipality_code")
+        if town:
+            from apps.communities.places import municipality_name
+
+            if not municipality_name(town):
+                raise serializers.ValidationError({"municipality_code": "Unknown municipality."})
         return attrs
+
+
+class LocateSerializer(serializers.Serializer):
+    """Coordinates from the browser, used once to find the municipality and never stored."""
+
+    lat = serializers.FloatField(min_value=-90, max_value=90)
+    lng = serializers.FloatField(min_value=-180, max_value=180)
 
 
 class OnboardingLinkSerializer(serializers.ModelSerializer):

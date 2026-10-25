@@ -57,10 +57,19 @@ def recommend_communities(user, limit: int = 6) -> list[tuple[CommunityGroup, fl
     situation = user.reader_situation
     language = user.preferred_language
     joined = set(user.memberships.values_list("community_id", flat=True))
+    # Only communities in the reader's area: their municipality and the towns they belong to.
+    # Without either, the platform's home town (Oulu) is where they live.
+    towns = {m.lower() for m in user.memberships.filter(community__kind=CommunityGroup.Kind.GEO)
+             .values_list("community__municipality", flat=True) if m}
+    if location and location.municipality:
+        towns.add(location.municipality.lower())
+    towns = towns or {"oulu"}
 
     ranked = []
     groups = CommunityGroup.objects.filter(is_active=True).exclude(pk__in=joined).prefetch_related("interests")
     for group in groups.annotate(member_count=Count("memberships")):
+        if group.municipality and group.municipality.lower() not in towns:
+            continue
         score, reasons = 0.0, []
         if group.kind == CommunityGroup.Kind.GEO:
             if location and _in_area(location, group):
@@ -268,14 +277,14 @@ def is_question(body: str) -> bool:
     return "?" in (body or "")
 
 
-def register_post(post) -> None:
-    """After a member posts: note its language, pass questions on to the newsroom (FR-3.10),
-    and translate it in the background for the community's other language groups."""
+def register_post(post, language: str = "") -> None:
+    """After a member posts: note its language (guessed unless given), pass questions on to the
+    newsroom (FR-3.10), and translate it in the background for the community's other language groups."""
     from django.db import transaction
 
     from apps.agents.graph.text import guess_language
 
-    post.language = guess_language(post.body)
+    post.language = language or guess_language(post.body)
     fields = ["language", "updated_at"]
     if post.parent_id is None and is_question(post.body):
         with transaction.atomic():

@@ -92,10 +92,35 @@ def published_snippets(chain, now=None):
     )
 
 
-def feed_candidates(chain, *, community=None, tag=None):
+def reader_area(user) -> dict | None:
+    """The reader's town and the newsroom towns whose stories they get: the geographic communities
+    they belong to (their own town's, or the nearest town we cover, joined at onboarding).
+    None when they belong to none: then the feed isn't narrowed to a town."""
+    if not user or not user.is_authenticated:
+        return None
+    CommunityGroup = apps.get_model("communities", "CommunityGroup")
+    geo = list(CommunityGroup.objects.filter(kind=CommunityGroup.Kind.GEO, is_active=True, memberships__user=user))
+    if not geo:
+        return None
+    profile = getattr(user, "profile", None)
+    town = profile.location.municipality if profile is not None and profile.location is not None else ""
+    local = [g for g in geo if town and (g.municipality or g.name).lower() == town.lower()]
+    return {
+        "town": town or geo[0].municipality or geo[0].name,
+        "news_from": [g.municipality or g.name for g in (local or geo)],
+        "local": bool(local) or not town,  # False: we don't cover their town yet
+        "community_ids": [g.pk for g in geo],
+    }
+
+
+def feed_candidates(chain, *, community=None, tag=None, area=None):
+    """``area`` (from reader_area): the reader's town stories plus those for no town in
+    particular (regional and national). An explicit ``community`` overrides it."""
     qs = published_snippets(chain)
     if community:
         qs = qs.filter(community_id=int(community)) if str(community).isdigit() else qs.filter(community__slug=community)
+    elif area:
+        qs = qs.filter(Q(community_id__in=area["community_ids"]) | Q(community__isnull=True))
     if tag:
         # JSON `contains` is unsupported on SQLite; filter in Python there.
         from django.db import connection

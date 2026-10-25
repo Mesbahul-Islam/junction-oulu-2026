@@ -1,16 +1,17 @@
-import { ChevronLeft, Languages, Sparkles, UsersRound } from "lucide-react";
+import { ChevronLeft, Languages, MapPin, Sparkles, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Badge, Button, Field, Input, RadioCards, Skeleton, Spinner, Stepper, ToggleChips } from "@/components/ui";
 import { OnboardingShell } from "@/components/patterns";
 import { getInterests, resolveCode, saveOnboarding } from "@/features/account/api";
+import { LocationStep } from "@/features/account/components/LocationStep";
 import { getRecommendedCommunities, joinCommunity } from "@/features/communities/api";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { LANGUAGES, SAMI, SITUATIONS } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-const STEPS = ["language", "topics", "situation", "communities"];
+const STEPS = ["language", "location", "topics", "situation", "communities"];
 const PRESELECT_SCORE = 3;
 
 const COPY = {
@@ -18,8 +19,12 @@ const COPY = {
     title: "Choose your reading language",
     subtitle: "Every story is translated into this language. You'll always see the Finnish original with one tap.",
   },
+  location: {
+    title: "Where do you live?",
+    subtitle: "We show you news from your own municipality, so we need your location for local coverage.",
+  },
   topics: {
-    title: "What matters to you in Oulu?",
+    title: "What matters to you in {town}?",
     subtitle: "Pick what affects your life. We'll put them first in For You.",
   },
   situation: {
@@ -32,7 +37,7 @@ const COPY = {
   },
 };
 
-const STEP_ICONS = [Languages, Sparkles, UsersRound, UsersRound];
+const STEP_ICONS = [Languages, MapPin, Sparkles, UsersRound, UsersRound];
 
 export default function Onboarding() {
   const { me, loading, refresh } = useAuth();
@@ -46,6 +51,7 @@ export default function Onboarding() {
   const [busy, setBusy] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [picked, setPicked] = useState([]);
+  const [town, setTown] = useState(null);
 
   useEffect(() => {
     getInterests().then((data) => setInterests(Array.isArray(data) ? data : data.results || []));
@@ -90,7 +96,12 @@ export default function Onboarding() {
 
   const savePreferences = () =>
     run(async () => {
-      await saveOnboarding({ ...form, arrival_date: form.arrival_date || null, ...(code ? { onboarding_code: code } : {}) });
+      await saveOnboarding({
+        ...form,
+        arrival_date: form.arrival_date || null,
+        ...(code ? { onboarding_code: code } : {}),
+        ...(town ? { municipality_code: town.code } : {}),
+      });
       await refresh();
       const list = await getRecommendedCommunities();
       setSuggestions(list);
@@ -106,12 +117,13 @@ export default function Onboarding() {
     });
 
   const name = STEPS[step];
-  const copy = COPY[name];
+  const copy = { ...COPY[name], title: COPY[name].title.replace("{town}", town?.name || "your area") };
   const StepIcon = STEP_ICONS[step];
 
   const cta = {
     language: { label: "Continue", onClick: () => setStep(1) },
-    topics: { label: "Continue", onClick: () => setStep(2), disabled: !(form.interests && form.interests.length) },
+    location: { label: town ? "Continue" : "Skip for now", onClick: () => setStep(2) },
+    topics: { label: "Continue", onClick: () => setStep(3), disabled: !(form.interests && form.interests.length) },
     situation: { label: busy ? "Saving…" : "Continue", onClick: savePreferences, disabled: busy },
     communities: {
       label: busy ? "Joining…" : picked.length ? `Join ${picked.length} ${picked.length === 1 ? "community" : "communities"} & start reading` : "Skip and start reading",
@@ -169,6 +181,8 @@ export default function Onboarding() {
           )}
         </div>
       )}
+
+      {name === "location" && <LocationStep town={town} onTown={setTown} />}
 
       {name === "topics" && (
         interests === null ? (

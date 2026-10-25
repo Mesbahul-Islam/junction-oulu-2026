@@ -57,19 +57,32 @@ def complete_onboarding(user: User, data: dict) -> User:
     slugs = data.get("interests") or []
     interests = list(Interest.objects.filter(slug__in=slugs))
     profile.interests.set(interests)  # signals.interests_changed updates profile.interest_vector
-    location = resolve_location(
-        location_id=data.get("location_id"),
-        postal_code=data.get("postal_code", ""),
-        lat=data.get("lat"),
-        lng=data.get("lng"),
-    )
+    town = None
+    if data.get("municipality_code"):
+        from apps.communities.places import municipality_name, town as town_info
+
+        name = municipality_name(data["municipality_code"])
+        location = Location.objects.filter(municipality=name, postal_code="", lat=None, lng=None).first() \
+            or Location.objects.create(name=name, municipality=name)
+        town = town_info(data["municipality_code"])
+    else:
+        location = resolve_location(
+            location_id=data.get("location_id"),
+            postal_code=data.get("postal_code", ""),
+            lat=data.get("lat"),
+            lng=data.get("lng"),
+        )
     if location:
         profile.location = location
     profile.save()
 
-    if link and link.community_id:
-        from apps.communities.services import join_community
+    from apps.communities.models import CommunityGroup
+    from apps.communities.services import join_community
 
+    if link and link.community_id:
         join_community(user, link.community)
-    # TODO: auto-join geo community by matching location against CommunityGroup.bbox.
+    # The reader's town community, or the nearest town we cover until we cover theirs.
+    serves = town and (town["community"] or town["nearest"])
+    if serves:
+        join_community(user, CommunityGroup.objects.get(slug=serves["slug"]))
     return user

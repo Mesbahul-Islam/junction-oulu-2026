@@ -83,6 +83,7 @@ async function loadDashboard() {
   const data = await api("/agents/dashboard/");
   if (request !== dashboardRequest || !S.token) return;
   S.dash = data;
+  renderCities();
   $("pageError").hidden = true;
   $("lastUpdated").textContent = "Updated " + clock(new Date());
   $("ovRun").disabled = $("nrRun").disabled = Boolean(S.starting || S.dash.running.length);
@@ -184,13 +185,54 @@ function renderSettings() {
 }
 $("refreshSettings").onclick = () => loadSettings().catch(pageError);
 
+// ---------- cities ----------
+const num = (n) => (n == null ? "–" : Number(n).toLocaleString("en"));
+function renderCities() {
+  const cities = S.dash?.communities || [];
+  for (const id of ["ovCity", "nrCity"]) {
+    const sel = $(id), keep = sel.value;
+    sel.innerHTML = cities.map((c) => `<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join("") || "<option value=''>No cities</option>";
+    if (cities.some((c) => c.slug === keep)) sel.value = keep;
+  }
+  $("cities").innerHTML = !cities.length ? '<div class="empty">No cities yet. Add one to start a shift.</div>'
+    : `<table><tr><th scope="col">City</th><th scope="col">Residents</th><th scope="col">Foreign-language speakers</th><th scope="col">Largest languages</th><th scope="col">Members</th><th scope="col">Last shift</th></tr>
+      ${cities.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td>${num(c.facts.population)}</td>
+        <td>${c.facts.share_foreign_language_speakers_pct == null ? "–" : esc(c.facts.share_foreign_language_speakers_pct) + " %"}</td>
+        <td>${esc((c.facts.largest_foreign_languages || []).slice(0, 3).join(", ") || "–")}</td>
+        <td>${num(c.member_count)}</td><td>${c.last_run_at ? ago(c.last_run_at) : "Never"}</td></tr>`).join("")}</table>
+      <p class="small muted">${esc(cities[0]?.facts?.source || "Statistics Finland")}. Residents with a municipality of residence only.</p>`;
+  loadMunicipalities();
+}
+let municipalities;
+async function loadMunicipalities() {
+  municipalities = municipalities || await api("/accounts/municipalities/");
+  const covered = new Set((S.dash?.communities || []).map((c) => c.municipality_code));
+  const keep = $("addCity").value;
+  $("addCity").innerHTML = '<option value="">Add a city…</option>' + municipalities.filter((m) => !covered.has(m.code))
+    .map((m) => `<option value="${m.code}">${esc(m.name)}</option>`).join("");
+  $("addCity").value = covered.has(keep) ? "" : keep;
+  $("addCityBtn").disabled = !$("addCity").value;
+}
+$("addCity").onchange = () => { $("addCityBtn").disabled = !$("addCity").value; };
+$("addCityBtn").onclick = async () => {
+  const code = $("addCity").value; if (!code) return;
+  $("addCityBtn").disabled = true;
+  try {
+    const city = await api("/agents/cities/", { method: "POST", body: { municipality_code: code } });
+    $("addCity").value = "";
+    await loadDashboard();
+    $("ovCity").value = $("nrCity").value = city.slug;
+    toast(`${city.name} added. Start a shift to write its first stories.`);
+  } catch (e) { toast(e.message); $("addCityBtn").disabled = false; }
+};
+
 // ---------- newsroom ----------
 function runsTable(runs, clickable) {
   if (!runs.length) return `<div class="empty">No runs yet.</div>`;
   const badge = (s) => `<span class="pill ${s === "succeeded" ? "ok" : s === "failed" ? "bad" : "run"}">${s}</span>`;
   const dur = (r) => (r.started_at && r.finished_at ? Math.round((new Date(r.finished_at) - new Date(r.started_at)) / 1000) + " s" : "–");
-  return `<table><tr><th scope="col">Run</th><th scope="col">Status</th><th scope="col">Stories</th><th scope="col">Ready</th><th scope="col">Needs review</th><th scope="col">Started</th><th scope="col">Took</th></tr>
-    ${runs.map((r) => `<tr class="${clickable ? "click" : ""}" ><td>${clickable ? `<button class="run-link" data-run="${r.id}" aria-label="Open shift ${r.id}">#${r.id}</button>` : `#${r.id}`}</td><td>${badge(r.status)}</td>
+  return `<table><tr><th scope="col">Run</th><th scope="col">City</th><th scope="col">Status</th><th scope="col">Stories</th><th scope="col">Ready</th><th scope="col">Needs review</th><th scope="col">Started</th><th scope="col">Took</th></tr>
+    ${runs.map((r) => `<tr class="${clickable ? "click" : ""}" ><td>${clickable ? `<button class="run-link" data-run="${r.id}" aria-label="Open shift ${r.id}">#${r.id}</button>` : `#${r.id}`}</td><td>${esc(r.community_name)}</td><td>${badge(r.status)}</td>
       <td>${r.counts.stories}</td><td>${r.counts.ready}</td><td>${r.counts.needs_review}</td><td>${ago(r.started_at || r.created_at)}</td><td>${dur(r)}</td></tr>`).join("")}</table>`;
 }
 
@@ -202,7 +244,7 @@ async function loadNewsroom() {
   const request = ++newsroomRequest;
   const runs = results(await api("/agents/runs/"));
   if (request !== newsroomRequest || S.view !== "newsroom") return;
-  $("nrPick").innerHTML = runs.slice(0, 30).map((r) => `<option value="${r.id}">Run #${r.id} · ${esc(r.status)} · ${ago(r.created_at)}</option>`).join("");
+  $("nrPick").innerHTML = runs.slice(0, 30).map((r) => `<option value="${r.id}">Run #${r.id} · ${esc(r.community_name)} · ${esc(r.status)} · ${ago(r.created_at)}</option>`).join("");
   if (!runs.length) {
     $("nrPick").innerHTML = '<option>No shifts yet</option>';
     $("nrTitle").textContent = "Newsroom workflow";
@@ -242,7 +284,7 @@ function renderRun(r) {
     : w?.errors?.length ? "The feed could not be fetched, and no eligible stored stories were selected. See the wire desk report."
     : w ? `RSS checked: ${w.fetched} items read, ${w.new} new or changed. No eligible uncovered stories remain.`
     : "No stories in this run.";
-  $("nrTitle").textContent = `Run #${r.id} · up to ${r.max_stories} stories`;
+  $("nrTitle").textContent = `Run #${r.id} · ${r.community_name} · up to ${r.max_stories} stories`;
   $("nrState").innerHTML = `<span class="pill ${r.status === "failed" ? "bad" : r.status === "succeeded" ? "ok" : "run"}">${esc(r.status)}${r.status === "queued" ? " (waiting for the worker)" : ""}</span>`
     + (r.started_at ? ` <span class="small muted">${live ? "started" : "ran"} ${ago(r.started_at)}${r.finished_at ? `, took ${Math.round((new Date(r.finished_at) - new Date(r.started_at)) / 1000)} s` : ""}</span>` : "");
   const st = { done: "Done", active: "Working now", waiting: "Waiting", failed: "Failed", skipped: "Skipped · no stories" };
@@ -307,7 +349,7 @@ async function sendStories(runId, body) {
   } catch (e) { toast(e.message); }
 }
 
-async function runNow(max) {
+async function runNow(max, city) {
   if (S.starting) return;
   S.starting = true;
   clearTimeout(nrPoll);
@@ -323,10 +365,10 @@ async function runNow(max) {
   $("nrWire").textContent = $("nrJev").textContent = "Waiting for this shift’s report…";
   $("sendAll").disabled = true;
   try {
-    const run = await api("/agents/runs/", { method: "POST", body: { max_stories: Number(max) } });
+    const run = await api("/agents/runs/", { method: "POST", body: { max_stories: Number(max), ...(city ? { community: city } : {}) } });
     S.nrRun = run.id;
     S.nrLive = true;
-    $("nrTitle").textContent = `Run #${run.id} · waiting for the worker`;
+    $("nrTitle").textContent = `Run #${run.id} · ${run.community_name} · waiting for the worker`;
     $("nrState").textContent = run.status;
     toast(`Run #${run.id} started.`);
     await pollNewsroom();
@@ -344,8 +386,10 @@ async function runNow(max) {
     });
   }
 }
-$("ovRun").onclick = () => runNow($("ovMax").value);
-$("nrRun").onclick = () => runNow($("nrMax").value);
+$("ovRun").onclick = () => runNow($("ovMax").value, $("ovCity").value);
+$("nrRun").onclick = () => runNow($("nrMax").value, $("nrCity").value);
+$("ovCity").onchange = () => { $("nrCity").value = $("ovCity").value; };
+$("nrCity").onchange = () => { $("ovCity").value = $("nrCity").value; };
 
 // ---------- editor queue ----------
 const qState = { role: "editor" };
