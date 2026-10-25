@@ -175,8 +175,8 @@ flowchart TD
     K["Kaleva RSS feeds"] --> W["1. Wire desk<br/>fetch, store, drop opinion and ads"]
     V["Members vote in the app:<br/>'What should we cover next?'"] --> N
     W --> N["2. News editor (Jev + members' votes)<br/>rank every article, pick the top N"]
-    N --> R["3. Brief desk (agent with a tool)<br/>reads the full Kaleva article,<br/>writes headline, summary, key facts, for-you"]
-    R --> E["4. Explainer<br/>what it means for newcomers, students…"]
+    N --> R["3. Reporter (agent with a tool)<br/>reads the full Kaleva article,<br/>writes headline, summary, key facts"]
+    R --> E["4. Explainer<br/>from the brief only: what it means<br/>for newcomers, students…"]
     E --> T["5. Translator<br/>every reader language (never Sámi)"]
     T --> F["6. Fact-checker<br/>draft numbers vs the article"]
     F --> S["7. Standards editor<br/>risk, JSN sensitive topics"]
@@ -217,7 +217,8 @@ Notes that don't block: a translation that came back in the wrong language (it's
 |---|---|---|---|---|
 | 1 | Wire desk | Kaleva RSS | Fetches every active feed, stores new and changed articles, sets aside opinion and paid content. | Editors choosing the feeds |
 | 2 | News editor | **Jev** + members' votes | Ranks every candidate for this community's readers, adds the community's votes and picks the top N. | News editor |
-| 3 | Brief desk (`explainer`) | AI model + a tool | An agent: the model gets the `fetch_kaleva_article` tool (`newsroom/kaleva.py`) and is told to read the full article first (the RSS feed carries only a short teaser). It writes the Finnish headline, a 1–2 sentence summary, the key facts as **one paragraph of at most 256 words**, and "What this means for you" for each reader situation, only from the article. If the model can't or doesn't call the tool, the desk fetches the article itself; only when the article can't be read is the brief written from the RSS teaser (a note for editors). The tool fetches only `https://www.kaleva.fi` links and caches the text in `SourceDocument.full_text`; the fact-checker then checks the draft's numbers against the full article. | Editor |
+| 3 | Reporter (`reporter`) | AI model + a tool | An agent: the model gets the `fetch_kaleva_article` tool (`newsroom/kaleva.py`) and is told to read the full article first (the RSS feed carries only a short teaser). It writes the Finnish headline, a 1–2 sentence summary and the key facts as **one paragraph of at most 256 words**, only from the article. If the model can't or doesn't call the tool, the desk fetches the article itself; only when the article can't be read is the brief written from the RSS teaser (a note for editors). The tool fetches only `https://www.kaleva.fi` links and caches the text in `SourceDocument.full_text`; the fact-checker then checks the draft's numbers against the full article. | Editor |
+| 4 | Explainer (`explainer`) | AI model | Gets only the reporter's brief (never the article) and writes "What this means for you" for each reader situation, or "Lähteen tiedot eivät riitä…" when the brief doesn't establish an impact. Split from the reporter so each call has one job and a small prompt, which small local models follow much better. If it fails, the story goes on without it (a note, not a blocking issue). | Editor |
 | 5 | Translator | AI model | Every language of the community and of its members, one call per language. A translation in the wrong language (checked by script, Ukrainian vs Russian letters and common words) or still in Finnish is left out. Never Sámi. | Language reviewer |
 | 6 | Fact-checker | rules | Every number in the draft must be in the article; translations should keep them. | Editor |
 | 7 | Standards editor | rules | Risk tier and JSN sensitive topics. | Standards editor |
@@ -331,6 +332,7 @@ docker compose exec worker python manage.py llm_check --ping    # confirm it ans
 **Tuning for small models** (optional, in `.env`):
 - `LLM_LANGUAGES_PER_CALL` is **1 by default**: each language is translated, and back-translated, in its own call. Small models mix up languages when asked for several at once. In testing, a 2B model filed Swedish as English and Russian as Ukrainian. Set `0` (all languages in one call) only for large hosted models.
 - `LLM_MAX_OUTPUT_TOKENS` caps the length of each answer.
+- `LLM_CONTEXT_TOKENS` (Ollama only, **8192 by default**) is the context window, sent as `num_ctx`. Ollama's own default is often 2048 tokens, and it silently drops the start of a longer prompt, which is where the instructions are. The reporter's prompt with a long article is about 3,800 tokens. `0` uses the server's default.
 - `AGENT_MAX_ITEMS` and `AGENT_SCHEDULE_MINUTES` set how many stories each run handles, and how often runs happen. Each story costs about 5 model calls.
 
 **Structured output** uses each provider's native JSON-schema mode. If a model refuses it with a 400 error, that call is retried once with tool calling. (Qwen on Groq sometimes misnames the tool in tool-calling mode, so JSON schema is the reliable choice there.)
@@ -711,6 +713,7 @@ The same steps work in the Swagger UI at `/api/docs/`: click **Authorize** and p
 | `LLM_MODEL_<AGENT>` + `<PROVIDER>_API_KEY` | empty | Advanced: a different model for one agent (§5) |
 | `COMPOSE_PROFILES` | empty | `ollama` starts the local Ollama container with the stack |
 | `LLM_MAX_OUTPUT_TOKENS` | `0` | Cap on each call's output (0 = provider default) |
+| `LLM_CONTEXT_TOKENS` | `8192` | Ollama context window (`num_ctx`), prompt + answer; `0` = the server's default |
 | `LLM_LANGUAGES_PER_CALL` | `1` | Languages per translation/back-translation call; `0` = all at once (large models only) |
 | `LLM_MAX_RETRIES` | `2` | Retries after a failed call (hosted providers) |
 | `AGENT_SCHEDULE_MINUTES` | `30` | Minutes between automatic newsroom runs. A community is skipped while its previous run is still going, and runs stuck for over 2 hours are marked failed. |

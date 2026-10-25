@@ -169,11 +169,14 @@ LLM_STRUCTURED_OUTPUT = env("LLM_STRUCTURED_OUTPUT", default="auto")
 # Languages per translation / back-translation call. 1 (default) is reliable even for small
 # local models; 0 = every language in one call (fewer calls, only for large models).
 LLM_LANGUAGES_PER_CALL = env.int("LLM_LANGUAGES_PER_CALL", default=1)
+# Ollama only: context window in tokens (prompt + answer), sent as num_ctx. The reporter's prompt
+# with a long article is about 3,800 tokens. 0 = the server's default (often only 2048).
+LLM_CONTEXT_TOKENS = env.int("LLM_CONTEXT_TOKENS", default=8192)
 
 # Advanced, optional: a different model for one agent, as provider:model
 # (e.g. LLM_MODEL_TRANSLATOR=anthropic:claude-haiku-5-5). Its key is read from that
 # provider's own variable below (ANTHROPIC_API_KEY ...) unless it's the main provider.
-LLM_AGENTS = ("explainer", "translator", "sports")  # LLM_MODEL_EXPLAINER etc. pick a model per desk
+LLM_AGENTS = ("reporter", "explainer", "translator", "sports")  # LLM_MODEL_REPORTER etc. pick a model per desk
 LLM_AGENT_MODELS = {agent: env(f"LLM_MODEL_{agent.upper()}", default="") for agent in LLM_AGENTS}
 LLM_PROVIDER_KEY_VARS = {
     "google_genai": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),

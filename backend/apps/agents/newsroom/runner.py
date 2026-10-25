@@ -1,7 +1,8 @@
 """Runs one newsroom shift.
 
     wire desk -> news editor (Jev + members' votes) -> for each picked story:
-        brief and explanation -> translator -> fact-checker -> standards editor -> copy desk
+        reporter (brief) -> explainer (what it means for you) -> translator -> fact-checker
+        -> standards editor -> copy desk
     -> community vote (next shortlist) -> human editors (Ready to send / Needs review)
 
 The run-level desks work on all articles at once; each picked story then goes through
@@ -33,7 +34,7 @@ class StoryState(TypedDict, total=False):
     languages: list[str]
     draft: dict
     explainer: dict
-    read: str  # how the brief desk read the article (tool / desk fetch / RSS teaser only)
+    read: str  # how the reporter read the article (tool / desk fetch / RSS teaser only)
     tool_calls: list[dict]
     translations: dict
     risk: str
@@ -115,6 +116,7 @@ def _file(state: StoryState, story: RunStory) -> dict:
 def story_graph():
     g = StateGraph(StoryState)
     steps = [
+        ("reporter", lambda s, _: desks.reporter(s)),
         ("explainer", lambda s, _: desks.explainer(s)),
         ("translator", _translate),
         ("fact_checker", lambda s, _: desks.fact_checker(s)),

@@ -115,7 +115,7 @@ function renderOverview() {
   ].join("");
   $("stats").querySelectorAll("[data-go]").forEach((el) => (el.onclick = () => (location.hash = el.dataset.go)));
   $("schedState").innerHTML = d.schedule.enabled === false ? `<span class="pill">Schedule paused</span>` : d.running.length ? `<span class="pill run">Running now</span>` : `<span class="pill ok">Idle</span>`;
-  const modelLabels = { explainer: "Brief and explanation", translator: "Translation", reporter: "Reporter (previous pipeline)" };
+  const modelLabels = { reporter: "Reporter (brief)", explainer: "Explainer (what it means for you)", translator: "Translation" };
   $("models").innerHTML = d.llm.map((m) => `<div class="model-row"><div><b>${esc(modelLabels[m.agent] || m.agent)}</b><div class="model-spec">${esc(m.spec)}</div></div>
     <span class="pill ${m.stub_reason ? "bad" : "ok"}">${m.stub_reason ? "Unavailable" : "Configured"}</span>
     ${m.stub_reason ? `<p class="small danger-text">${esc(m.stub_reason)}</p>` : ""}</div>`).join("");
@@ -141,7 +141,7 @@ function renderSettings() {
   const row = (label, value) => `<div class="setting-row"><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;
   const group = (title, intro, content) => `<section class="card settings-group"><h2>${title}</h2><p class="small muted">${intro}</p><dl>${content}</dl></section>`;
   const date = (value) => value ? new Date(value).toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone: cfg.timezone }) : "Not available yet";
-  const modelLabels = { explainer: "Brief and explanation", translator: "Translation" };
+  const modelLabels = { reporter: "Reporter (brief)", explainer: "Explainer (what it means for you)", translator: "Translation" };
   const models = d.llm.map((m) => row(modelLabels[m.agent] || m.agent, m.spec)
     + row("Endpoint", m.base_url || "Provider default")
     + row("Configuration", m.stub_reason || "Configured; availability is not a quality assessment")).join("");
@@ -236,7 +236,7 @@ function runsTable(runs, clickable) {
       <td>${r.counts.stories}</td><td>${r.counts.ready}</td><td>${r.counts.needs_review}</td><td>${ago(r.started_at || r.created_at)}</td><td>${dur(r)}</td></tr>`).join("")}</table>`;
 }
 
-const STORY_DESKS = ["explainer", "translator", "fact_checker", "standards", "copy_desk"];
+const STORY_DESKS = ["reporter", "explainer", "translator", "fact_checker", "standards", "copy_desk"];
 let nrPoll;
 let newsroomRequest = 0;
 async function loadNewsroom() {
@@ -304,7 +304,7 @@ function renderRun(r) {
     return `<i class="${cls}" title="${esc(k.replace("_", " "))}"></i>`;
   }).join("");
   const stageText = (s) => s.stage === "done" ? "With the editors" : s.stage === "failed" ? "Failed" : s.stage === "picked" ? "Waiting for the brief"
-    : `${(s.stage === "explainer" ? "Brief and explanation" : s.stage.replace("_", " "))}${s.detail ? ": " + s.detail : ""}…`;
+    : `${({ reporter: "Reporter", explainer: "Explainer" }[s.stage] || s.stage.replace("_", " "))}${s.detail ? ": " + s.detail : ""}…`;
   const verdict = (s) => {
     if (s.published_at) return `<span class="verdict published">Published</span>`;
     if (!s.verdict) return s.error ? `<span class="pill bad">failed</span><div class="small danger-text">${esc(s.error.slice(0, 160))}</div>` : `<span class="muted small">being written</span>`;
