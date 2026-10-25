@@ -76,7 +76,7 @@ function ReportDialog({ id, onReported }) {
 function Body({ card, ranking, lang, size, onReported }) {
   const { saved, toggleSave, share } = useStoryActions(card);
   const listenText = [card.headline, card.summary, ...(card.key_facts || []), card.for_you || ""].join(". ");
-  const listen = useListen(listenText, card.language || "en");
+  const listen = useListen(listenText, card.language || "en", card.id);
   const status = langStatusOf(card);
   const ai = card.ai_disclosure || {};
   const endRef = useRef(null);
@@ -108,9 +108,9 @@ function Body({ card, ranking, lang, size, onReported }) {
 
       <div className="-ms-2.5 flex flex-wrap items-center gap-1">
         {listen.supported && (
-          <Button variant="ghost" size="sm" onClick={listen.toggle} aria-pressed={listen.playing}>
+          <Button variant="ghost" size="sm" onClick={listen.toggle} aria-pressed={listen.playing} aria-busy={listen.loading}>
             {listen.playing ? <Pause size={15} /> : <Volume2 size={15} />}
-            {listen.playing ? "Stop" : `Listen · ${Math.max(1, Math.round(listen.duration / 60))} min`}
+            {listen.loading ? "Preparing…" : listen.playing ? "Stop" : `Listen · ${Math.max(1, Math.round(listen.duration / 60))} min`}
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={toggleSave} aria-pressed={saved}>

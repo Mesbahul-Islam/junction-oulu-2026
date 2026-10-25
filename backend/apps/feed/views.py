@@ -1,16 +1,30 @@
 """Feed API (FR-2.1 infinite-scroll feed, FR-2.3 ranking, FR-3.10 reports, FR-3.11 arrival)."""
 
+import logging
+
+import httpx
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
-from . import recommend, services
+from . import audio, recommend, services
 from .models import Comment, Snippet
 from .serializers import CommentSerializer, InteractSerializer, SnippetCardSerializer, SnippetReportSerializer
+
+
+logger = logging.getLogger(__name__)
+
+
+class ListenThrottle(UserRateThrottle):
+    """Each new clip costs ElevenLabs characters; per user, or per IP when signed out."""
+
+    rate = "30/hour"
 
 
 class FeedPagination(LimitOffsetPagination):
@@ -77,6 +91,21 @@ class SnippetViewSet(viewsets.GenericViewSet):
         ids = services.bookmarked_ids(request.user)
         by_id = {s.pk: s for s in self.get_queryset().filter(pk__in=ids)}
         return Response(self._cards([by_id[i] for i in ids if i in by_id]))
+
+    @action(detail=True, methods=["get"], throttle_classes=[ListenThrottle])
+    def audio(self, request, pk=None):
+        """GET /snippets/{id}/audio/?lang=: the version this reader is shown, read aloud (mp3).
+        404 when it can't be voiced (Sámi, no key): the reader app then uses the browser's voice."""
+        version = services.pick_version(self.get_object().versions.all(), self._chain())
+        if not version or not audio.supported(version.language):
+            return Response({"detail": "No audio for this language."}, status=status.HTTP_404_NOT_FOUND)
+        situation = self.reader.reader_situation if self.reader.is_authenticated else None
+        try:
+            mp3 = audio.clip_for(version, situation)
+        except httpx.HTTPError as exc:
+            logger.warning("ElevenLabs failed for version %s: %s", version.pk, exc)
+            return Response({"detail": "The audio couldn't be made."}, status=status.HTTP_502_BAD_GATEWAY)
+        return HttpResponse(mp3, content_type="audio/mpeg", headers={"Cache-Control": "private, max-age=86400"})
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
     def interact(self, request, pk=None):

@@ -391,6 +391,26 @@ $("nrRun").onclick = () => runNow($("nrMax").value, $("nrCity").value);
 $("ovCity").onchange = () => { $("nrCity").value = $("ovCity").value; };
 $("nrCity").onchange = () => { $("ovCity").value = $("nrCity").value; };
 
+// ---------- decisions ----------
+// A decided card leaves the list on its own: the rest stays where the editor left it (no rebuild, no
+// jump to the top, open edit boxes kept). Focus moves to the next card for keyboard users.
+const QUEUE_EMPTY = `<div class="card empty">The queue is empty. New stories arrive after each newsroom run.</div>`;
+async function decide(card, request, done, emptyHtml) {
+  const buttons = [...card.querySelectorAll("button")];
+  buttons.forEach((b) => (b.disabled = true));
+  try { await request(); }
+  catch (e) { buttons.forEach((b) => (b.disabled = false)); return toast(e.message); }
+  toast(done);
+  const box = card.parentElement, next = card.nextElementSibling || card.previousElementSibling;
+  card.classList.add("leaving");
+  setTimeout(() => {
+    card.remove();
+    if (!box.querySelector(".task")) box.innerHTML = emptyHtml;
+    else next?.querySelector("button:not(:disabled)")?.focus({ preventScroll: true });
+  }, 200);
+  loadDashboard().catch(() => {}); // badges and counts
+}
+
 // ---------- editor queue ----------
 const qState = { role: "editor" };
 $("qType").querySelectorAll("button").forEach((b) => (b.onclick = () => { $("qType").querySelectorAll("button").forEach((x) => (x.classList.toggle("on", x === b), x.setAttribute("aria-pressed", String(x === b)))); qState.role = b.dataset.v; loadQueue(); }));
@@ -424,7 +444,7 @@ async function loadQueue() {
   if ($("qReason").value) q.set("reason", $("qReason").value);
   try {
     const tasks = results(await api(`/editorial/tasks/?${q}`));
-    if (!tasks.length) { box.innerHTML = `<div class="card empty">The queue is empty. New stories arrive after each newsroom run.</div>`; return; }
+    if (!tasks.length) { box.innerHTML = QUEUE_EMPTY; return; }
     box.innerHTML = tasks.map((t) => {
       const v = (t.versions || [])[0] || {};
       const editLang = t.language || "fi";
@@ -462,27 +482,22 @@ async function loadQueue() {
 async function taskAction(b) {
   const card = b.closest(".task"), id = card.dataset.id, act = b.dataset.do;
   const editBox = card.querySelector(".edit-box");
-  try {
-    if (act === "edit") { editBox.classList.toggle("on"); b.textContent = editBox.classList.contains("on") ? "Cancel edit" : "Edit text"; return; }
-    if (act === "approve") {
-      const open = [...card.querySelectorAll("[data-check]:not(:disabled)")];
-      if (open.some((c) => !c.checked)) return toast("Tick every checklist item first: the story can't be published until an editor confirms them.");
-      const body = { confirm: open.map((c) => c.dataset.check) };
-      if (editBox.classList.contains("on")) {
-        const val = (k) => card.querySelector(`[data-e="${k}"]`).value;
-        const explainer = Object.fromEntries([...card.querySelectorAll("[data-for-you]")].map((el) => [el.dataset.forYou, el.value.trim()]).filter(([, text]) => text));
-        body.edits = { headline: val("headline").trim(), summary: val("summary").trim(), key_facts: val("key_facts").split("\n").map((s) => s.trim()).filter(Boolean), explainer };
-      }
-      await api(`/editorial/tasks/${id}/approve/`, { method: "POST", body });
-      toast("Approved.");
-    } else {
-      const comment = await askDecision({ title: act === "reject" ? "Reject this story?" : "Request changes", description: "Your reason will be saved for the newsroom and other reviewers.", input: true, action: act === "reject" ? "Reject story" : "Request changes" });
-      if (!comment) return;
-      await api(`/editorial/tasks/${id}/${act === "reject" ? "reject" : "request-changes"}/`, { method: "POST", body: { comment } });
-      toast(act === "reject" ? "Rejected." : "Changes requested.");
+  if (act === "edit") { editBox.classList.toggle("on"); b.textContent = editBox.classList.contains("on") ? "Cancel edit" : "Edit text"; return; }
+  if (act === "approve") {
+    const open = [...card.querySelectorAll("[data-check]:not(:disabled)")];
+    if (open.some((c) => !c.checked)) return toast("Tick every checklist item first: the story can't be published until an editor confirms them.");
+    const body = { confirm: open.map((c) => c.dataset.check) };
+    if (editBox.classList.contains("on")) {
+      const val = (k) => card.querySelector(`[data-e="${k}"]`).value;
+      const explainer = Object.fromEntries([...card.querySelectorAll("[data-for-you]")].map((el) => [el.dataset.forYou, el.value.trim()]).filter(([, text]) => text));
+      body.edits = { headline: val("headline").trim(), summary: val("summary").trim(), key_facts: val("key_facts").split("\n").map((s) => s.trim()).filter(Boolean), explainer };
     }
-    await Promise.all([loadDashboard(), loadQueue()]);
-  } catch (e) { toast(e.message); }
+    return decide(card, () => api(`/editorial/tasks/${id}/approve/`, { method: "POST", body }), "Approved.", QUEUE_EMPTY);
+  }
+  const comment = await askDecision({ title: act === "reject" ? "Reject this story?" : "Request changes", description: "Your reason will be saved for the newsroom and other reviewers.", input: true, action: act === "reject" ? "Reject story" : "Request changes" });
+  if (!comment) return;
+  return decide(card, () => api(`/editorial/tasks/${id}/${act === "reject" ? "reject" : "request-changes"}/`, { method: "POST", body: { comment } }),
+    act === "reject" ? "Rejected." : "Changes requested.", QUEUE_EMPTY);
 }
 
 $("qBatch").onclick = async () => {
@@ -498,9 +513,11 @@ $("qBatch").onclick = async () => {
 // ---------- moderation ----------
 const mState = { status: "pending" };
 $("mStatus").querySelectorAll("button").forEach((b) => (b.onclick = () => { $("mStatus").querySelectorAll("button").forEach((x) => (x.classList.toggle("on", x === b), x.setAttribute("aria-pressed", String(x === b)))); mState.status = b.dataset.v; loadModeration(); }));
+const PHOTOS_EMPTY = `<div class="card empty">No photos waiting. Faces in new photos are blurred on upload; check them here before others see them.</div>`;
+const modEmpty = () => `<div class="card empty">${{ pending: "Nothing to moderate. Reported posts appear here.", questions: "No unanswered questions. Questions members post in Community News appear here." }[mState.status] || "Nothing here yet."}</div>`;
 async function loadPhotos(box) {
   const photos = await api("/communities/photos/");
-  if (!photos.length) { box.innerHTML = `<div class="card empty">No photos waiting. Faces in new photos are blurred on upload; check them here before others see them.</div>`; return; }
+  if (!photos.length) { box.innerHTML = PHOTOS_EMPTY; return; }
   box.innerHTML = photos.map((p) => `<div class="card task" data-id="${p.id}">
     <div class="task-head"><b>${esc(p.author_name)}</b><span class="muted">in ${esc(p.community_name)} · posted ${ago(p.created_at)}</span>
       <span class="pill">${p.faces_blurred} face${p.faces_blurred === 1 ? "" : "s"} blurred</span></div>
@@ -510,10 +527,10 @@ async function loadPhotos(box) {
     <p class="small muted">Approve only if every face is unrecognisable and nothing else identifies a person (name tags, number plates, home addresses).</p>
     <div class="actions"><button class="btn primary" data-photo="approve">Approve photo</button><button class="btn danger" data-photo="reject">Reject photo (keep the text)</button></div>
   </div>`).join("");
-  box.querySelectorAll("[data-photo]").forEach((b) => (b.onclick = async () => {
-    const id = b.closest(".task").dataset.id;
-    try { await api(`/communities/photos/${id}/decide/`, { method: "POST", body: { decision: b.dataset.photo } }); toast(b.dataset.photo === "approve" ? "Photo approved." : "Photo removed."); loadModeration(); }
-    catch (e) { toast(e.message); }
+  box.querySelectorAll("[data-photo]").forEach((b) => (b.onclick = () => {
+    const card = b.closest(".task");
+    decide(card, () => api(`/communities/photos/${card.dataset.id}/decide/`, { method: "POST", body: { decision: b.dataset.photo } }),
+      b.dataset.photo === "approve" ? "Photo approved." : "Photo removed.", PHOTOS_EMPTY);
   }));
 }
 
@@ -523,7 +540,7 @@ async function loadModeration() {
   if (mState.status === "photos") { try { await loadPhotos(box); } catch (e) { box.innerHTML = `<div class="card empty">${esc(e.message)}</div>`; } return; }
   try {
     const posts = results(await api(`/communities/moderation/?status=${mState.status}`));
-    if (!posts.length) { box.innerHTML = `<div class="card empty">${{ pending: "Nothing to moderate. Reported posts appear here.", questions: "No unanswered questions. Questions members post in Community News appear here." }[mState.status] || "Nothing here yet."}</div>`; return; }
+    if (!posts.length) { box.innerHTML = modEmpty(); return; }
     box.innerHTML = posts.map((p) => `<div class="card task" data-id="${p.id}">
       <div class="task-head"><b>${esc(p.author_name)}</b><span class="muted">in ${esc(p.community_name)} · posted ${ago(p.created_at)}</span>
         ${p.reports.length ? `<span class="pill bad">${p.reports.length} report${p.reports.length > 1 ? "s" : ""}</span>` : ""}</div>
@@ -534,18 +551,17 @@ async function loadModeration() {
       ${mState.status === "questions" ? `<div class="actions"><label class="small muted">Answered by story # <input data-answer type="number" min="1" class="story-number"></label>
         <button class="btn primary" data-link="1">Link answer</button><span class="small muted">The post then shows "Answered by the newsroom" with a link.</span></div>` : ""}
     </div>`).join("");
-    box.querySelectorAll("[data-link]").forEach((b) => (b.onclick = async () => {
+    box.querySelectorAll("[data-link]").forEach((b) => (b.onclick = () => {
       const card = b.closest(".task"), story = card.querySelector("[data-answer]").value;
       if (!story) return toast("Enter the number of the story that answers this question.");
-      try { await api(`/communities/news/${card.dataset.id}/answer/`, { method: "POST", body: { snippet: Number(story) } }); toast("Answer linked."); await Promise.all([loadDashboard(), loadModeration()]); }
-      catch (e) { toast(e.message); }
+      decide(card, () => api(`/communities/news/${card.dataset.id}/answer/`, { method: "POST", body: { snippet: Number(story) } }), "Answer linked.", modEmpty());
     }));
     box.querySelectorAll("[data-mod]").forEach((b) => (b.onclick = async () => {
-      const id = b.closest(".task").dataset.id;
+      const card = b.closest(".task");
       const note = b.dataset.mod === "remove" ? await askDecision({ title: "Remove this post?", description: "The post stays hidden. Your moderation reason will be saved in the record.", input: true, action: "Remove post" }) : "";
       if (note === null) return;
-      try { await api(`/communities/moderation/${id}/decide/`, { method: "POST", body: { decision: b.dataset.mod, note } }); toast(b.dataset.mod === "keep" ? "Restored." : "Removed."); await Promise.all([loadDashboard(), loadModeration()]); }
-      catch (e) { toast(e.message); }
+      decide(card, () => api(`/communities/moderation/${card.dataset.id}/decide/`, { method: "POST", body: { decision: b.dataset.mod, note } }),
+        b.dataset.mod === "keep" ? "Restored." : "Removed.", modEmpty());
     }));
   } catch (e) { box.innerHTML = `<div class="card empty">${esc(e.message)}</div>`; }
 }

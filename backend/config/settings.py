@@ -211,6 +211,11 @@ JEV_TIMEOUT = env.float("JEV_TIMEOUT", default=2.0)  # seconds per call
 JEV_CONCURRENCY = env.int("JEV_CONCURRENCY", default=16)
 JEV_CACHE_SECONDS = env.int("JEV_CACHE_SECONDS", default=6 * 3600)
 
+# Listen: stories read aloud by ElevenLabs in the language of the version shown. Empty key: the
+# reader app falls back to the browser's own speech.
+ELEVENLABS_API_KEY = env("ELEVENLABS_API_KEY", default="")
+ELEVENLABS_VOICE = env("ELEVENLABS_VOICE", default="JBFqnCBsd6RMkjVDRZzb")  # one multilingual voice for every language
+
 # Telegram news bot (@BotFather token). Empty: the bot is idle and sends nothing.
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_API", default="")
 
