@@ -143,9 +143,14 @@ function Body({ card, ranking, lang, size, onReported }) {
       {card.key_facts?.length > 0 && (
         <section>
           <h2 className="text-title">Key facts</h2>
-          <ul className="mt-2 flex flex-col gap-2 ps-5">
-            {card.key_facts.map((f) => <li key={f} className="list-disc text-body marker:text-muted">{f}</li>)}
-          </ul>
+          {/* New stories have one paragraph (from the full article); older ones a list. */}
+          {card.key_facts.length === 1 ? (
+            <p className="mt-2 text-body">{card.key_facts[0]}</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-2 ps-5">
+              {card.key_facts.map((f) => <li key={f} className="list-disc text-body marker:text-muted">{f}</li>)}
+            </ul>
+          )}
         </section>
       )}
 
@@ -172,7 +177,9 @@ function Body({ card, ranking, lang, size, onReported }) {
               <p className="text-title">{card.original.headline}</p>
               <p className="text-ui text-ink/85">{card.original.summary}</p>
               {card.original.key_facts?.length > 0 && (
-                <ul className="flex flex-col gap-1 ps-5">{card.original.key_facts.map((f) => <li key={f} className="list-disc text-ui">{f}</li>)}</ul>
+                card.original.key_facts.length === 1
+                  ? <p className="text-ui">{card.original.key_facts[0]}</p>
+                  : <ul className="flex flex-col gap-1 ps-5">{card.original.key_facts.map((f) => <li key={f} className="list-disc text-ui">{f}</li>)}</ul>
               )}
             </div>
           </More>

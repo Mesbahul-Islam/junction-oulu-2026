@@ -31,7 +31,7 @@ SPORTS_FEEDS = [
     "https://www.kaleva.fi/feedit/rss/managed-listing/jaakiekko/",
     "https://www.kaleva.fi/feedit/rss/managed-listing/urheilu/",
 ]
-USER_AGENT = "OuluNewsroomBot/1.0 (+hackathon prototype; sports desk)"
+USER_AGENT = "KalevaloBot/1.0 (+hackathon prototype; sports desk)"
 FORM_GAMES = 5
 PLAYERS_PER_CYCLE = 60
 LIIGA_MIN_INTERVAL = 1.5  # seconds between Liiga requests from one worker process

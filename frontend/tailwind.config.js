@@ -25,6 +25,8 @@ export default {
         accent: { DEFAULT: c("newsroom"), weak: c("newsroom-weak"), ink: c("on-ink") },
       },
       fontFamily: {
+        // Wordmark only: the Kalevalo name. Everything else stays in Plex.
+        display: ['"Archivo Black"', '"IBM Plex Sans"', "system-ui", "sans-serif"],
         sans: ['"IBM Plex Sans"', '"IBM Plex Sans Arabic"', "system-ui", "-apple-system", '"Segoe UI"', "sans-serif"],
       },
       // Type scale (~1.2 ratio on a 15px UI / 17px reading base). [size, {lineHeight, letterSpacing, fontWeight}]

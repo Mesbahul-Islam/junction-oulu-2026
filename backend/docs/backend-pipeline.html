@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Oulu News · Backend workflow</title>
+<title>Kalevalo · Backend workflow</title>
 <style>
 :root{--paper:#f5f3ed;--ink:#20211f;--muted:#646660;--line:#c9cbc2;--blue:#1856a2;--green:#23624b;--red:#ab3434;--soft:#e7e8df;font-family:"IBM Plex Sans",Arial,sans-serif;color:var(--ink);background:var(--paper);font-synthesis:none}
 *{box-sizing:border-box}body{margin:0}button,a{touch-action:manipulation}button{font:inherit;color:inherit;background:transparent;border:1px solid var(--line);padding:9px 15px;cursor:pointer;border-radius:3px;min-height:44px}button:hover{background:var(--soft)}button:disabled{opacity:.35;cursor:default}:focus-visible{outline:3px solid var(--ink);outline-offset:4px}a{color:inherit;text-underline-offset:3px}header{position:fixed;z-index:5;top:0;left:0;right:0;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 4vw;background:var(--paper);border-bottom:1px solid var(--line);font-size:14px;letter-spacing:.03em}header strong{font-weight:600}header span{color:var(--muted)}main{padding-top:64px;padding-bottom:76px}.slide{display:none;min-height:calc(100svh - 140px);padding:clamp(30px,5.2vh,64px) 7vw 30px;position:relative;max-width:1720px;margin:auto}.slide.active{display:flex;flex-direction:column}.eyebrow{text-transform:uppercase;font-size:13px;letter-spacing:.16em;color:var(--muted);margin:0 0 22px}h1,h2,h3,p{margin-top:0}h1{font-size:clamp(52px,7.3vw,112px);font-weight:500;line-height:1.02;letter-spacing:-.055em;max-width:1100px;margin-bottom:28px}h2{font-size:clamp(34px,4.1vw,62px);font-weight:500;line-height:1.08;letter-spacing:-.035em;margin-bottom:32px;max-width:1100px}h3{font-size:clamp(21px,2.1vw,30px);font-weight:500;line-height:1.2;margin-bottom:16px}p,li,td,th{font-size:clamp(18px,1.65vw,25px);line-height:1.48}p{margin-bottom:20px}.lead{font-size:clamp(23px,2.6vw,38px);line-height:1.32;max-width:1000px}.muted{color:var(--muted)}.split{display:grid;grid-template-columns:1fr 1fr;gap:6vw;align-items:start}.split>div+div{border-left:1px solid var(--line);padding-left:4vw}.rows{list-style:none;padding:0;margin:0}.rows li{padding:14px 0;border-top:1px solid var(--line)}.rows li:first-child{border-top:2px solid var(--ink)}.rows b{font-weight:600}.note{border-left:3px solid var(--ink);padding-left:20px;margin-top:24px;font-size:clamp(17px,1.5vw,22px);max-width:1050px}.warn{border-color:var(--red)}.source{margin-top:auto;padding-top:30px;font-size:12px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}.source a{margin-right:16px}code{font-family:ui-monospace,monospace;font-size:.82em;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse;text-align:left}td,th{padding:12px 10px 12px 0;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:14px;text-transform:uppercase;letter-spacing:.08em;font-weight:500;color:var(--muted)}.metric{font-size:clamp(64px,8vw,120px);line-height:1;font-weight:500;letter-spacing:-.06em;margin:0 0 12px}.cover{justify-content:center}.cover .source{margin-top:36px}.section{background:var(--ink);color:var(--paper);max-width:none;justify-content:center}.section .eyebrow,.section .source{color:#babdb5}.section h2{font-size:clamp(50px,6.6vw,96px);max-width:1000px}.section .lead{max-width:850px}.index{list-style:none;padding:0;margin:0;counter-reset:phase}.index li{border-top:1px solid var(--line);padding:16px 0;display:flex;gap:20px}.index li:before{counter-increment:phase;content:"0" counter(phase);color:var(--muted);font-size:.8em;padding-top:4px}footer{position:fixed;z-index:5;bottom:0;left:0;right:0;min-height:76px;background:var(--paper);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 4vw}.controls{display:flex;gap:8px;align-items:center}#count{font-variant-numeric:tabular-nums;font-size:14px;min-width:66px;text-align:center}#progress{position:absolute;left:0;top:-3px;height:3px;background:var(--ink);width:0;transition:width .15s}.keys{font-size:12px;color:var(--muted)}body.all main{padding-bottom:76px}body.all .slide{display:flex;min-height:800px;border-bottom:1px solid var(--line)}
@@ -14,7 +14,7 @@
 </style>
 </head>
 <body>
-<header><strong>Oulu News / Backend</strong><span>RSS processing and the story lifecycle</span></header>
+<header><strong>Kalevalo / Backend</strong><span>RSS processing and the story lifecycle</span></header>
 <main id="deck">
 
 <section class="slide cover active" aria-labelledby="s1">
@@ -174,7 +174,7 @@ function show(index, updateHash = true) {
   prev.disabled = current === 0;
   next.disabled = current === slides.length - 1;
   document.querySelector('#progress').style.width = `${(current + 1) / slides.length * 100}%`;
-  document.title = `${current + 1}. ${slides[current].querySelector('h1,h2').textContent} · Oulu News`;
+  document.title = `${current + 1}. ${slides[current].querySelector('h1,h2').textContent} · Kalevalo`;
   if (updateHash) history.replaceState(null, '', `#${current + 1}`);
   if (all) slides[current].scrollIntoView({block:'start'});
   else window.scrollTo(0, 0);

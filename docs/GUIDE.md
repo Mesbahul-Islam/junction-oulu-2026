@@ -45,7 +45,7 @@ Web, worker and beat start only after `setup` succeeds, so they always see a mig
 | URL | What |
 |---|---|
 | http://localhost:5173 | **Reader app** (React + Vite, `frontend/`): onboarding, personalised feed in the reader's language, stories with the Finnish original, saved, profile. See `frontend/README.md`. |
-| http://localhost:8000/ | **Newsroom Admin** dashboard (`backend/frontend/index.html`, staff login). It has five sections:<br>• **Overview:** queue counts, checklist items to confirm, reported posts, runs, the schedule with the next run and a "Run now" button, and model status (checked against the Ollama server).<br>• **Editor queue:** stories and translations with the AI's flags and the JSN checklist. Edit text before approving (also how Sámi text is written), approve, request changes, reject, or batch-approve low-risk items.<br>• **Community:** reported posts with the reasons, and Keep or Remove; **Unanswered questions** from members, where you link the story that answers each; the removed and kept history.<br>• **AI newsroom:** Run now (choose how many stories) and a live view of the latest or any earlier run: every desk's progress, every story's Jev score, stage and verdict (Ready to send with a Send button, or Needs review with the reasons), plus what the wire desk fetched and what Jev ranked highest (§4–5).<br>• **Compare feeds:** up to 3 real readers side by side, exactly as each gets the feed (`/api/feed/snippets/?as_user=<id>`, staff only). |
+| http://localhost:8000/ | **Kalevalo Admin** dashboard (`backend/frontend/index.html`, staff login). It has five sections:<br>• **Overview:** queue counts, checklist items to confirm, reported posts, runs, the schedule with the next run and a "Run now" button, and model status (checked against the Ollama server).<br>• **Editor queue:** stories and translations with the AI's flags and the JSN checklist. Edit text before approving (also how Sámi text is written), approve, request changes, reject, or batch-approve low-risk items.<br>• **Community:** reported posts with the reasons, and Keep or Remove; **Unanswered questions** from members, where you link the story that answers each; the removed and kept history.<br>• **AI newsroom:** Run now (choose how many stories) and a live view of the latest or any earlier run: every desk's progress, every story's Jev score, stage and verdict (Ready to send with a Send button, or Needs review with the reasons), plus what the wire desk fetched and what Jev ranked highest (§4–5).<br>• **Compare feeds:** up to 3 real readers side by side, exactly as each gets the feed (`/api/feed/snippets/?as_user=<id>`, staff only). |
 | http://localhost:8000/api/docs/ | Interactive API docs (Swagger). Try any endpoint here. |
 | http://localhost:8000/admin/ | Django admin. Log in with `admin@example.com` / `admin`. |
 
@@ -175,7 +175,7 @@ flowchart TD
     K["Kaleva RSS feeds"] --> W["1. Wire desk<br/>fetch, store, drop opinion and ads"]
     V["Members vote in the app:<br/>'What should we cover next?'"] --> N
     W --> N["2. News editor (Jev + members' votes)<br/>rank every article, pick the top N"]
-    N --> R["3. Reporter<br/>Finnish headline, summary, key facts"]
+    N --> R["3. Brief desk (agent with a tool)<br/>reads the full Kaleva article,<br/>writes headline, summary, key facts, for-you"]
     R --> E["4. Explainer<br/>what it means for newcomers, students…"]
     E --> T["5. Translator<br/>every reader language (never Sámi)"]
     T --> F["6. Fact-checker<br/>draft numbers vs the article"]
@@ -217,8 +217,7 @@ Notes that don't block: a translation that came back in the wrong language (it's
 |---|---|---|---|---|
 | 1 | Wire desk | Kaleva RSS | Fetches every active feed, stores new and changed articles, sets aside opinion and paid content. | Editors choosing the feeds |
 | 2 | News editor | **Jev** + members' votes | Ranks every candidate for this community's readers, adds the community's votes and picks the top N. | News editor |
-| 3 | Reporter | AI model | Finnish headline (under 100 characters), 2–3 sentence summary, 2–5 key facts, only from the article. | Editor |
-| 4 | Explainer | AI model | One or two sentences per reader situation (newcomer, seasonal worker, student, resident). | Editor |
+| 3 | Brief desk (`explainer`) | AI model + a tool | An agent: the model gets the `fetch_kaleva_article` tool (`newsroom/kaleva.py`) and is told to read the full article first (the RSS feed carries only a short teaser). It writes the Finnish headline, a 1–2 sentence summary, the key facts as **one paragraph of at most 256 words**, and "What this means for you" for each reader situation, only from the article. If the model can't or doesn't call the tool, the desk fetches the article itself; only when the article can't be read is the brief written from the RSS teaser (a note for editors). The tool fetches only `https://www.kaleva.fi` links and caches the text in `SourceDocument.full_text`; the fact-checker then checks the draft's numbers against the full article. | Editor |
 | 5 | Translator | AI model | Every language of the community and of its members, one call per language. A translation in the wrong language (checked by script, Ukrainian vs Russian letters and common words) or still in Finnish is left out. Never Sámi. | Language reviewer |
 | 6 | Fact-checker | rules | Every number in the draft must be in the article; translations should keep them. | Editor |
 | 7 | Standards editor | rules | Risk tier and JSN sensitive topics. | Standards editor |

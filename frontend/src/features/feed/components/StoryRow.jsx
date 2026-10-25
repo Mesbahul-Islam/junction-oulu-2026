@@ -63,7 +63,7 @@ export function WhyThis({ ranking }) {
 
 const iconBtn = "focus-ring inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-control px-2 text-meta text-muted transition-colors hover:bg-ink/5 hover:text-ink [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:min-w-11";
 
-/** A newsroom story in the Today timeline. `onOpen(card)` opens it in the side peek; plain
+/** A newsroom story in the For You timeline. `onOpen(card)` opens it in the side peek; plain
  *  clicks fall back to the story page (and cmd-click still opens a new tab). */
 export function StoryRow({ card, lang, situation, onOpen, active }) {
   const { saved, toggleSave, share } = useStoryActions(card);
@@ -83,7 +83,7 @@ export function StoryRow({ card, lang, situation, onOpen, active }) {
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-newsroom-weak text-newsroom">
           <ShieldCheck size={13} />
         </span>
-        <span className="font-medium text-ink">Oulu News</span>
+        <span className="font-medium text-ink">Kalevalo</span>
         {card.community_name && <span className="truncate text-muted">{card.community_name}</span>}
         <span className="text-muted" aria-hidden="true">·</span>
         <time dateTime={card.published_at} className="shrink-0 text-muted">{timeAgo(card.published_at, lang)}</time>
@@ -128,11 +128,15 @@ export function StoryRow({ card, lang, situation, onOpen, active }) {
         >
           <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1 rounded-control text-meta font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
             <ChevronRight size={15} className="transition-transform group-open/facts:rotate-90 rtl:rotate-180 rtl:group-open/facts:rotate-90" />
-            {facts.length} key {facts.length === 1 ? "fact" : "facts"}
+            {facts.length === 1 ? "Key facts" : `${facts.length} key facts`}
           </summary>
-          <ul className="mt-2 flex flex-col gap-1.5 ps-5">
-            {facts.map((f) => <li key={f} className="list-disc text-meta text-ink/90 marker:text-muted">{f}</li>)}
-          </ul>
+          {facts.length === 1 ? (
+            <p className="mt-2 text-meta text-ink/90">{facts[0]}</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1.5 ps-5">
+              {facts.map((f) => <li key={f} className="list-disc text-meta text-ink/90 marker:text-muted">{f}</li>)}
+            </ul>
+          )}
         </details>
       )}
 

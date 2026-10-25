@@ -96,6 +96,8 @@ aside { position: sticky; top: 0; height: 100dvh; overflow-y: auto; display: fle
 .wordmark { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 19px; letter-spacing: -.035em; font-weight: 600; white-space: nowrap; }
 .brand-symbol { display: inline-grid; place-items: center; width: 24px; height: 24px; border: 2px solid currentColor; border-radius: 50%; font-size: 0; position: relative; }
 .brand-symbol::after { content: ''; width: 8px; height: 8px; background: currentColor; border-radius: 50%; }
+.wordmark-name { font-family: "Archivo Black", "IBM Plex Sans", system-ui, sans-serif; font-weight: 400; font-size: 21px; letter-spacing: -.02em; }
+.wordmark-sub { align-self: center; margin-inline-start: 2px; padding: 2px 7px; border: 1px solid currentColor; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; line-height: 1.2; opacity: .75; }
 .wordmark-dot, .provenance-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--newsroom); flex-shrink: 0; }
 .workspace-label { margin: 32px 10px 12px; color: var(--muted); font-size: 12px; }
 nav { display: grid; gap: 4px; }
@@ -305,3 +307,11 @@ dialog .actions { justify-content: flex-end; }
 .setting-row dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 1199px) { .settings-grid { grid-template-columns: minmax(0,1fr); } }
 @media (max-width: 767px) { .settings-notice { flex-direction: column; gap: 8px; }.settings-grid { gap: 18px; }.setting-row { gap: 12px; } }
+
+/* "What this means for you" in the editor queue */
+.for-you { margin-block: 14px 4px; padding: 12px 14px; border-radius: 10px; background: var(--sunk); }
+.for-you.empty { background: none; padding: 0; }
+.for-you-title { font-weight: 600; margin-bottom: 6px; }
+.for-you dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+.for-you dt { font-size: 13px; color: var(--muted); font-weight: 600; }
+.for-you dd { margin: 0; font-size: 15px; line-height: 22px; }

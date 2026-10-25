@@ -33,6 +33,8 @@ class StoryState(TypedDict, total=False):
     languages: list[str]
     draft: dict
     explainer: dict
+    read: str  # how the brief desk read the article (tool / desk fetch / RSS teaser only)
+    tool_calls: list[dict]
     translations: dict
     risk: str
     sensitive: list[str]

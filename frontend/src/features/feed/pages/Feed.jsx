@@ -79,7 +79,7 @@ export default function Feed() {
       header={
         <>
           <ColumnTitle
-            title="Today"
+            title="For You"
             subtitle={today}
             aside={
               <>

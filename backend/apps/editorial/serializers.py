@@ -6,9 +6,12 @@ from .models import STANDARDS_CHECKLIST, AuditLogEntry, ChecklistItem, Correctio
 
 
 class VersionBriefSerializer(serializers.ModelSerializer):
+    """A version as a reviewer sees it, including the "What this means for you" texts
+    (``explainer``: one per reader situation), which readers see and an editor must vouch for."""
+
     class Meta:
         model = SnippetVersion
-        fields = ["language", "headline", "summary", "key_facts", "review_status", "is_machine_translated"]
+        fields = ["language", "headline", "summary", "key_facts", "explainer", "review_status", "is_machine_translated"]
 
 
 class ReviewTaskSerializer(serializers.ModelSerializer):

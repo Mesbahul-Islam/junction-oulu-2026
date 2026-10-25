@@ -20,7 +20,7 @@ const COPY = {
   },
   topics: {
     title: "What matters to you in Oulu?",
-    subtitle: "Pick what affects your life. We'll put them first in Today.",
+    subtitle: "Pick what affects your life. We'll put them first in For You.",
   },
   situation: {
     title: "Tell us your situation",
