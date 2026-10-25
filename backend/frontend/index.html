@@ -15,7 +15,7 @@
   <a href="#main" class="skip-link">Skip to content</a>
   <div id="bootState" class="empty" role="status">Opening the newsroom…</div>
   <div id="login" class="login" hidden>
-    <a class="wordmark" href="http://localhost:5173"><span class="brand-symbol" aria-hidden="true">K</span><span class="wordmark-name">Kalevalo</span><span class="wordmark-sub">Admin</span></a>
+    <a class="wordmark" href="http://localhost:5173" data-reader-link><span class="brand-symbol" aria-hidden="true">K</span><span class="wordmark-name">Kalevalo</span><span class="wordmark-sub">Admin</span></a>
     <div class="login-panel">
       <p class="eyebrow">The newsroom workspace</p>
       <h1>Good journalism.<br>A human behind it.</h1>
@@ -28,7 +28,7 @@
         <div id="loginError" class="flag bad" role="alert" hidden></div>
         <button class="btn primary full-width" type="submit">Sign in to the newsroom <span aria-hidden="true">→</span></button>
       </form>
-      <p class="small muted login-help">Staff access only. Local demo: admin@example.com / admin</p>
+      <p class="small muted login-help">Staff access only.<span id="localDemo" hidden> Local demo: admin@example.com / admin</span></p>
     </div>
     <p class="login-footer">AI helps make the news. People stand behind it.</p>
   </div>
@@ -47,8 +47,8 @@
       </nav>
       <div class="sidebar-note"><span class="provenance-dot" aria-hidden="true"></span><div><b>People make the call.</b><p>Every story needs a human before it reaches readers.</p></div></div>
       <div class="links">
-        <a href="http://localhost:5173" target="_blank" rel="noopener">Open reader app <span aria-hidden="true">↗</span></a>
-        <a href="http://localhost:5173/design" target="_blank" rel="noopener">Kajo design system <span aria-hidden="true">↗</span></a>
+        <a href="http://localhost:5173" data-reader-link target="_blank" rel="noopener">Open reader app <span aria-hidden="true">↗</span></a>
+        <a href="http://localhost:5173/design" data-reader-link="/design" target="_blank" rel="noopener">Kajo design system <span aria-hidden="true">↗</span></a>
         <a href="/admin/" target="_blank" rel="noopener">Manage data <span aria-hidden="true">↗</span></a>
         <a href="/api/docs/" target="_blank" rel="noopener">API documentation <span aria-hidden="true">↗</span></a>
         <a href="/fantasy/" target="_blank" rel="noopener">Fantasy Liiga <span aria-hidden="true">↗</span></a>

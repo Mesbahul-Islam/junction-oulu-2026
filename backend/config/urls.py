@@ -30,6 +30,9 @@ def frontend(request):
 
 urlpatterns = [
     path("", frontend, name="frontend"),
+    # The same dashboard under /newsroom/, so it can share one public address with the reader
+    # app: the reader app's dev server forwards /newsroom/ (and /api, /static ...) to Django.
+    path("newsroom/", frontend, name="newsroom"),
     path("fantasy/", fantasy_frontend, name="fantasy-frontend"),
     path("admin/", admin.site.urls),
     path("accounts/oauth/callback/", OAuthCallbackView.as_view(), name="oauth_callback"),

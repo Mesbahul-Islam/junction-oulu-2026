@@ -107,8 +107,10 @@ services:
     working_dir: /app
     command: sh -c "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
     environment:
-      # The browser (on your machine) calls the API, so this is the host-side address.
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      # "/" = the API on the same address as the app: this dev server forwards /api, /newsroom,
+      # /static ... to Django (vite.config.js), so one tunnel serves the app and the dashboard.
+      VITE_API_URL: ${VITE_API_URL:-/}
+      VITE_PROXY_TARGET: http://web:8000
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules  # container's own packages, not the host's

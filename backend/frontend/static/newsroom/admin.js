@@ -4,6 +4,12 @@ const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const results = (d) => (Array.isArray(d) ? d : d?.results ?? []);
 const LANG = { fi: "Finnish", en: "English", sv: "Swedish", uk: "Ukrainian", ru: "Russian", ar: "Arabic", so: "Somali", et: "Estonian", se: "Northern Sámi", smn: "Inari Sámi", sms: "Skolt Sámi" };
 const lang = (c) => LANG[c] || c;
+// The reader app: the same address when the dashboard is served at /newsroom/ through it (ngrok),
+// else the dev server on port 5173 next to Django's port 8000.
+const READER = location.pathname.startsWith("/newsroom") ? "" : `${location.protocol}//${location.hostname}:5173`;
+document.querySelectorAll("[data-reader-link]").forEach((a) => { a.href = READER + (a.dataset.readerLink || "/"); });
+// The demo login is only shown on this machine, never through a public tunnel.
+$("localDemo").hidden = !["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
 const S = { token: stored("admin-token"), me: null, view: "overview", dash: null, readers: [], picked: [] };
 
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => (t.style.display = "none"), 3800); }

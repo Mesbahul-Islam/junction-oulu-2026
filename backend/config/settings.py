@@ -10,6 +10,13 @@ environ.Env.read_env(BASE_DIR.parent / ".env")
 SECRET_KEY = env("SECRET_KEY", default="dev-insecure-change-me-to-a-long-random-string")
 DEBUG = env("DEBUG", default=True)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
+# Behind the reader app's dev server and a tunnel (ngrok): the tunnel terminates HTTPS and says
+# so in X-Forwarded-Proto, and the Django admin's login form posts from that https origin.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[
+    "https://*.ngrok-free.dev", "https://*.ngrok-free.app", "https://*.ngrok.app", "https://*.ngrok.io",
+    "https://*.trycloudflare.com",
+])
 
 INSTALLED_APPS = [
     "django.contrib.admin",
