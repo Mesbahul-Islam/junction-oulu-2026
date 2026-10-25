@@ -2,9 +2,9 @@
 
 Readers can also take the ad-free plan (Plan), whatever their level.
 
-Contribution statistics arrive from outside this app (POST /api/rewards/stats/, see services.ingest):
-approved posts and photos, accepted corrections, how the community rated them, trusted voice status.
-They set a member's level, and the level unlocks partner perks: discounts and free items, never cash.
+A member's level comes from their trust standing (apps.trust, see services.standing): Contributor,
+Local guide (trust's "eligible") or Trusted voice. The level unlocks partner perks: discounts and free
+items, never cash.
 """
 
 from django.conf import settings
@@ -21,31 +21,6 @@ class Level(models.TextChoices):
 
 
 LEVEL_ORDER = [Level.READER, Level.CONTRIBUTOR, Level.LOCAL_GUIDE, Level.TRUSTED]
-
-
-class ContributorStats(TimeStampedModel):
-    """The latest statistics received for one member. Points and level are worked out on receipt."""
-
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="contributor_stats")
-    period = models.CharField(max_length=20, blank=True)  # what the sender says the numbers cover, e.g. "2026-10"
-    posts_approved = models.PositiveIntegerField(default=0)
-    photos_approved = models.PositiveIntegerField(default=0)
-    corrections_accepted = models.PositiveIntegerField(default=0)
-    rejected = models.PositiveIntegerField(default=0)
-    rating_average = models.DecimalField(max_digits=3, decimal_places=2, default=0)  # 0-5, from other members
-    rating_count = models.PositiveIntegerField(default=0)
-    trusted_voice = models.BooleanField(default=False)
-    trust_score = models.IntegerField(default=0)
-    points = models.IntegerField(default=0)
-    level = models.CharField(max_length=12, choices=Level.choices, default=Level.READER, db_index=True)
-    source = models.CharField(max_length=60, blank=True)
-    payload = models.JSONField(default=dict, blank=True)  # exactly what was received
-
-    class Meta:
-        verbose_name_plural = "contributor stats"
-
-    def __str__(self):
-        return f"{self.user}: {self.points} ({self.level})"
 
 
 class Partner(TimeStampedModel):

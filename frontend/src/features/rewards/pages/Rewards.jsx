@@ -7,13 +7,18 @@ import { Page, PageHeader, QueryBoundary } from "@/components/patterns";
 import { cn } from "@/lib/utils";
 import { useCancelPlan, useMyRewards, useRedeem, useSubscribe } from "../hooks";
 
-const GOAL = { contributor: 10, local_guide: 60 }; // points needed, matches apps/rewards/services.py
 const LABEL = { contributor: "Contributor", local_guide: "Local guide", trusted: "Trusted voice" };
+// Your level is your best community standing (apps/trust/services.py POINTS and thresholds).
 const EARN = [
-  ["Post approved by an editor", "+10"],
-  ["Photo approved by a moderator", "+5"],
-  ["Correction accepted by the newsroom", "+15"],
-  ["Post rejected or removed", "-5"],
+  ["Reader note rated helpful", "+10"],
+  ["Question or tip accepted by the newsroom", "+6"],
+  ["...and it became a story", "+6"],
+  ["Question other members asked too", "+3"],
+  ["Like from another member (up to 5 per post)", "+1"],
+  ["Photo approved by a moderator", "+1"],
+  ["Note rating that matched the final verdict (up to 10)", "+1"],
+  ["Reader note rated not helpful", "-4"],
+  ["Post removed by a moderator", "-15"],
 ];
 
 const off = (n) => (n >= 100 ? "Free" : `${n}% off`);
@@ -25,27 +30,26 @@ function nextText(next) {
   if (next.editor) return "Trusted voice is given by a community editor, based on your record.";
   const parts = [
     next.points > 0 && `${next.points} more points`,
-    next.ratings > 0 && `${next.ratings} more ratings from members`,
-    next.rating_average && `an average rating of ${next.rating_average}`,
+    next.verified > 0 && `${next.verified} more helpful note or accepted question`,
   ].filter(Boolean);
-  return parts.length ? `${parts.join(", ")} to ${LABEL[next.level]}` : null;
+  return parts.length ? `${parts.join(" and ")} to ${LABEL[next.level]}` : null;
 }
 
 /** Level, points and what you get for them. */
 function Hero({ stats, perks, plan, onPlan }) {
   const open = perks.filter((p) => p.percent > 0).map((p) => p.percent);
-  const goal = stats.next && GOAL[stats.next.level];
+  const goal = stats.next?.points > 0 ? stats.points + stats.next.points : null;
   const range = open.length ? (Math.min(...open) === Math.max(...open) ? off(open[0]) : `${Math.min(...open)}% to ${off(Math.max(...open))}`) : null;
   return (
     <Card variant="float" className="flex flex-col items-center gap-2 bg-ink px-5 pb-6 pt-8 text-center text-on-ink">
       <span className="flex items-center gap-1.5 text-ui opacity-80">
-        {stats.level === "trusted" && <BadgeCheck size={16} />}{stats.level_label}{plan && " · Ad-free"}
+        {stats.level === "trusted" && <BadgeCheck size={16} />}{stats.level_label}{stats.community && stats.level !== "reader" && ` in ${stats.community}`}{plan && " · Ad-free"}
       </span>
       <span className="flex items-center gap-2 text-hero tabular-nums">
         <Hexagon size={34} fill="currentColor" strokeWidth={0} />{stats.points}
       </span>
       <span className="text-ui opacity-80">
-        {range ? `${range} at ${open.length} partners` : "Your first approved post unlocks partner discounts"}
+        {range ? `${range} at ${open.length} partners` : "Reach Contributor in any community to unlock partner discounts"}
       </span>
       {goal && (
         <div className="mt-3 w-full max-w-xs text-left">
@@ -139,7 +143,7 @@ function PartnerSheet({ perk, level, code, onClose }) {
 function EarnSheet({ open, onClose }) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent placement="sheet" title="Earn points" description="Only work that an editor or moderator approved counts.">
+      <DialogContent placement="sheet" title="Earn points" description="Points come from what others verified, in each community. Your best community sets your level.">
         <Card className="divide-y divide-line">
           {EARN.map(([what, pts]) => (
             <div key={what} className="flex items-center gap-3 px-4 py-3">
@@ -149,11 +153,11 @@ function EarnSheet({ open, onClose }) {
           ))}
         </Card>
         <Card className="divide-y divide-line">
-          <div className="flex gap-3 px-4 py-3"><span className="flex-1 text-ui">Contributor</span><span className="text-meta text-muted">10 points</span></div>
-          <div className="flex gap-3 px-4 py-3"><span className="flex-1 text-ui">Local guide</span><span className="text-right text-meta text-muted">60 points, rated 4.0+ by 5 members</span></div>
+          <div className="flex gap-3 px-4 py-3"><span className="flex-1 text-ui">Contributor</span><span className="text-meta text-muted">15 points in one community</span></div>
+          <div className="flex gap-3 px-4 py-3"><span className="flex-1 text-ui">Local guide</span><span className="text-right text-meta text-muted">50 points and 2 helpful notes or accepted questions</span></div>
           <div className="flex gap-3 px-4 py-3"><span className="flex-1 text-ui">Trusted voice</span><span className="text-meta text-muted">Approved by an editor</span></div>
         </Card>
-        <Button asChild variant="secondary" block><Link to="/create">Create a post</Link></Button>
+        <Button asChild variant="secondary" block><Link to="/communities">Go to Community</Link></Button>
       </DialogContent>
     </Dialog>
   );
@@ -227,7 +231,7 @@ function PlanSheet({ open, plan, onClose }) {
   );
 }
 
-/** Rewards: points from approved community work, partner discounts that grow with your level,
+/** Rewards: your trust standing (apps/trust) as a level, partner discounts that grow with your level,
  *  and the ad-free plan. Discounts and codes only, no cash. */
 export default function Rewards() {
   const query = useMyRewards();

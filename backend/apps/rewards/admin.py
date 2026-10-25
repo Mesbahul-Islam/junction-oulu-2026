@@ -1,15 +1,6 @@
 from django.contrib import admin
 
-from .models import ContributorStats, Partner, Perk, Plan, Redemption
-
-
-@admin.register(ContributorStats)
-class ContributorStatsAdmin(admin.ModelAdmin):
-    list_display = ["user", "level", "points", "posts_approved", "photos_approved", "corrections_accepted",
-                    "rating_average", "trusted_voice", "updated_at"]
-    list_filter = ["level", "trusted_voice"]
-    search_fields = ["user__username", "user__email"]
-    readonly_fields = ["points", "level", "payload"]
+from .models import Partner, Perk, Plan, Redemption
 
 
 class PerkInline(admin.StackedInline):

@@ -1,113 +1,49 @@
-"""Points, levels and codes. All numbers are in POINTS and the thresholds below."""
+"""Perk levels (from the member's trust standing), codes and the ad-free plan."""
 
 from __future__ import annotations
 
 import secrets
 from datetime import timedelta
-from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.utils import timezone
 
-from .models import LEVEL_ORDER, ContributorStats, Level, Perk, Plan, Redemption
+from .models import LEVEL_ORDER, Level, Perk, Plan, Redemption
 
-POINTS = {
-    "posts_approved": 10,        # a post an editor approved
-    "photos_approved": 5,        # a photo that passed the moderator check
-    "corrections_accepted": 15,  # a correction or fact check the newsroom accepted
-    "rejected": -5,              # rejected or removed: costs points, so quantity alone doesn't pay
-}
-CONTRIBUTOR_POINTS = 10
-GUIDE_POINTS = 60
-GUIDE_RATING = Decimal("4.0")  # average rating from other members, out of 5
-GUIDE_RATINGS = 5              # ...over at least this many ratings
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I to misread at a till
 
-
-class StatsError(ValueError):
-    pass
+# Perks follow the member's trust standing (apps.trust): one ladder, one set of names.
+FROM_TRUST = {"member": Level.READER, "contributor": Level.CONTRIBUTOR, "paused": Level.CONTRIBUTOR,
+              "eligible": Level.LOCAL_GUIDE, "trusted": Level.TRUSTED}
 
 
 class PerkError(ValueError):
     pass
 
 
-def points_for(stats: ContributorStats) -> int:
-    return max(0, sum(getattr(stats, field) * value for field, value in POINTS.items()))
-
-
-def level_for(stats: ContributorStats) -> str:
-    """Trusted voice comes from an editor's approval, not from points."""
-    if stats.trusted_voice:
-        return Level.TRUSTED
-    if (stats.points >= GUIDE_POINTS and stats.rating_count >= GUIDE_RATINGS
-            and stats.rating_average >= GUIDE_RATING):
-        return Level.LOCAL_GUIDE
-    return Level.CONTRIBUTOR if stats.points >= CONTRIBUTOR_POINTS else Level.READER
-
-
 def rank(level: str) -> int:
     return LEVEL_ORDER.index(level)
 
 
-def next_step(stats: ContributorStats | None) -> dict | None:
-    """What is still missing for the next level, or None at the top."""
-    points = stats.points if stats else 0
-    level = stats.level if stats else Level.READER
-    if level == Level.READER:
-        return {"level": Level.CONTRIBUTOR, "points": CONTRIBUTOR_POINTS - points}
-    if level == Level.CONTRIBUTOR:
-        return {"level": Level.LOCAL_GUIDE, "points": max(0, GUIDE_POINTS - points),
-                "ratings": max(0, GUIDE_RATINGS - stats.rating_count),
-                "rating_average": str(GUIDE_RATING) if stats.rating_average < GUIDE_RATING else None}
-    if level == Level.LOCAL_GUIDE:
-        return {"level": Level.TRUSTED, "editor": True}  # an editor approves trusted voices
-    return None
+def standing(user) -> dict:
+    """The member's best community standing, as a perk level: points, level and what's next."""
+    from apps.trust.models import MemberTrust
+    from apps.trust.services import CONTRIBUTOR_SCORE, next_step
 
-
-def _user_for(row: dict):
-    User = get_user_model()
-    if row.get("user_id"):
-        return User.objects.filter(pk=row["user_id"]).first()
-    if row.get("email"):
-        return User.objects.filter(email__iexact=row["email"]).first()
-    if row.get("username"):
-        return User.objects.filter(username__iexact=row["username"]).first()
-    return None
-
-
-@transaction.atomic
-def ingest(rows: list[dict], source: str = "") -> dict:
-    """Store the latest statistics for each member in `rows` (validated by IngestSerializer).
-
-    Returns {"stored": [{"user_id", "points", "level"}], "skipped": [{"row", "reason"}]}.
-    """
-    stored, skipped = [], []
-    for i, row in enumerate(rows):
-        user = _user_for(row)
-        if user is None:
-            skipped.append({"row": i, "reason": "no such member"})
-            continue
-        c, r = row.get("contributions", {}), row.get("community_rating", {})
-        stats, _ = ContributorStats.objects.get_or_create(user=user)
-        stats.period = row.get("period", "")
-        stats.posts_approved = c.get("posts_approved", 0)
-        stats.photos_approved = c.get("photos_approved", 0)
-        stats.corrections_accepted = c.get("corrections_accepted", 0)
-        stats.rejected = c.get("rejected", 0)
-        stats.rating_average = r.get("average", 0)
-        stats.rating_count = r.get("count", 0)
-        stats.trusted_voice = row.get("trusted_voice", False)
-        stats.trust_score = row.get("trust_score", 0)
-        stats.source = source[:60]
-        stats.payload = row.get("_raw", {})
-        stats.points = points_for(stats)
-        stats.level = level_for(stats)
-        stats.save()
-        stored.append({"user_id": user.pk, "points": stats.points, "level": stats.level})
-    return {"stored": stored, "skipped": skipped}
+    rows = MemberTrust.objects.filter(user=user).select_related("community")
+    best = max(rows, key=lambda t: (rank(FROM_TRUST[t.level]), t.score), default=None)
+    if best is None:
+        return {"points": 0, "level": Level.READER, "level_label": Level.READER.label, "community": None,
+                "next": {"level": Level.CONTRIBUTOR, "points": CONTRIBUTOR_SCORE}}
+    level = FROM_TRUST[best.level]
+    nxt = next_step(best)  # {} at eligible and above
+    if best.level == "eligible":
+        nxt = {"level": Level.TRUSTED, "editor": True}  # an editor approves trusted voices
+    elif nxt:
+        nxt["level"] = FROM_TRUST[nxt["level"]]
+    return {"points": best.score, "level": level, "level_label": Level(level).label,
+            "community": best.community.name, "next": nxt or None}
 
 
 def month_now() -> str:
@@ -124,8 +60,7 @@ def _new_code() -> str:
 
 def redeem(user, perk: Perk) -> Redemption:
     """Give the member a code for this partner. Asking again in the same month returns the same code."""
-    stats = ContributorStats.objects.filter(user=user).first()
-    level = stats.level if stats else Level.READER
+    level = standing(user)["level"]
     if not perk.active:
         raise PerkError("This offer has ended.")
     if not unlocked(perk, level):
