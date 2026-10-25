@@ -77,16 +77,14 @@
   /* 1 · hook */
   .hook h1 { font-size: 116px; }
   .hook h1 .dim { color: color-mix(in srgb, var(--on-ink) 45%, transparent); display: block; margin-top: 18px; font-size: 92px; line-height: 1.08; }
-  .fi-card { position: absolute; right: 160px; top: 50%; transform: translateY(-50%) rotate(-2deg); width: 560px; background: var(--surface); color: var(--ink); border-radius: 26px; padding: 40px 44px; box-shadow: 0 40px 90px -30px rgb(0 0 0 / .6); }
-  .fi-src { font-size: 22px; font-weight: 600; color: var(--muted); }
-  .fi-head { font-size: 38px; line-height: 1.2; font-weight: 700; margin: 16px 0 26px; }
-  .fi-lines { display: grid; gap: 14px; }
-  .fi-lines i { display: block; height: 14px; width: 100%; border-radius: 99px; background: var(--sunk); }
-  .fi-tag { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 24px; line-height: 1.4; color: var(--muted); }
+  .fi-card { position: absolute; right: 160px; top: 50%; transform: translateY(-50%) rotate(-2deg); width: 720px; background: hsl(211 26% 11%); color: hsl(204 25% 92%); border: 2px solid hsl(208 20% 28%); border-radius: 26px; padding: 40px 44px; box-shadow: 0 40px 90px -30px rgb(0 0 0 / .6); }
+  .fi-src { font-size: 22px; font-weight: 600; color: hsl(205 10% 62%); }
+  .fi-shot { display: block; width: 100%; margin: 20px 0 4px; border-radius: 14px; }
+  .fi-tag { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 24px; line-height: 1.4; color: hsl(205 10% 62%); border-top-color: hsl(208 20% 19%); }
   .fi-tag b { color: var(--danger); }
 
   /* 2 · product card */
-  .split { display: grid; grid-template-columns: 1fr 760px; gap: 120px; align-items: center; flex: 1; }
+  .split { display: grid; grid-template-columns: 1fr 600px; gap: 120px; align-items: center; flex: 1; }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 44px 48px; box-shadow: 0 30px 80px -40px rgb(0 0 0 / .35); }
   .src { display: flex; align-items: center; gap: 18px; font-size: 24px; color: var(--muted); }
   .src .av { width: 52px; height: 52px; border-radius: 50%; background: var(--ink); color: var(--on-ink); display: grid; place-items: center; font-weight: 700; font-size: 22px; }
@@ -102,6 +100,9 @@
   .foryou { margin-top: 26px; border-left: 5px solid var(--newsroom); background: var(--newsroom-weak); border-radius: 0 16px 16px 0; padding: 20px 24px; }
   .foryou .lbl { font-size: 19px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--newsroom); margin-bottom: 8px; }
   .foryou p { color: var(--ink); }
+  .shot { margin: 0; }
+  .shot img { display: block; width: 600px; border-radius: 28px; border: 1px solid var(--line); box-shadow: 0 30px 80px -40px rgb(0 0 0 / .45); }
+  .shot figcaption { margin-top: 18px; font-size: 22px; color: var(--muted); text-align: center; }
   .card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 22px; color: var(--muted); }
   .points { list-style: none; padding: 0; margin-top: 56px; display: grid; gap: 30px; }
   .points li { font-size: 34px; line-height: 1.3; display: grid; grid-template-columns: 56px 1fr; }
@@ -205,18 +206,17 @@
 
   <!-- 1 · Hook — 0:00–0:25 -->
   <section class="slide ink hook" data-title="Hook" data-at="0:00–0:25">
-    <div style="margin-top:auto;margin-bottom:auto;max-width:980px">
+    <div style="margin-top:auto;margin-bottom:auto;max-width:900px">
       <h1>You got the story right.<span class="dim">Olena never read it.</span></h1>
       <p class="lede">She moved to Oulu five days ago. She doesn't read Finnish yet.</p>
     </div>
     <div class="fi-card" aria-hidden="true">
       <div class="fi-src">Kaleva · Oulu</div>
-      <div class="fi-head">Terveysaseman aukioloajat muuttuvat keskustassa</div>
-      <div class="fi-lines"><i></i><i></i><i style="width:70%"></i></div>
+      <img class="fi-shot" src="img/card-fi.png" alt="The story in Finnish: Verkkopalvelut nurin">
       <div class="fi-tag">Accurate. Checked. Published.<br><b>Unreadable to her.</b></div>
     </div>
     <div class="brand"><b>Kalevalo</b> · Junction Oulu 2026</div><div class="count"></div>
-    <div class="notes">Every day Kaleva publishes stories that change someone's week: a bus route, a housing deadline, the health centre's hours. You get it right.
+    <div class="notes">Every day Kaleva publishes stories that change someone's week: a bus route, a housing deadline, the city's online services going down. You get it right.
 Olena moved to Oulu five days ago. She doesn't read Finnish yet. That story was written for her too, and she never read it.
 Your journalism exists. It just doesn't reach everyone who lives here.</div>
   </section>
@@ -234,20 +234,10 @@ Your journalism exists. It just doesn't reach everyone who lives here.</div>
           <li data-n="4">Every card says who stands behind it</li>
         </ul>
       </div>
-      <div class="card" aria-label="Example story card">
-        <div class="src"><span class="av">K</span><span><b>Kaleva</b> · Oulu · 2 h</span></div>
-        <div style="display:flex;gap:12px;margin-top:22px;flex-wrap:wrap">
-          <span class="pill newsroom">● In your language · editor approved</span>
-          <span class="pill neutral">AI-assisted, disclosed</span>
-        </div>
-        <h3>Health centre opening hours change in the city centre</h3>
-        <p>A short, sourced brief written only from the Kaleva article.</p>
-        <div class="foryou">
-          <div class="lbl">What this means for you · newcomer</div>
-          <p>Context the Finnish story never had to spell out: who you call, what to bring, what changes for you.</p>
-        </div>
-        <div class="card-foot"><span>Show Finnish original</span><span>Why am I seeing this?</span></div>
-      </div>
+      <figure class="shot">
+        <img src="img/card-en.png" alt="The same story on the For You feed, in English, with what it means for a newcomer">
+        <figcaption>The same story, in the app</figcaption>
+      </figure>
     </div>
     <div class="brand"><b>Kalevalo</b></div><div class="count"></div>
     <div class="notes">Meet Kalevalo. It takes Kaleva's own reporting and gives every reader the story in their language, plus the one thing a translation can't: what it means for them. A newcomer, a student, a seasonal worker in Levi.
