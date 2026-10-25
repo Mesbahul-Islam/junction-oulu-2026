@@ -1,13 +1,12 @@
 import { Compass, Users } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { Button, Spinner } from "@/components/ui";
-import { Column, ColumnTitle, EmptyState, FilterBar, FilterChip, QueryBoundary, SidePeek, useCanPeek } from "@/components/patterns";
+import { Column, ColumnTitle, EmptyState, FilterBar, FilterChip, QueryBoundary } from "@/components/patterns";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { Composer } from "../components/Composer";
-import { PostRow, postHref } from "../components/Post";
-import { Thread } from "../components/Thread";
+import { PostRow } from "../components/Post";
 import { useCommunities, usePosts } from "../hooks/useCommunities";
 
 /** Community: what members of your communities ask and share, newest first. */
@@ -16,11 +15,8 @@ export default function Communities() {
   const lang = me?.preferred_language;
   const [params, setParams] = useSearchParams();
   const slug = params.get("c");
-  const peek = params.get("post"); // "<community slug>/<post id>"
-  const canPeek = useCanPeek();
   const groups = useCommunities();
   const posts = usePosts(slug);
-  const [peekPost, setPeekPost] = useState(null);
 
   const mine = (groups.data?.all || []).filter((g) => g.is_member);
   const setParam = (key, value, replace) => setParams((p) => {
@@ -28,10 +24,6 @@ export default function Communities() {
     if (value) next.set(key, value); else next.delete(key);
     return next;
   }, { replace });
-  const openPost = canPeek ? (p) => { setPeekPost(p); setParam("post", `${p.community_slug}/${p.id}`); } : undefined;
-  const closePeek = () => setParam("post", null);
-  const [peekSlug, peekId] = (peek || "").split("/");
-  const peekPlaceholder = peekPost?.id === Number(peekId) ? peekPost : posts.data?.find((p) => p.id === Number(peekId));
 
   const endRef = useRef(null);
   useEffect(() => {
@@ -81,7 +73,7 @@ export default function Communities() {
             {(list) => (
               <>
                 {list.map((p) => (
-                  <PostRow key={p.id} post={p} lang={lang} onOpen={openPost} active={peek === `${p.community_slug}/${p.id}`} />
+                  <PostRow key={p.id} post={p} lang={lang} />
                 ))}
                 <div ref={endRef} className="grid place-items-center py-10">
                   {posts.isFetchingNextPage ? <Spinner /> : !posts.hasNextPage && <p className="text-meta text-muted">That's everything.</p>}
@@ -90,12 +82,6 @@ export default function Communities() {
             )}
           </QueryBoundary>
         </>
-      )}
-
-      {canPeek && peekId && (
-        <SidePeek id={peek} label="Thread" href={postHref({ community_slug: peekSlug, id: peekId })} state={peekPlaceholder} onClose={closePeek}>
-          <Thread key={peek} slug={peekSlug} id={peekId} placeholder={peekPlaceholder} onGone={closePeek} />
-        </SidePeek>
       )}
     </Column>
   );

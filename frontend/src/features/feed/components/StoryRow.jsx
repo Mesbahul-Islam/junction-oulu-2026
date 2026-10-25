@@ -1,10 +1,11 @@
 import { Bookmark, ChevronRight, CircleAlert, MessageCircle, Share2, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Badge, Dialog, DialogContent, DialogTrigger, Meter, toast } from "@/components/ui";
 import { LangStatus, langStatusOf } from "@/components/patterns";
 import { languageName, SITUATIONS, timeAgo } from "@/lib/i18n";
+import { transitionTo } from "@/lib/transition";
 import { cn } from "@/lib/utils";
 import { interact } from "../api";
 
@@ -63,22 +64,27 @@ export function WhyThis({ ranking }) {
 
 const iconBtn = "focus-ring inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-control px-2 text-meta text-muted transition-colors hover:bg-ink/5 hover:text-ink [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:min-w-11";
 
-/** A newsroom story in the For You timeline. `onOpen(card)` opens it in the side peek; plain
- *  clicks fall back to the story page (and cmd-click still opens a new tab). */
-export function StoryRow({ card, lang, situation, onOpen, active }) {
+/** A newsroom story in the For You timeline. A plain click opens the story page with a view
+ *  transition (headline and picture morph into place); `onOpen(card)` overrides that, and
+ *  cmd-click still opens a new tab. From 1024px, `lead`
+ *  makes it the page's top story (wide picture, bigger headline) and `detail={false}` drops the
+ *  For-you note and key facts so later rows scan faster. Phones always get the full row. */
+export function StoryRow({ card, lang, situation, onOpen, active, lead = false, detail = true }) {
   const { saved, toggleSave, share } = useStoryActions(card);
   const signal = signalOf(card.ranking);
   const status = langStatusOf(card);
   const facts = card.key_facts || [];
-  const open = (e) => {
-    if (!onOpen || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    onOpen(card);
-  };
+  const navigate = useNavigate();
   const href = `/story/${card.id}`;
+  const open = (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    if (onOpen) onOpen(card);
+    else transitionTo(() => navigate(href, { state: card }), card.id);
+  };
 
   return (
-    <article className={cn("relative border-b border-line px-4 py-5 transition-colors sm:px-6", active && "bg-sunk/60")} dir="auto">
+    <article data-story={card.id} className={cn("relative border-b border-line px-4 py-5 transition-colors sm:px-6", active && "bg-sunk/60")} dir="auto">
       <header className="flex items-center gap-2 text-meta">
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-newsroom-weak text-newsroom">
           <ShieldCheck size={13} />
@@ -89,15 +95,25 @@ export function StoryRow({ card, lang, situation, onOpen, active }) {
         <time dateTime={card.published_at} className="shrink-0 text-muted">{timeAgo(card.published_at, lang)}</time>
       </header>
 
-      <Link to={href} state={card} onClick={open} className="group mt-3 flex gap-4 rounded-control focus-ring">
+      <Link to={href} state={card} onClick={open} className={cn("group mt-3 flex gap-4 rounded-control focus-ring", lead && "lg:flex-col")}>
+        {lead && card.image_url && (
+          <img
+            src={card.image_url}
+            alt=""
+            referrerPolicy="no-referrer"
+            onError={(e) => e.currentTarget.remove()}
+            data-story-part="image"
+            className="hidden aspect-[16/9] w-full rounded-card bg-sunk object-cover lg:block"
+          />
+        )}
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           {signal && (
             <span className="flex items-center gap-1.5 text-caption font-semibold uppercase tracking-wide text-ink">
               <span className="h-1.5 w-1.5 rounded-full bg-ink" aria-hidden="true" />{signal}
             </span>
           )}
-          <h2 className="text-title text-balance decoration-line decoration-2 underline-offset-4 group-hover:underline">{card.headline}</h2>
-          {card.summary && <p className="line-clamp-2 text-ui text-muted">{card.summary}</p>}
+          <h2 data-story-part="headline" className={cn("text-title text-balance decoration-line decoration-2 underline-offset-4 group-hover:underline", lead && "lg:text-headline")}>{card.headline}</h2>
+          {card.summary && <p className={cn("line-clamp-2 text-ui text-muted", lead && "lg:line-clamp-3 lg:text-body")}>{card.summary}</p>}
         </div>
         {card.image_url && (
           <img
@@ -106,13 +122,14 @@ export function StoryRow({ card, lang, situation, onOpen, active }) {
             loading="lazy"
             referrerPolicy="no-referrer"
             onError={(e) => e.currentTarget.remove()}
-            className="h-[72px] w-[72px] shrink-0 rounded-control bg-sunk object-cover sm:h-[96px] sm:w-[96px]"
+            data-story-part="image"
+            className={cn("h-[72px] w-[72px] shrink-0 rounded-control bg-sunk object-cover sm:h-[80px] sm:w-[120px]", lead && "lg:hidden")}
           />
         )}
       </Link>
 
       {card.for_you && (
-        <div className="mt-3 border-s-2 border-newsroom ps-3">
+        <div className={cn("mt-3 border-s-2 border-newsroom ps-3", !detail && "lg:hidden")}>
           <p className="text-caption font-semibold text-newsroom">
             For you as {situationShort(card.situation) || "a reader"}
             {card.for_you_language && card.for_you_language !== card.language && ` · in ${languageName(card.for_you_language)}`}
@@ -123,7 +140,7 @@ export function StoryRow({ card, lang, situation, onOpen, active }) {
 
       {facts.length > 0 && (
         <details
-          className="group/facts mt-3"
+          className={cn("group/facts mt-3", !detail && "lg:hidden")}
           onToggle={(e) => e.currentTarget.open && interact(card.id, "expand").catch(() => {})}
         >
           <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1 rounded-control text-meta font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">

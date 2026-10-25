@@ -1,9 +1,11 @@
-import { ChevronLeft, CircleUser, ListPlus, MessageCircleQuestion, Newspaper, Users } from "lucide-react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Bookmark, ChevronLeft, CircleUser, ListPlus, MessageCircleQuestion, Newspaper, Users } from "lucide-react";
+import { useLayoutEffect } from "react";
+import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 
 import { Avatar, Button } from "@/components/ui";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { languageName, RTL } from "@/lib/i18n";
+import { routeCommitted } from "@/lib/transition";
 import { cn } from "@/lib/utils";
 
 // The information architecture: read, take part, decide, you. The community sits in the
@@ -12,6 +14,7 @@ export const NAV = [
   { to: "/", label: "For You", icon: Newspaper, end: true },
   { to: "/communities", label: "Community", icon: Users },
   { to: "/vote", label: "Next stories", icon: ListPlus },
+  { to: "/saved", label: "Saved", icon: Bookmark },
   { to: "/profile", label: "You", icon: CircleUser },
 ];
 
@@ -23,19 +26,41 @@ export function Wordmark({ className }) {
         <path d="M5 16a7 7 0 0 1 14 0Z" fill="currentColor" />
         <path d="M2.5 19.5h19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
-      Kalevalo
+      <span>Kalevalo</span>
     </span>
   );
+}
+
+// Scroll position per history entry. We restore it ourselves (not the browser) so it is set
+// before a view transition captures the new screen: Back lands exactly where the reader was.
+const scrolls = new Map();
+let currentKey = null;
+if (typeof window !== "undefined") {
+  history.scrollRestoration = "manual";
+  window.addEventListener("scroll", () => scrolls.set(currentKey, window.scrollY), { passive: true });
+}
+
+function useScrollMemory() {
+  const { key } = useLocation();
+  const type = useNavigationType();
+  // Children have committed (lists render from the query cache), so the page has its height.
+  useLayoutEffect(() => {
+    currentKey = key;
+    window.scrollTo(0, type === "POP" ? scrolls.get(key) ?? 0 : 0);
+    routeCommitted();
+  }, [key, type]);
 }
 
 /** Responsive app frame: desktop left rail, mobile bottom tab bar. Use as a layout route. */
 export function AppShell() {
   const { me } = useAuth();
+  useScrollMemory();
   const lang = me?.preferred_language || "en";
   return (
-    <div dir={RTL.has(lang) ? "rtl" : "ltr"} lang={lang} className="min-h-dvh bg-paper font-sans text-ink lg:grid lg:grid-cols-[256px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-8 border-e border-line px-4 py-6 lg:flex">
-        <Wordmark className="px-3" />
+    <div dir={RTL.has(lang) ? "rtl" : "ltr"} lang={lang} className="min-h-dvh bg-paper font-sans text-ink lg:grid lg:grid-cols-[72px_minmax(0,1fr)] xl:grid-cols-[256px_minmax(0,1fr)]">
+      {/* 1024–1279px: icons only, so the page keeps room for its side column; labels from 1280px. */}
+      <aside className="sticky top-0 hidden h-dvh flex-col gap-8 border-e border-line px-3 py-6 lg:flex xl:px-4">
+        <Wordmark className="px-3 max-xl:[&>span]:sr-only" />
         <nav aria-label="Main" className="flex flex-col gap-0.5">
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink
@@ -46,17 +71,17 @@ export function AppShell() {
                 cn("focus-ring flex h-11 items-center gap-3 rounded-control px-3 text-ui transition-colors",
                   isActive ? "bg-sunk font-medium text-ink" : "text-muted hover:bg-sunk/60 hover:text-ink")}
             >
-              <Icon size={19} strokeWidth={1.8} />{label}
+              <Icon size={19} strokeWidth={1.8} className="shrink-0" /><span className="max-xl:sr-only">{label}</span>
             </NavLink>
           ))}
         </nav>
-        <Button asChild variant="secondary" className="justify-start">
-          <NavLink to="/create"><MessageCircleQuestion size={18} />Ask the newsroom</NavLink>
+        <Button asChild variant="secondary" className="max-xl:px-0 xl:justify-start">
+          <NavLink to="/create" aria-label="Ask the newsroom"><MessageCircleQuestion size={18} className="shrink-0" /><span className="max-xl:hidden">Ask the newsroom</span></NavLink>
         </Button>
         {me && (
           <NavLink to="/profile" className="focus-ring mt-auto flex items-center gap-3 rounded-control p-2 hover:bg-sunk/60">
             <Avatar name={me.username || me.email} size="md" />
-            <span className="flex min-w-0 flex-col">
+            <span className="flex min-w-0 flex-col max-xl:sr-only">
               <span className="truncate text-meta font-medium">@{me.username}</span>
               <span className="truncate text-caption text-muted">Reading in {languageName(lang)}</span>
             </span>
@@ -68,7 +93,7 @@ export function AppShell() {
         <Outlet />
       </main>
 
-      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line bg-surface/90 pb-safe backdrop-blur-md lg:hidden">
+      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface/90 pb-safe backdrop-blur-md lg:hidden">
         {NAV.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
@@ -91,9 +116,22 @@ export function AppShell() {
   );
 }
 
-/** Page container: a reading column, centred. `wide` for grids (communities, design page). */
+// Desktop frame shared by Column and Page: a 680px content column plus a side column, centred
+// together. Pages without side content keep the space empty, so every page's content sits at
+// the same x as For You's and nothing jumps between tabs.
+const FRAME = "lg:flex lg:justify-center lg:gap-6 lg:px-6 xl:gap-8 xl:px-8 2xl:gap-10 2xl:px-10";
+const RAIL_W = "w-[300px] shrink-0 xl:w-[320px] 2xl:w-[340px]";
+const railSpacer = <div aria-hidden="true" className={cn("hidden lg:block", RAIL_W)} />;
+
+/** Page container: a reading column, in the same place as a Column's. `wide` for grids (design page). */
 export function Page({ wide, className, children }) {
-  return <div className={cn("mx-auto w-full px-4 sm:px-6", wide ? "max-w-5xl" : "max-w-read", className)}>{children}</div>;
+  if (wide) return <div className={cn("mx-auto w-full max-w-5xl px-4 sm:px-6", className)}>{children}</div>;
+  return (
+    <div className={FRAME}>
+      <div className={cn("mx-auto w-full max-w-read px-4 sm:px-6 lg:mx-0 lg:max-w-[680px]", className)}>{children}</div>
+      {railSpacer}
+    </div>
+  );
 }
 
 /** Page title block. `back` shows a back button; `actions` sit at the end of the top row. */
@@ -119,16 +157,37 @@ export function PageHeader({ title, subtitle, back, actions, className }) {
   );
 }
 
-/** Timeline page (For You, Next stories): one surface column, max 680px, left-aligned in the main
- *  area on desktop and full-bleed on phones, with a sticky header. */
-export function Column({ header, children }) {
+/** Timeline page (For You, Next stories): one surface column, max 680px, centred in the main
+ *  area on desktop and full-bleed on phones, with a sticky header. `rail` is a side column beside
+ *  it from 1024px (context that would otherwise interrupt the timeline); below that it's not shown,
+ *  so pages keep a phone fallback for whatever they put there. */
+export function Column({ header, rail, children }) {
   return (
-    <div className="min-h-dvh lg:ps-8 xl:ps-12">
-      <div className="min-h-dvh w-full max-w-[680px] bg-surface md:border-x md:border-line">
+    <div className={cn("min-h-dvh", FRAME)}>
+      <div className="min-h-dvh w-full min-w-0 max-w-[680px] bg-surface md:border-x md:border-line">
         <header className="sticky top-0 z-20 border-b border-line bg-surface/90 backdrop-blur-md">{header}</header>
         {children}
       </div>
+      {rail ? (
+        <aside className={cn("sticky top-0 hidden h-dvh flex-col gap-4 overflow-y-auto py-8 [scrollbar-width:thin] lg:flex", RAIL_W)}>
+          {rail}
+        </aside>
+      ) : railSpacer}
     </div>
+  );
+}
+
+/** A titled panel in a Column rail. */
+export function RailPanel({ icon: Icon, title, action, children, className }) {
+  return (
+    <section className={cn("rounded-card border border-line bg-surface", className)}>
+      <header className="flex items-center gap-2 px-4 pt-4 text-caption font-semibold uppercase tracking-wide text-muted">
+        {Icon && <Icon size={13} />}
+        <h2 className="flex-1">{title}</h2>
+        {action}
+      </header>
+      <div className="px-4 pb-4 pt-3">{children}</div>
+    </section>
   );
 }
 
