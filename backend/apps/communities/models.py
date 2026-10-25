@@ -11,6 +11,11 @@ from apps.common.choices import Language
 from apps.common.models import TimeStampedModel
 
 
+def post_photo_storage():
+    from .photos import storage
+    return storage()
+
+
 class CommunityGroup(TimeStampedModel):
     """FR-1.2: geographic (municipality) or topical community."""
 
@@ -54,6 +59,18 @@ class Membership(TimeStampedModel):
         return f"{self.user} @ {self.community} ({self.role})"
 
 
+class PhotoBlob(models.Model):
+    """A community photo's bytes, kept in the database (see photos.DatabaseStorage) so photos are
+    backed up with everything else and survive a server that wipes its disk."""
+
+    name = models.CharField(max_length=100, unique=True)
+    data = models.BinaryField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Post(TimeStampedModel):
     """FR-1.2: threaded community post; visible only to members of the community.
 
@@ -77,7 +94,7 @@ class Post(TimeStampedModel):
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="posts")
     kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.POST)
     body = models.TextField()
-    image = models.ImageField(upload_to="posts/", null=True, blank=True)
+    image = models.ImageField(upload_to="posts/", storage=post_photo_storage, null=True, blank=True)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.VISIBLE, db_index=True)
     language = models.CharField(max_length=5, blank=True)  # detected source language ("" = unknown)

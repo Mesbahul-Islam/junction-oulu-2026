@@ -6,6 +6,23 @@ import { Avatar, Button, Textarea, toast } from "@/components/ui";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { createPost } from "../api";
 
+// The server shrinks photos to 1600px anyway (communities/photos.py), so shrink before uploading:
+// phone photos are often over the 10 MB limit. Formats the browser can't decode go as they are.
+async function shrink(file) {
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext("2d").drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    return blob ? new File([blob], "photo.jpg", { type: "image/jpeg" }) : file;
+  } catch {
+    return file;
+  }
+}
+
 /** Ask or share something with one of your communities. `slug` preselects the community. */
 export function Composer({ communities, slug }) {
   const { me } = useAuth();
@@ -29,7 +46,7 @@ export function Composer({ communities, slug }) {
       toast({ title: `Posted to ${name}`, tone: "confirmed" });
       queryClient.invalidateQueries({ queryKey: ["posts"] });
     } catch (err) {
-      toast({ title: "Your post wasn't sent", description: err.message, tone: "danger" });
+      toast({ title: "Your post wasn't sent", description: Object.values(err.data || {}).flat()[0] || err.message, tone: "danger" });
     } finally {
       setBusy(false);
     }
@@ -74,7 +91,7 @@ export function Composer({ communities, slug }) {
           {!photo && (
             <label className="inline-flex h-8 cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-ink items-center gap-1.5 rounded-control px-2 text-meta text-muted hover:bg-ink/5 hover:text-ink [@media(pointer:coarse)]:h-11">
               <ImagePlus size={16} />Photo
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; setPhoto(f ? await shrink(f) : null); }} />
             </label>
           )}
           <p className="hidden flex-1 text-caption text-muted sm:block">Members read it in their language. Not checked by editors.</p>

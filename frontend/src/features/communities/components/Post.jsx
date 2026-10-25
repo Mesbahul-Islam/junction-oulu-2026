@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Flag, Flame, Heart, Languages, MessageCircle, Newspaper, Share2, ShieldAlert, Trash2, Users } from "lucide-react";
+import { Flag, Flame, Heart, Image as ImageIcon, Languages, MessageCircle, Newspaper, Share2, ShieldAlert, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -62,6 +62,15 @@ export function PostBody({ post, lang, size = "row", onAddContext, link }) {
               </figcaption>
             )}
           </figure>
+        )}
+        {!post.image && post.image_status === "pending" && (
+          // Others get no image until a moderator checks the blurring; say a photo is on its way.
+          <p className={cn("flex items-center gap-2 rounded-card border border-dashed border-line bg-sunk/60 px-3 text-meta text-muted", size === "row" ? "py-3" : "py-6")}>
+            <ImageIcon size={16} className="shrink-0" />A photo is waiting for a moderator to check it
+          </p>
+        )}
+        {post.image_status === "rejected" && post.is_mine && (
+          <p className="text-caption text-danger">A moderator removed your photo. Your text is still up.</p>
         )}
         {post.translation && (
           <button type="button" onClick={() => setOriginal(!original)} className="focus-ring inline-flex w-fit items-center gap-1 rounded-control text-caption text-muted hover:text-ink">

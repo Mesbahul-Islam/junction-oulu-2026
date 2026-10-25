@@ -75,6 +75,10 @@ class PostSerializer(serializers.ModelSerializer):
             user = getattr(request, "user", None)
             if not (user and user.is_authenticated and (obj.author_id == user.pk or services.can_moderate(user, obj.community))):
                 data["image"] = None
+        if data.get("image") and self.context.get("request"):
+            from .photos import signed_url
+
+            data["image"] = signed_url(self.context["request"], obj)
         return data
 
     def _reader_chain(self):

@@ -1,6 +1,7 @@
 """Communities API. FR-1.2 communities/posts, FR-3.10 feedback, FR-3.12 contributions, FR-3.14 config."""
 
 from django.db.models import Count
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -10,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
 
-from . import services
+from . import photos, services
 from .models import (
     CommunityContribution,
     CommunityGroup,
@@ -312,7 +313,7 @@ class PhotoReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         rows = [p for p in qs if services.can_moderate(request.user, p.community)]
         return Response([{
             "id": p.pk, "author_name": p.author.username, "community_name": p.community.name, "body": p.body,
-            "image": request.build_absolute_uri(p.image.url), "faces_blurred": p.faces_blurred,
+            "image": photos.signed_url(request, p), "faces_blurred": p.faces_blurred,
             "notes": p.image_notes, "created_at": p.created_at,
         } for p in rows])
 
@@ -331,3 +332,15 @@ class PhotoReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             post.image = None
         post.save(update_fields=["image", "image_status", "image_checked_by", "image_checked_at", "updated_at"])
         return Response({"id": post.pk, "image_status": post.image_status})
+
+
+def post_photo(request, token):
+    """GET /api/communities/photo/<signed token>/: a post's photo. The token is the permission: the
+    API signs it only for people allowed to see the photo, and it expires (photos.LINK_MAX_AGE)."""
+    post_id = photos.post_id_from(token)
+    post = Post.objects.filter(pk=post_id).exclude(status=Post.Status.REMOVED).exclude(image="").first() if post_id else None
+    if not post or not post.image:
+        raise Http404
+    response = FileResponse(post.image.open("rb"), content_type="image/jpeg")
+    response["Cache-Control"] = "private, max-age=3600"
+    return response
