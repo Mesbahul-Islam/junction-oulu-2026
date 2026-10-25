@@ -125,7 +125,7 @@ export default function Profile() {
             {SITUATIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </Row>
-        <Row label="Arrived in Finland" hint="For your first-weeks guide on Today. Leave empty if it doesn't apply." htmlFor={ids.arrival}>
+        <Row label="Arrived in Finland" hint="For your first-weeks guide on For You. Leave empty if it doesn't apply." htmlFor={ids.arrival}>
           <Input id={ids.arrival} type="date" className="sm:w-60" value={me.arrival_date || ""} max={new Date().toISOString().slice(0, 10)}
             onChange={(e) => change({ arrival_date: e.target.value || null }, "Arrival date saved")} />
         </Row>

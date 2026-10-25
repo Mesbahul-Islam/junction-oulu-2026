@@ -36,10 +36,10 @@ full-width button on desktop, or a bottom tab bar on desktop is a bug.
 **Desktop (≥ 1024px)**
 ```
 ┌──────────────┬─────────────────────────────────────────────────┬──────────────┐
-│ Kalevalo  ▾ │  Today / Housing                 updated 2h  ⋯ │              │
+│ Kalevalo  ▾ │  For You / Housing               updated 2h  ⋯ │              │
 │──────────────│─────────────────────────────────────────────────│  side peek   │
 │ 🔍 Search    │                                                 │  (story,     │
-│ ⌂ Today      │   Page title                                     │   replies,  │
+│ ⌂ For You    │   Page title                                     │   replies,  │
 │ ◉ Next stories│   properties · · ·                               │   notes)    │
 │ ✎ Ask        │                                                 │              │
 │              │   content column, max 720px, left-aligned       │  480–560px   │
@@ -59,14 +59,14 @@ full-height overlay panel.
 **Mobile (< 768px)**
 ```
 ┌───────────────────────────┐
-│ ☰  Today            🔍 ⋯ │  top bar: menu opens the sidebar as a drawer
+│ ☰  For You          🔍 ⋯ │  top bar: menu opens the sidebar as a drawer
 │───────────────────────────│
 │ Page title                │
 │ content, 16px gutters     │
 │                           │
 │                           │
 │───────────────────────────│
-│  ⌂     👥     ◉     ✎    │  bottom bar ONLY on mobile: Today, Community,
+│  ⌂     👥     ◉     ✎    │  bottom bar ONLY on mobile: For You, Community,
 └───────────────────────────┘  Next stories, Ask (Notion mobile: Home/Search/Inbox/New)
 ```
 Sticky bottom CTAs are allowed only on mobile, only for single-task flows (onboarding, compose).
@@ -77,7 +77,7 @@ Sticky bottom CTAs are allowed only on mobile, only for single-task flows (onboa
 |---|---|---|---|---|
 | Auth | Get in fast; judges use demo | Clean auth | Centred column with wordmark, Google first, email form, demo links; generous spacing | Full-width, comfortable controls (44px) |
 | Onboarding | Set language, topics, situation, communities | Step flow | Centred multi-step form, clear hierarchy, inline actions | One question per screen, sticky bottom action |
-| Today (feed) | See what affects me, in my language | **X/Twitter timeline** | Left sidebar + centred timeline (max ~680px), dividers, composer/filters optional, click story → full page or side panel | Full-width timeline rows, tap → story page, bottom nav |
+| For You (feed) | See what affects me, in my language | **X/Twitter timeline** | Left sidebar + centred timeline (max ~680px), dividers, composer/filters optional, click story → full page or side panel | Full-width timeline rows, tap → story page, bottom nav |
 | Story | Understand it, trust it, act | Reading page | Spacious reading column (max ~720px) with provenance, trust blocks, sources, actions | Single column, clear hierarchy, sticky/share actions as appropriate |
 | Community | Ask, answer, help | Timeline/feed of posts | Left sidebar + timeline; post thread in side panel or full page | Full-width posts, thread on full page |
 | Next stories (vote) | Choose what gets covered | List of proposals | Clean list with vote actions, Meter, clear states | List with vote buttons, clear states |

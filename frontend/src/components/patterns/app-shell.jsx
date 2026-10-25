@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 // The information architecture: read, take part, decide, you. The community sits in the
 // nav as a peer of the news, not under a menu.
 export const NAV = [
-  { to: "/", label: "Today", icon: Newspaper, end: true },
+  { to: "/", label: "For You", icon: Newspaper, end: true },
   { to: "/communities", label: "Community", icon: Users },
   { to: "/vote", label: "Next stories", icon: ListPlus },
   { to: "/profile", label: "You", icon: CircleUser },
@@ -119,7 +119,7 @@ export function PageHeader({ title, subtitle, back, actions, className }) {
   );
 }
 
-/** Timeline page (Today, Next stories): one surface column, max 680px, left-aligned in the main
+/** Timeline page (For You, Next stories): one surface column, max 680px, left-aligned in the main
  *  area on desktop and full-bleed on phones, with a sticky header. */
 export function Column({ header, children }) {
   return (

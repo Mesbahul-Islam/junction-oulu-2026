@@ -63,7 +63,7 @@ export function WhyThis({ ranking }) {
 
 const iconBtn = "focus-ring inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-control px-2 text-meta text-muted transition-colors hover:bg-ink/5 hover:text-ink [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:min-w-11";
 
-/** A newsroom story in the Today timeline. `onOpen(card)` opens it in the side peek; plain
+/** A newsroom story in the For You timeline. `onOpen(card)` opens it in the side peek; plain
  *  clicks fall back to the story page (and cmd-click still opens a new tab). */
 export function StoryRow({ card, lang, situation, onOpen, active }) {
   const { saved, toggleSave, share } = useStoryActions(card);
