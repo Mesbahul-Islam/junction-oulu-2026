@@ -111,6 +111,16 @@ class SnippetVersion(TimeStampedModel):
         return f"[{self.language}] {self.headline}"
 
 
+class AudioClip(TimeStampedModel):
+    """A version read aloud (mp3), keyed by a hash of the exact text, voice and model: an edit makes a
+    new clip, and every listen after the first costs nothing. Kept in the database like post photos.
+    ponytail: old clips of edited versions stay until their version is deleted; prune if the table grows."""
+
+    key = models.CharField(max_length=64, unique=True)
+    version = models.ForeignKey(SnippetVersion, on_delete=models.CASCADE, related_name="audio")
+    data = models.BinaryField()
+
+
 
 # Doesn't need to stay because of  jeff
 class Interaction(TimeStampedModel):
