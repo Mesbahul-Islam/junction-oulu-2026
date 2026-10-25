@@ -159,8 +159,9 @@ def store(entry: dict):
 def run_wire_desk(community) -> dict:
     """Fetch the Kaleva free-articles feed. Returns {"candidates": [docs], "report": {...}}.
 
-    ``community`` is not used to pick the feed (it is the same for everyone); it is kept so
-    the runner's call stays the same.
+    The feed is the same for every town. ``community`` decides which articles are still
+    candidates: those no story was written from *for this town*, so a regional article another
+    town already covered can be written for this town's readers too.
     """
     SourceDocument = apps.get_model("feed", "SourceDocument")
     fetched = new = 0
@@ -177,8 +178,7 @@ def run_wire_desk(community) -> dict:
     recent = SourceDocument.objects.filter(
         publisher=KALEVA_FEED_NAME,
         fetched_at__gte=timezone.now() - timedelta(hours=CANDIDATE_HOURS),
-        snippets__isnull=True,
-    ).order_by("-fetched_at")[:MAX_CANDIDATES]
+    ).exclude(snippets__community=community).order_by("-fetched_at")[:MAX_CANDIDATES]
     candidates, excluded = [], []
     for doc in recent:
         kind = content_type(doc.title, doc.body, doc.url)

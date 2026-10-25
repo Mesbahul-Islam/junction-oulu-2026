@@ -14,7 +14,8 @@ from apps.common.models import TimeStampedModel
 DESKS = [
     ("wire", "Wire desk"),
     ("news_editor", "News editor"),
-    ("explainer", "Brief and explanation"),
+    ("reporter", "Reporter"),
+    ("explainer", "Explainer"),
     ("translator", "Translator"),
     ("fact_checker", "Fact-checker"),
     ("standards", "Standards editor"),
@@ -60,7 +61,8 @@ class RunStory(TimeStampedModel):
 
     class Stage(models.TextChoices):
         PICKED = "picked", "Picked"
-        EXPLAINER = "explainer", "Brief and explanation"
+        REPORTER = "reporter", "Reporter"
+        EXPLAINER = "explainer", "Explainer"
         TRANSLATOR = "translator", "Translator"
         FACT_CHECKER = "fact_checker", "Fact-checker"
         STANDARDS = "standards", "Standards editor"

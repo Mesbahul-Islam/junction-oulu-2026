@@ -14,5 +14,8 @@ urlpatterns = [
     path("onboarding/", views.OnboardingView.as_view(), name="onboarding"),
     path("onboarding-link/<str:code>/", views.OnboardingLinkResolveView.as_view(), name="onboarding-link"),
     path("readers/", views.ReaderListView.as_view(), name="readers"),
+    path("locate/", views.LocateView.as_view(), name="locate"),
+    path("municipalities/", views.MunicipalityListView.as_view(), name="municipalities"),
+    path("municipalities/<str:code>/", views.MunicipalityListView.as_view(), name="municipality"),
     path("", include(router.urls)),
 ]

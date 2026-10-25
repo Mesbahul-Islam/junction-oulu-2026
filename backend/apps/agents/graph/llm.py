@@ -55,7 +55,7 @@ class StubLLM:
 
 
 
-AGENTS = ("explainer", "translator")  # the newsroom desks that call a model
+AGENTS = ("reporter", "explainer", "translator")  # the newsroom desks that call a model
 
 # Friendly names -> LangChain provider ids.
 PROVIDER_ALIASES = {
@@ -182,6 +182,11 @@ class ChatModelLLM:
                 kwargs["base_url"] = base_url
             if max_out:
                 kwargs["num_predict"] = max_out
+            # Ollama's own default window is small (2048 tokens on many servers) and silently drops
+            # the start of a longer prompt: the reporter's instructions. The window holds prompt + answer.
+            num_ctx = int(getattr(settings, "LLM_CONTEXT_TOKENS", 0) or 0)
+            if num_ctx:
+                kwargs["num_ctx"] = num_ctx
             # Reasoning models (qwen3, deepseek-r1...) would otherwise put their answer in a separate
             # "thinking" field and leave the reply empty; the desks need the answer itself.
             kwargs["reasoning"] = False

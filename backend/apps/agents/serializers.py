@@ -6,7 +6,8 @@ from .models import DESKS, AgentRun, RunStory
 DESK_INFO = {
     "wire": ("Fetches the Kaleva RSS feeds, drops opinion and paid content", "Kaleva RSS"),
     "news_editor": ("Ranks every article for Oulu's readers, adds members' votes, picks the top ones", ""),
-    "explainer": ("Writes a source-grounded brief and explains supported reader implications", ""),
+    "reporter": ("Reads the full Kaleva article and writes the Finnish headline, summary and key facts", ""),
+    "explainer": ("Explains what the brief means for newcomers, students, seasonal workers and residents", ""),
     "translator": ("Translates into every reader language (Sámi is left to people)", ""),
     "fact_checker": ("Checks the draft's numbers against the article", "rules, no AI model"),
     "standards": ("JSN checks: risk, crime, minors, right of reply...", "rules, no AI model"),
@@ -121,6 +122,37 @@ class AgentRunDetailSerializer(AgentRunSerializer):
 
 class AgentRunCreateSerializer(serializers.Serializer):
     max_stories = serializers.IntegerField(required=False, min_value=1, max_value=20)
+    community = serializers.SlugField(required=False, help_text="The town to run for (a geographic community's slug)")
+
+    def validate_community(self, slug):
+        from apps.communities.models import CommunityGroup
+
+        city = CommunityGroup.objects.filter(slug=slug, kind=CommunityGroup.Kind.GEO, is_active=True).first()
+        if city is None:
+            raise serializers.ValidationError("Not a town the newsroom covers.")
+        return city
+
+
+class CitySerializer(serializers.Serializer):
+    """A town the newsroom covers, for the dashboard's city picker and Cities table."""
+
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    slug = serializers.CharField()
+    municipality = serializers.CharField()
+    municipality_code = serializers.CharField()
+    member_count = serializers.IntegerField()
+    last_run_at = serializers.DateTimeField(allow_null=True)
+    facts = serializers.SerializerMethodField()
+
+    def get_facts(self, city) -> dict:
+        from apps.communities.demographics import town_facts
+
+        return town_facts(city)
+
+
+class AddCitySerializer(serializers.Serializer):
+    municipality_code = serializers.RegexField(r"^\d{3}$")
 
 
 class SendSerializer(serializers.Serializer):

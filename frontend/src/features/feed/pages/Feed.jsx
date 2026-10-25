@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Compass, Languages, ListPlus, MessageCircleQuestion, Newspaper, Users } from "lucide-react";
+import { Compass, Languages, ListPlus, MapPin, MessageCircleQuestion, Newspaper, Users } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -12,7 +12,15 @@ import { languageName, topicIcon, topicLabel } from "@/lib/i18n";
 import { StoryRow } from "../components/StoryRow";
 import { ProposalRow } from "@/features/shortlist/components/ProposalRow";
 import { ArrivalBlock, ArrivalList, arrivalTitle, CommunityPostList, CommunityPostRow, NextStoryRow } from "../components/TimelineExtras";
-import { useArrival, useTimeline } from "../hooks/useFeed";
+import { useArrival, useFeedArea, useTimeline } from "../hooks/useFeed";
+
+/** Header line for the reader's town: "News from Oulu", or "Kemi · news from nearby Oulu" while
+ *  we don't cover their town yet (onboarding explains why). */
+function areaText(area) {
+  if (!area?.news_from?.length) return "";
+  const from = area.news_from.join(", ");
+  return area.local ? `News from ${from}` : `${area.town} · news from nearby ${from}`;
+}
 
 /** Story cards with community posts and one open proposal mixed in at fixed slots. */
 function mix(stories, posts, proposal, complete) {
@@ -39,6 +47,7 @@ export default function Feed() {
   const tag = params.get("tag");
 
   const timeline = useTimeline(tag);
+  const area = useFeedArea(tag);
   const arrival = useArrival(!!me?.arrival_date && !tag);
   const news = useQuery({ queryKey: ["community-news"], queryFn: getCommunityNews, enabled: !tag });
   const shortlist = useShortlist();
@@ -65,6 +74,7 @@ export default function Feed() {
   }, [timeline]);
 
   const today = new Date().toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "long" });
+  const areaLine = areaText(area.data);
   const interests = me?.profile?.interests || [];
   const arrivalData = arrival.data?.results?.length ? arrival.data : null;
   const inYourLanguage = stories.filter((s) => s.in_your_language).length;
@@ -106,7 +116,7 @@ export default function Feed() {
         <>
           <ColumnTitle
             title="For You"
-            subtitle={today}
+            subtitle={areaLine ? <>{today}<span className="mt-0.5 flex items-center gap-1"><MapPin size={13} className="shrink-0" />{areaLine}</span></> : today}
             aside={
               <>
                 {lang && <span className="hidden sm:inline lg:hidden">Reading in {languageName(lang)}</span>}

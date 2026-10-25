@@ -16,14 +16,20 @@ export function useFeed({ tag, limit = 30, enabled = true } = {}) {
 }
 
 // The Today timeline: ranked pages of PAGE cards (offset pagination over the ranked window).
+const timeline = (tag) => ({
+  queryKey: ["timeline", tag || null],
+  queryFn: ({ pageParam }) => getFeed({ tag, limit: PAGE, offset: pageParam }),
+  initialPageParam: 0,
+  getNextPageParam: (last, pages) => (last.next ? pages.length * PAGE : undefined),
+});
+
 export function useTimeline(tag) {
-  return useInfiniteQuery({
-    queryKey: ["timeline", tag || null],
-    queryFn: ({ pageParam }) => getFeed({ tag, limit: PAGE, offset: pageParam }),
-    initialPageParam: 0,
-    getNextPageParam: (last, pages) => (last.next ? pages.length * PAGE : undefined),
-    select: (d) => d.pages.flatMap((p) => p.results),
-  });
+  return useInfiniteQuery({ ...timeline(tag), select: (d) => d.pages.flatMap((p) => p.results) });
+}
+
+// Which town the timeline is for: {town, news_from: [...], local} or null. Shares the timeline's cache.
+export function useFeedArea(tag) {
+  return useInfiniteQuery({ ...timeline(tag), select: (d) => d.pages[0]?.area ?? null });
 }
 
 // Newcomer sequence for the reader's current arrival bucket; empty for everyone else.

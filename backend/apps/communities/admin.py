@@ -28,6 +28,33 @@ class CommunityGroupAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
     filter_horizontal = ["interests"]
     inlines = [SourceFeedInline]
+    readonly_fields = ["demographics"]
+    actions = ["refresh_demographics"]
+
+    def save_model(self, request, obj, form, change):
+        """A new or renamed town gets its figures from the snapshot straight away."""
+        from . import demographics
+
+        if "municipality" in form.changed_data:
+            obj.municipality_code, obj.demographics = "", {}
+        super().save_model(request, obj, form, change)
+        if obj.kind == obj.Kind.GEO and obj.municipality and not obj.demographics:
+            try:
+                demographics.refresh(obj)
+            except demographics.DemographicsError as exc:
+                self.message_user(request, f"No Statistics Finland figures: {exc}", level="warning")
+
+    @admin.action(description="Refresh demographics from Statistics Finland (live)")
+    def refresh_demographics(self, request, queryset):
+        from . import demographics
+
+        for group in queryset:
+            try:
+                demographics.refresh(group, live=True)
+            except Exception as exc:
+                self.message_user(request, f"{group}: {exc}", level="error")
+            else:
+                self.message_user(request, f"{group}: updated from Statistics Finland")
 
 
 @admin.register(Membership)

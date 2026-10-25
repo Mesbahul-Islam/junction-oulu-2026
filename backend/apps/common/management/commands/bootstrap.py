@@ -5,7 +5,8 @@ one-shot `setup` service, before web/worker/beat start. Order:
 
 1. migrate
 2. seed_demo, seed_markets (fast, idempotent)
-3. admin user, demo readers
+3. admin user, town demographics from the Statistics Finland snapshot, demo readers,
+   seed_cities (Kemi, Raahe, Kajaani, Kittilä with their communities, neighbours and posts)
 4. Fantasy Liiga, first start only: sync_liiga (real season data from the Liiga
    API) then seed_fantasy_demo. Skipped once fantasy data exists, so restarts stay
    fast; a Liiga API failure is reported but doesn't stop the app from starting.
@@ -114,12 +115,22 @@ class Command(BaseCommand):
             call_command("seed_markets")
         self._ensure_admin()
         if not no_seed:
+            self._ensure_demographics()
             self._ensure_demo_readers()
+            call_command("seed_cities")
             self._ensure_demo_posts()
             self._ensure_rewards()
             if not no_fantasy and os.environ.get("SEED_FANTASY", "true").lower() not in ("0", "false", "no"):
                 self._ensure_fantasy()
         self.stdout.write(self.style.SUCCESS("Bootstrap complete."))
+
+    def _ensure_demographics(self):
+        """Towns without Statistics Finland figures get them from the checked-in snapshot (no network)."""
+        from apps.communities.demographics import fill_missing
+
+        filled = fill_missing()
+        if filled:
+            self.stdout.write(f"Demographics: {filled} town(s) filled from the Statistics Finland snapshot.")
 
     def _ensure_fantasy(self):
         """First start only: import the Liiga season, then create demo managers and leagues."""

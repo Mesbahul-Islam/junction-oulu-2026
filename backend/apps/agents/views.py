@@ -9,9 +9,11 @@ from rest_framework.views import APIView
 from . import services
 from .models import AgentRun
 from .serializers import (
+    AddCitySerializer,
     AgentRunCreateSerializer,
     AgentRunDetailSerializer,
     AgentRunSerializer,
+    CitySerializer,
     SendSerializer,
 )
 
@@ -19,7 +21,8 @@ from .serializers import (
 class AgentRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """Staff only: the AI newsroom's shifts.
 
-    * ``POST /api/agents/runs/ {"max_stories": 4}`` starts a shift (202); 409 while one is going.
+    * ``POST /api/agents/runs/ {"max_stories": 4, "community": "kemi"}`` starts a shift for that
+      town (202; default Oulu); 409 while one is going.
     * ``GET /api/agents/runs/<id>/`` is the live view: every desk's progress and every story's.
     * ``POST /api/agents/runs/<id>/send/ {"snippets": [..]}`` or ``{"all_ready": true}`` publishes
       stories marked Ready to send, in the name of the person who clicks.
@@ -50,7 +53,8 @@ class AgentRunViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
         if services.busy():
             return Response({"detail": "A newsroom run is already going. Wait for it to finish."}, status=409)
         try:
-            run = services.create_run(AgentRun.Trigger.MANUAL, ser.validated_data.get("max_stories"))
+            run = services.create_run(AgentRun.Trigger.MANUAL, ser.validated_data.get("max_stories"),
+                                      community=ser.validated_data.get("community"))
         except ValidationError as exc:
             return Response({"detail": exc.messages[0]}, status=400)
         transaction.on_commit(lambda: run_newsroom.delay(run.pk))
@@ -141,6 +145,23 @@ class ShortlistViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         return Response({"votes": cand.votes.count(), "voted": request.method == "POST"})
 
 
+class CityView(APIView):
+    """Staff only. ``POST /api/agents/cities/ {"municipality_code": "240"}`` starts covering a town:
+    it gets a geographic community with Statistics Finland's figures, and appears in Run now."""
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        ser = AddCitySerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        try:
+            city = services.add_city(ser.validated_data["municipality_code"])
+        except ValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=400)
+        city = services.cities().get(pk=city.pk)
+        return Response(CitySerializer(city).data, status=status.HTTP_201_CREATED)
+
+
 class DashboardView(APIView):
     """GET /api/agents/dashboard/ (staff): everything the admin overview shows, in one call."""
 
@@ -225,8 +246,8 @@ class DashboardView(APIView):
             },
             "running": AgentRunSerializer(AgentRun.objects.filter(status__in=["queued", "running"]), many=True).data,
             "llm": self._llm_status(llm),
-            # The newsroom runs for one community; the Kaleva feed is fixed in wire.py.
-            "communities": [{"id": community.pk, "name": community.name, "slug": community.slug}] if community else [],
+            # Every town the newsroom covers; the Kaleva feed (wire.py) is the same for all of them.
+            "communities": CitySerializer(services.cities(), many=True).data,
             "settings": {
                 "source": {
                     "name": wire.KALEVA_FEED_NAME, "url": wire.KALEVA_FEED_URL,

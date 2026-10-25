@@ -27,6 +27,10 @@ class CommunityGroup(TimeStampedModel):
     slug = models.SlugField(unique=True)
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.GEO)
     municipality = models.CharField(max_length=120, blank=True)
+    # Statistics Finland's three-digit municipality code ("564" = Oulu); found from `municipality`.
+    municipality_code = models.CharField(max_length=3, blank=True)
+    # Public figures for the municipality from Statistics Finland (demographics.fetch).
+    demographics = models.JSONField(default=dict, blank=True)
     bbox = models.JSONField(null=True, blank=True)  # [min_lng, min_lat, max_lng, max_lat]
     languages = models.JSONField(default=list, blank=True)  # list of Language codes
     description = models.CharField(max_length=240, blank=True)

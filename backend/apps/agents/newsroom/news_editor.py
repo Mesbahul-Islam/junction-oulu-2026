@@ -38,7 +38,10 @@ def jev_enabled() -> bool:
 
 
 def audience(community) -> dict:
-    """Who reads this community's news, as shares (no individual data)."""
+    """Who reads this community's news, as shares (no individual data), plus the town's public
+    figures from Statistics Finland when they have been fetched (communities.demographics)."""
+    from apps.communities.demographics import town_facts
+
     Membership = apps.get_model("communities", "Membership")
     Profile = apps.get_model("accounts", "Profile")
     members = Membership.objects.filter(community=community).select_related("user")
@@ -48,12 +51,16 @@ def audience(community) -> dict:
     languages = Counter(u.preferred_language for u in users if u.preferred_language)
     interests = Counter(Profile.objects.filter(user__in=users).values_list("interests__name", flat=True))
     interests.pop(None, None)
-    return {
+    readers = {
         "town": community.municipality or community.name,
         "reader_situations": {k: round(v / n, 2) for k, v in situations.most_common()},
         "reader_languages": [k for k, _ in languages.most_common()],
         "top_interests": [k for k, _ in interests.most_common(8)],
     }
+    facts = town_facts(community)
+    if facts:
+        readers["town_facts"] = facts
+    return readers
 
 
 def _questions():
