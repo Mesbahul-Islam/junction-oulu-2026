@@ -16,6 +16,7 @@ const SIGNAL = {
   accepted_contribution: "questions and tips accepted",
   contribution_in_story: "became a story",
   story_candidate: "questions others asked too",
+  approved_photo: "photos approved",
   like: "likes from others",
   good_rating: "ratings that matched",
   removed_post: "posts removed",
@@ -63,7 +64,7 @@ export default function StandingCard() {
         ))}
       </ul>
       <p className="text-caption text-muted">
-        Points come from what others verify: notes rated helpful by people in different situations, questions the editors accepted, and likes. An editor approves trusted voices.
+        Points come from what others verify: notes rated helpful by people in different situations, questions the editors accepted, approved photos and likes. An editor approves trusted voices.
       </p>
     </div>
   );

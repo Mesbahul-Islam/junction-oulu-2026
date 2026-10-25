@@ -11,7 +11,10 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
+from django.core import signing
 from django.core.files.base import ContentFile
+from django.core.files.storage import Storage
+from django.urls import reverse
 
 MODEL = Path(__file__).resolve().parent / "assets" / "face_detection_yunet_2023mar.onnx"
 MAX_SIDE = 1600           # photos are shrunk to this before detection and storage
@@ -19,6 +22,60 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 SCORE_THRESHOLD = 0.5     # lower than the usual 0.6: missing a face is worse than blurring a patch
 MARGIN = 0.3              # blur this much around each face box (hair, ears, side of the face)
 SMALL_FACE = 24           # faces smaller than this (px) are hard to detect reliably: tell the moderator
+
+
+LINK_MAX_AGE = 24 * 3600  # a signed photo link works this long; the API hands out a fresh one on every read
+_signer = signing.TimestampSigner(salt="communities.post-photo")
+
+
+class DatabaseStorage(Storage):
+    """Photos live in the database (PhotoBlob), never under MEDIA_ROOT: one backup covers them, and a
+    photo is reachable only through a signed link. Photos are shrunk to MAX_SIDE, so rows stay small.
+    ponytail: every view reads the row through Django; move to a private bucket if traffic grows."""
+
+    def _blobs(self):
+        from .models import PhotoBlob
+        return PhotoBlob.objects
+
+    def _open(self, name, mode="rb"):
+        row = self._blobs().filter(name=name).values_list("data", flat=True).first()
+        if row is None:
+            raise FileNotFoundError(name)
+        return ContentFile(bytes(row), name=name)
+
+    def _save(self, name, content):
+        content.seek(0)
+        self._blobs().create(name=name, data=content.read())
+        return name
+
+    def exists(self, name):
+        return self._blobs().filter(name=name).exists()
+
+    def delete(self, name):
+        self._blobs().filter(name=name).delete()
+
+    def size(self, name):
+        return len(self._open(name).read())
+
+    def url(self, name):
+        return name  # never served directly; serializers swap in signed_url()
+
+
+def storage():
+    return DatabaseStorage()
+
+
+def signed_url(request, post) -> str:
+    """A link to this post's photo. Hand it only to someone allowed to see the photo."""
+    token = _signer.sign(str(post.pk))
+    return request.build_absolute_uri(reverse("communities:post-photo", args=[token]))
+
+
+def post_id_from(token: str) -> int | None:
+    try:
+        return int(_signer.unsign(token, max_age=LINK_MAX_AGE))
+    except (signing.BadSignature, ValueError):
+        return None
 
 
 class PhotoError(ValueError):

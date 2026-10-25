@@ -114,12 +114,22 @@ function NoteForm({ postId, onDone, onCancel }) {
   const [context, setContext] = useState("");
   const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
-  const ok = claim.trim() && context.trim().length >= 20 && /^https?:\/\/\S+\.\S+/.test(source.trim());
+  const [errors, setErrors] = useState({});
+  // "ouka.fi" or "www.ouka.fi" is what people paste; the server needs the scheme.
+  const url = (v) => (v && !/^https?:\/\//i.test(v) ? `https://${v}` : v);
   const submit = async (e) => {
     e.preventDefault();
+    const link = url(source.trim());
+    const found = {
+      claim: !claim.trim() && "Say in one line what's misleading or missing.",
+      context: !context.trim() && "Add the context readers need.",
+      source: !link ? "Add a link to where this can be checked." : !/^https?:\/\/[^\s/]+\.[^\s]+/i.test(link) && "That doesn't look like a web address.",
+    };
+    setErrors(found);
+    if (Object.values(found).some(Boolean)) return;
     setBusy(true);
     try {
-      await writeNote(postId, { claim_summary: claim.trim(), context: context.trim(), citation_urls: [source.trim()] });
+      await writeNote(postId, { claim_summary: claim.trim(), context: context.trim(), citation_urls: [link] });
       toast({ title: "Note added", description: "It's shown once members in different situations rate it helpful.", tone: "confirmed" });
       onDone();
     } catch (err) {
@@ -129,20 +139,20 @@ function NoteForm({ postId, onDone, onCancel }) {
     }
   };
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4 rounded-card border border-line p-4">
-      <Field label="What's misleading or missing?" htmlFor="note-claim">
+    <form onSubmit={submit} noValidate className="flex flex-col gap-4 rounded-card border border-line p-4">
+      <Field label="What's misleading or missing?" htmlFor="note-claim" error={errors.claim}>
         <Input id="note-claim" value={claim} maxLength={500} dir="auto" onChange={(e) => setClaim(e.target.value)} placeholder="e.g. The bus timetable didn't change" />
       </Field>
-      <Field label="Context" hint="Neutral, in your own words. At least 20 characters." htmlFor="note-context">
+      <Field label="Context" hint="Neutral, in your own words." htmlFor="note-context" error={errors.context}>
         <Textarea id="note-context" value={context} maxLength={2000} dir="auto" onChange={(e) => setContext(e.target.value)} className="min-h-[96px]" />
       </Field>
-      <Field label="Source" htmlFor="note-source">
-        <Input id="note-source" type="url" value={source} onChange={(e) => setSource(e.target.value)} placeholder="https://" />
+      <Field label="Source" hint="A link where others can check it, e.g. ouka.fi" htmlFor="note-source" error={errors.source}>
+        <Input id="note-source" type="url" inputMode="url" value={source} onChange={(e) => setSource(e.target.value)} onBlur={() => setSource(url(source.trim()))} placeholder="https://" />
       </Field>
       <p className="text-caption text-muted">Notes are anonymous.</p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-        <Button type="submit" disabled={busy || !ok}>Add note</Button>
+        <Button type="submit" disabled={busy}>Add note</Button>
       </div>
     </form>
   );

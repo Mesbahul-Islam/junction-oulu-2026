@@ -25,22 +25,22 @@ const FAQS = [
   {
     topic: "Reading",
     q: "What if a story is wrong?",
-    a: "The newsroom corrects it, marks it \"Corrected\" and shows what changed. To report a mistake, use Ask the newsroom. If your correction is accepted, you earn 15 points.",
+    a: "The newsroom corrects it, marks it \"Corrected\" and shows what changed. To report a mistake, use Ask the newsroom. If the newsroom accepts it, you earn 6 points.",
   },
   {
     topic: "Contributing",
     q: "How do I become a contributor?",
-    a: "Write a post in one of your communities, add a photo or send a correction. Once an editor approves it you earn points, and at 10 points you are a Contributor. One approved post is enough.",
+    a: "You earn points in each community for what others verify: reader notes rated helpful, questions and tips the newsroom accepts, photos a moderator approves, and likes. At 15 points in one community you are a Contributor there, and that unlocks partner discounts.",
   },
   {
     topic: "Contributing",
     q: "What are Local guide and Trusted voice?",
-    a: "Local guide needs 60 points and an average rating of 4.0 or more from at least 5 members. Trusted voice isn't reached with points: a community editor gives it based on your record, and your posts then carry a badge.",
+    a: "Local guide needs 50 points in one community and at least 2 helpful notes or accepted questions. Trusted voice isn't reached with points: a community editor gives it based on your record, and your posts then carry a badge.",
   },
   {
     topic: "Contributing",
-    q: "Why wasn't my post approved?",
-    a: "Editors don't approve posts that repeat a rumour, can't be checked or break the community rules. A rejected or removed post takes 5 points off, so a few good posts count for more than many quick ones.",
+    q: "Can I lose points?",
+    a: "Yes. A post a moderator removes takes 15 points off, and a note rated not helpful takes 4. A few careful posts count for more than many quick ones.",
   },
   {
     topic: "Contributing",
@@ -50,7 +50,7 @@ const FAQS = [
   {
     topic: "Rewards",
     q: "How do I use my points?",
-    a: "Your points set your level, and your level sets your discount at each partner. Open Rewards, tap a partner and tap Get code. Show it at the till, or enter it at checkout when you shop online. You get one code per partner each month, valid for 14 days.",
+    a: "Your best community sets your level, and your level sets your discount at each partner. Open Rewards, tap a partner and tap Get code. Show it at the till, or enter it at checkout when you shop online. You get one code per partner each month, valid for 14 days.",
   },
   {
     topic: "Rewards",

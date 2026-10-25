@@ -1,8 +1,8 @@
 """Trusted community voices.
 
 Each member gets a trust score per community, built only from things others verified: notes rated
-helpful by people in different situations, questions and tips the editors accepted, likes from other
-members, ratings that matched a note's final verdict. A high score makes a member *eligible*;
+helpful by people in different situations, questions and tips the editors accepted, photos a moderator
+approved, likes from other members, ratings that matched a note's final verdict. A high score makes a member *eligible*;
 a person (community editor or admin) decides who becomes a trusted voice.
 """
 

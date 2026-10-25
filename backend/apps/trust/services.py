@@ -18,6 +18,7 @@ POINTS = {
     "accepted_contribution": 6,  # question or tip accepted or answered by editors
     "contribution_in_story": 6,  # ...and it became a published story
     "story_candidate": 3,      # a question other members asked too
+    "approved_photo": 1,       # photo a moderator approved: the check is about blurring, not quality
     "like": 1,                 # likes from other members, at most LIKES_PER_POST per post
     "good_rating": 1,          # note ratings that matched the note's final verdict, at most RATING_CAP
     "removed_post": -15,       # post removed by a moderator
@@ -56,6 +57,7 @@ def signals_for(user, community) -> dict:
                 .values("post").annotate(n=Count("user", distinct=True)))
     out["like"] = sum(min(row["n"], LIKES_PER_POST) for row in per_post)
     out["removed_post"] = posts.filter(status="removed").count()
+    out["approved_photo"] = posts.filter(image_status="approved").exclude(status="removed").count()
 
     decided = Rating.objects.filter(rater=user, note__in=Note.objects.filter(note_scope, status__in=["helpful", "not_helpful"]))
     agree = sum(1 for value, verdict in decided.values_list("value", "note__status")

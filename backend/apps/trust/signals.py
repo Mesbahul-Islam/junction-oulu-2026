@@ -32,7 +32,8 @@ def like_changed(sender, instance, **kwargs):
 
 @receiver(post_save, sender="communities.Post")
 def post_changed(sender, instance, **kwargs):
-    if instance.status == "removed" or kwargs.get("update_fields") is None:
+    fields = kwargs.get("update_fields")
+    if instance.status == "removed" or fields is None or "image_status" in fields:
         _refresh(instance.author, instance.community)
 
 

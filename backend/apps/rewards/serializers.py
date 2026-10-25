@@ -1,44 +1,6 @@
 from rest_framework import serializers
 
-from .models import ContributorStats, Level, Perk, Plan, Redemption
-from .services import next_step
-
-
-# --- Incoming statistics (POST /api/rewards/stats/) ---
-
-class ContributionsIn(serializers.Serializer):
-    posts_approved = serializers.IntegerField(min_value=0, default=0)
-    photos_approved = serializers.IntegerField(min_value=0, default=0)
-    corrections_accepted = serializers.IntegerField(min_value=0, default=0)
-    rejected = serializers.IntegerField(min_value=0, default=0)
-
-
-class RatingIn(serializers.Serializer):
-    average = serializers.DecimalField(max_digits=3, decimal_places=2, min_value=0, max_value=5, default=0)
-    count = serializers.IntegerField(min_value=0, default=0)
-
-
-class MemberStatsIn(serializers.Serializer):
-    """One member. Identify them by user_id, email or username."""
-
-    user_id = serializers.IntegerField(required=False)
-    email = serializers.EmailField(required=False)
-    username = serializers.CharField(required=False, max_length=150)
-    period = serializers.CharField(required=False, max_length=20, default="")
-    contributions = ContributionsIn(required=False, default=dict)
-    community_rating = RatingIn(required=False, default=dict)
-    trusted_voice = serializers.BooleanField(required=False, default=False)
-    trust_score = serializers.IntegerField(required=False, default=0)
-
-    def validate(self, data):
-        if not (data.get("user_id") or data.get("email") or data.get("username")):
-            raise serializers.ValidationError("Give user_id, email or username.")
-        return data
-
-
-class IngestSerializer(serializers.Serializer):
-    source = serializers.CharField(required=False, max_length=60, default="")
-    members = MemberStatsIn(many=True, allow_empty=False)
+from .models import Level, Perk, Plan, Redemption
 
 
 # --- What the member sees ---
@@ -98,19 +60,3 @@ class PlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Plan
         fields = ["billing", "price", "renews_on", "cancelled_at"]
-
-
-class StatsSerializer(serializers.ModelSerializer):
-    level_label = serializers.SerializerMethodField()
-    next = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ContributorStats
-        fields = ["points", "level", "level_label", "next", "period", "posts_approved", "photos_approved",
-                  "corrections_accepted", "rejected", "rating_average", "rating_count", "trusted_voice", "updated_at"]
-
-    def get_level_label(self, stats):
-        return Level(stats.level).label
-
-    def get_next(self, stats):
-        return next_step(stats)

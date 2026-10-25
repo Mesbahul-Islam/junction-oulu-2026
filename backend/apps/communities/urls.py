@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from . import views
@@ -17,4 +18,4 @@ router.register("sources", views.SourceFeedViewSet, basename="source-feed")
 router.register("glossary", views.GlossaryTermViewSet, basename="glossary-term")
 router.register("context", views.ContextEntryViewSet, basename="context-entry")
 
-urlpatterns = router.urls
+urlpatterns = [path("photo/<str:token>/", views.post_photo, name="post-photo"), *router.urls]
